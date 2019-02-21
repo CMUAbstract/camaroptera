@@ -9,7 +9,7 @@ OBJECTS = main.o
 
 DEPS += liblora libio libmsp
 
-export MAIN_CLOCK_FREQ = 16000000
+export MAIN_CLOCK_FREQ = 8000000
 
 export CLOCK_FREQ_ACLK = 32768
 export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)

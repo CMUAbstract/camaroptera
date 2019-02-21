@@ -44,38 +44,38 @@ void SendPing() {
 }
 
 void OnTxDone() {
- // PRINTF("$TXS\n");
+ // uart_write("$TXS\n");
   //if(state == 1) sx1276_set_rx(0);
 	P4OUT &= ~BIT1;
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-  PRINTF("Packet Received.\r\n");
+  uart_write("Packet Received.\r\n");
 
-	PRINTF("RSSI: ");
+	uart_write("RSSI: ");
 	sprintf( temp, "%d", rssi);
-	PRINTF(temp);
-  PRINTF("dBm\r\n");
+	uart_write(temp);
+  uart_write("dBm\r\n");
 	
-	PRINTF("SNR: ");
+	uart_write("SNR: ");
 	sprintf( temp, "%d", snr);
-	PRINTF(temp);
-  PRINTF("dB\r\n");
+	uart_write(temp);
+  uart_write("dB\r\n");
 
-	PRINTF("Received -- ");
+	uart_write("Received -- ");
 	sprintf( temp, "%d", size);
-	PRINTF(temp);
-  PRINTF(" -- bytes.\r\n");
+	uart_write(temp);
+  uart_write(" -- bytes.\r\n");
 
-	PRINTF("Packet Contents: ");
-	PRINTF((char *)payload);
-  PRINTF(" .\r\n");
+	uart_write("Packet Contents: ");
+	uart_write((char *)payload);
+  uart_write(" .\r\n");
 
   //if(state == 1) SendPing();
 }
 
 void OnRxError() {
-  PRINTF("RX Error Detected.\r\n");
+  uart_write("RX Error Detected.\r\n");
 }
 
 void rf_init_lora() {
@@ -126,9 +126,9 @@ int main(void) {
 	P4DIR |= BIT1; 	 // To demarcate sections of the program
 	P4OUT &= ~BIT1;
 
-	INIT_CONSOLE();
+	uart_init();
 
-  PRINTF("Starting the receiver.\r\n");
+  uart_write("Starting the receiver.\r\n");
   spi_init();
 
 	//P4OUT |= BIT1;
