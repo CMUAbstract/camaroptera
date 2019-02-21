@@ -1,0 +1,12 @@
+[submodule "tools/maker"]
+	path = tools/maker
+	url = git@github.com:CMUAbstract/maker.git
+[submodule "ext/liblora"]
+	path = ext/liblora
+	url = git@github.com:CMUAbstract/liblora.git
+[submodule "ext/libio"]
+	path = ext/libio
+	url = git@github.com:CMUAbstract/libio.git
+[submodule "ext/libmsp"]
+	path = ext/libmsp
+	url = git@github.com:CMUAbstract/libmsp.git
