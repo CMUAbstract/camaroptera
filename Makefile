@@ -5,7 +5,7 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o
+OBJECTS = transmit.o
 
 DEPS += liblora libio libmsp
 

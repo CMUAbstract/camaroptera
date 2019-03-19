@@ -9,8 +9,6 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
-#include <libio/console.h>
-
 #define RF_FREQUENCY   915000000 // Hz
 
 #define FSK_FDEV                          25e3      // Hz
@@ -44,7 +42,7 @@ void SendPing() {
 }
 
 void OnTxDone() {
- // uart_write("$TXS\n");
+	//uart_write("Packet Sent.\r\n");
   //if(state == 1) sx1276_set_rx(0);
 	P4OUT &= ~BIT1;
 }
@@ -70,12 +68,11 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
 	uart_write("Packet Contents: ");
 	uart_write((char *)payload);
   uart_write(" .\r\n");
-
   //if(state == 1) SendPing();
 }
 
 void OnRxError() {
-  uart_write("RX Error Detected.\r\n");
+  uart_write("$RXE\n");
 }
 
 void rf_init_lora() {
@@ -86,21 +83,13 @@ void rf_init_lora() {
   radio_events.RxError = OnRxError;
 
   sx1276_init(radio_events);
-	P4OUT |= BIT1;
   sx1276_set_channel(RF_FREQUENCY);
 
-	P4OUT &= ~BIT1;
-	__delay_cycles(100);
-	P4OUT |= BIT1;
 
   sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
-
-	P4OUT &= ~BIT1;
-	__delay_cycles(100);
-	P4OUT |= BIT1;
+                                  true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
 
   sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
@@ -123,27 +112,56 @@ int main(void) {
 	P3SEL1 |= BIT4;
 	P3DIR |= BIT4;
 
+	P4OUT &= ~BIT1;
 	P4DIR |= BIT1; 	 // To demarcate sections of the program
-	P4OUT &= ~BIT1;
 
-	uart_init();
+	P6OUT &= ~BIT1;
+	P6DIR |= BIT1;
 
-  uart_write("Starting the receiver.\r\n");
-  spi_init();
+  //uart_init();
+  
+	//uart_write("Starting the transmitter.\r\n");
 
-	//P4OUT |= BIT1;
-	rf_init_lora();
-	P4OUT &= ~BIT1;
-
+	int i;
+	
 	buffer[0] = 'H';
+	buffer[1] = 'e';
+	buffer[2] = 'l';
+	buffer[3] = 'l';
+	buffer[4] = 'o';
+	//buffer[5] = '0';
 
-	P4OUT |= BIT1;
-	sx1276_send( buffer, 1 );
-	P4OUT &= ~BIT1;
+	for( i = 5; i < BUFFER_SIZE; i++ ){
+		buffer[i] = 48 + (i-5)%10;
+		}
 
-	while(1){
-		irq_flag = 0;
+	__delay_cycles(8000);
+
+	for( i = 0; i < 1; i++ ){
+		P8OUT |= BIT1; 
+
+		TA0CCTL0 = CCIE;
+		TA0CCR0 = 50000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__2;
+	
+		//P8OUT ^= BIT1;
+		TA0CTL |= TAIE;
+	
+		__bis_SR_register(LPM3_bits+GIE);
+
+		//P8OUT ^= BIT1;
+
+		P6OUT |= BIT1;
+		spi_init();
+
+		P4OUT |= BIT1;
+		rf_init_lora();
+		P4OUT &= ~BIT1;
 		
+		P4OUT |= BIT1;
+		sx1276_send( buffer, 1 );
+		P4OUT &= ~BIT1;
+
 		__bis_SR_register(LPM4_bits+GIE);
 
 		while(irq_flag != 1);
@@ -152,8 +170,33 @@ int main(void) {
 		sx1276_on_dio0irq();
 		P4OUT &= ~BIT1;
 
+		irq_flag = 0;
+		//uint8_t paConfig, paDac;
+		//paConfig = sx1276_read(REG_PACONFIG);
+		//paDac =    sx1276_read(REG_PADAC);
+		//uart_printhex32(paConfig);
+		//uart_printhex32(paDac);
+	
+		//__delay_cycles(4000000); 	// 500ms
+		P8OUT &= ~BIT1;
+		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P6OUT &= ~BIT1;
+		//__bis_SR_register(LPM4_bits);
+
 	}
 
-	P8OUT &= ~BIT1;
 
 }
+
+void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_isr (void) {
+	TA0CCTL0 &= ~CCIE;
+	TA0CTL &= ~TAIE;
+	TA0CTL &= ~TAIFG;
+	TA0CTL |= TACLR + MC__STOP;
+//	P4OUT |= BIT1;
+	__bic_SR_register_on_exit(LPM3_bits+GIE);
+
+}
+
