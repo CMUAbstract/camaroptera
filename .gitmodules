@@ -10,3 +10,6 @@
 [submodule "ext/libmsp"]
 	path = ext/libmsp
 	url = git@github.com:CMUAbstract/libmsp.git
+[submodule "ext/libov7670"]
+	path = ext/libov7670
+	url = git@github.com:CMUAbstract/libov7670.git
