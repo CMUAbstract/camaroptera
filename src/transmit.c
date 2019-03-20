@@ -27,7 +27,7 @@
 #define LORA_IQ_INVERSION_ON                        false
 
 #define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER                   7        // dBm
+#define TX_OUTPUT_POWER                   17        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
 
 uint8_t buffer[BUFFER_SIZE];
@@ -137,12 +137,12 @@ int main(void) {
 
 	__delay_cycles(8000);
 
-	for( i = 0; i < 1; i++ ){
+	for( i = 0; i < 1000; i++ ){
 		P8OUT |= BIT1; 
 
 		TA0CCTL0 = CCIE;
-		TA0CCR0 = 50000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__2;
+		TA0CCR0 = 6500;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
 	
 		//P8OUT ^= BIT1;
 		TA0CTL |= TAIE;
@@ -159,7 +159,8 @@ int main(void) {
 		P4OUT &= ~BIT1;
 		
 		P4OUT |= BIT1;
-		sx1276_send( buffer, 1 );
+		//sx1276_send( buffer, (20 + i) % 255 );
+		sx1276_send( buffer, 20 );
 		P4OUT &= ~BIT1;
 
 		__bis_SR_register(LPM4_bits+GIE);

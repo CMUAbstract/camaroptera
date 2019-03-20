@@ -123,27 +123,64 @@ int main(void) {
 	P3SEL1 |= BIT4;
 	P3DIR |= BIT4;
 
+	P4OUT &= ~BIT1;
 	P4DIR |= BIT1; 	 // To demarcate sections of the program
-	P4OUT &= ~BIT1;
 
-	uart_init();
+	P6OUT &= ~BIT1;
+	P6DIR |= BIT1;
 
-  uart_write("Starting the receiver.\r\n");
-  spi_init();
+  //uart_init();
+  
+	//uart_write("Starting the transmitter.\r\n");
 
-	//P4OUT |= BIT1;
-	rf_init_lora();
-	P4OUT &= ~BIT1;
+	//================== Camera Code begins here ==================
 
+
+
+	//================== Camera Code ends here ==================
+
+	int i;
+	
 	buffer[0] = 'H';
+	buffer[1] = 'e';
+	buffer[2] = 'l';
+	buffer[3] = 'l';
+	buffer[4] = 'o';
+	//buffer[5] = '0';
 
-	P4OUT |= BIT1;
-	sx1276_send( buffer, 1 );
-	P4OUT &= ~BIT1;
+	for( i = 5; i < BUFFER_SIZE; i++ ){
+		buffer[i] = 48 + (i-5)%10;
+		}
 
-	while(1){
-		irq_flag = 0;
+	__delay_cycles(8000);
+
+	//================== Radio Transmission begins here ==================
+	
+	for( i = 0; i < 1; i++ ){
+		P8OUT |= BIT1; 
+
+		TA0CCTL0 = CCIE;
+		TA0CCR0 = 50000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__2;
+	
+		//P8OUT ^= BIT1;
+		TA0CTL |= TAIE;
+	
+		__bis_SR_register(LPM3_bits+GIE);
+
+		//P8OUT ^= BIT1;
+
+		P6OUT |= BIT1;
+		spi_init();
+
+		P4OUT |= BIT1;
+		rf_init_lora();
+		P4OUT &= ~BIT1;
 		
+		P4OUT |= BIT1;
+		sx1276_send( buffer, 1 );
+		P4OUT &= ~BIT1;
+
 		__bis_SR_register(LPM4_bits+GIE);
 
 		while(irq_flag != 1);
@@ -152,8 +189,30 @@ int main(void) {
 		sx1276_on_dio0irq();
 		P4OUT &= ~BIT1;
 
-	}
+		irq_flag = 0;
+	
+		P8OUT &= ~BIT1;
+		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+		P6OUT &= ~BIT1;
 
-	P8OUT &= ~BIT1;
+	}
+	
+	//================== Radio Transmission ends here ==================
+	
+	__bis_SR_register(LPM4_bits);
+
 
 }
+
+void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_isr (void) {
+	TA0CCTL0 &= ~CCIE;
+	TA0CTL &= ~TAIE;
+	TA0CTL &= ~TAIFG;
+	TA0CTL |= TACLR + MC__STOP;
+//	P4OUT |= BIT1;
+	__bic_SR_register_on_exit(LPM3_bits+GIE);
+
+}
+
