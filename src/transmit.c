@@ -9,6 +9,8 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
+#include <libmsp/mem.h>
+
 #define RF_FREQUENCY   915000000 // Hz
 
 #define FSK_FDEV                          25e3      // Hz
@@ -33,6 +35,8 @@
 uint8_t buffer[BUFFER_SIZE];
 char temp[30];
 
+__nv uint8_t packet_track = '0'; 
+
 static radio_events_t radio_events;
 
 int state = 0;
@@ -44,6 +48,7 @@ void SendPing() {
 void OnTxDone() {
 	//uart_write("Packet Sent.\r\n");
   //if(state == 1) sx1276_set_rx(0);
+	packet_track =  48 + (packet_track - 47)%10;
 	P4OUT &= ~BIT1;
 }
 
@@ -136,7 +141,7 @@ int main(void) {
 	buffer[4] = 'o';
 	//buffer[5] = '0';
 
-	for( i = 5; i < BUFFER_SIZE; i++ ){
+	for( i = 6; i < BUFFER_SIZE; i++ ){
 		buffer[i] = 48 + (i-5)%10;
 		}
 
@@ -168,7 +173,8 @@ int main(void) {
 		
 		P4OUT |= BIT1;
 		//sx1276_send( buffer, (20 + i) % 255 );
-		sx1276_send( buffer, 20 );
+		buffer[5] = packet_track;
+		sx1276_send( buffer, 6 );
 		P4OUT &= ~BIT1;
 
 		__bis_SR_register(LPM4_bits+GIE);

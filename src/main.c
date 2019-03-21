@@ -8,6 +8,7 @@
 #include <liblora/sx1276.h>
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
+#include <libmsp/mem.h>
 
 #include <libov7670/ov7670.h>
 
@@ -37,6 +38,11 @@
 uint8_t buffer[BUFFER_SIZE];
 char temp[30];
 
+extern uint8_t frame[];
+
+__nv uint8_t packet_track = 0;
+__nv uint16_t frame_track = 0;
+
 static radio_events_t radio_events;
 
 int state = 0;
@@ -48,7 +54,9 @@ void SendPing() {
 void OnTxDone() {
  // uart_write("$TXS\n");
   //if(state == 1) sx1276_set_rx(0);
-	P4OUT &= ~BIT1;
+	P8OUT &= ~BIT2;
+	packet_track ++;
+	frame_track += 20;
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
@@ -88,21 +96,12 @@ void rf_init_lora() {
   radio_events.RxError = OnRxError;
 
   sx1276_init(radio_events);
-	P4OUT |= BIT1;
   sx1276_set_channel(RF_FREQUENCY);
-
-	P4OUT &= ~BIT1;
-	__delay_cycles(100);
-	P4OUT |= BIT1;
 
   sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
-
-	P4OUT &= ~BIT1;
-	__delay_cycles(100);
-	P4OUT |= BIT1;
 
   sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
@@ -115,21 +114,17 @@ int main(void) {
  
 	PM5CTL0 &= ~LOCKLPM5;
 
-	// Indicate start of program
-	P8DIR |= BIT1;
-	P8OUT |= BIT1; 
+	P8DIR |= BIT1 + BIT2;
+	P8OUT |= BIT1;			// To demarcate start and end of individual runs of the program
+	P8OUT &= ~BIT1; 	  // To demarcate smaller sections of the program
 
 	mcu_init();
 
-	P3SEL0 &= ~BIT4;
-	P3SEL1 |= BIT4;
-	P3DIR |= BIT4;
-
-	P4OUT &= ~BIT1;
-	P4DIR |= BIT1; 	 // To demarcate sections of the program
-
-	P6OUT &= ~BIT1;
+	P6OUT &= ~BIT1;			// Power to Camera
 	P6DIR |= BIT1;
+
+	P4OUT &= ~BIT7;			// Power to Radio
+	P4DIR |= BIT7;
 
   //uart_init();
   
@@ -137,27 +132,30 @@ int main(void) {
 
 	//================== Camera Code begins here ==================
 
-	ov7670_init();
+	P6OUT |= BIT1;
+
+	uint16_t nb = ov7670_get_photo();
+
+	P6OUT &= ~BIT1;
 
 	//================== Camera Code ends here ==================
 
-	int i;
-	
-	buffer[0] = 'H';
-	buffer[1] = 'e';
-	buffer[2] = 'l';
-	buffer[3] = 'l';
-	buffer[4] = 'o';
-	//buffer[5] = '0';
+	//================== Radio Transmission begins here ==================
 
-	for( i = 5; i < BUFFER_SIZE; i++ ){
-		buffer[i] = 48 + (i-5)%10;
+	int i;
+	uint16_t packet_count; 
+
+	packet_count = nb/20;
+	
+	if(nb % 20 != 0)
+		packet_count ++;
+
+	buffer[0] = packet_track;
+
+	for( i = 1; i < 21; i++ ){
+			buffer[i] = frame[frame_track + i - 1];
 		}
 
-	__delay_cycles(8000);
-
-	//================== Radio Transmission begins here ==================
-	
 	for( i = 0; i < 1; i++ ){
 		P8OUT |= BIT1; 
 
@@ -165,31 +163,28 @@ int main(void) {
 		TA0CCR0 = 50000;
 		TA0CTL = TASSEL__ACLK | MC__UP | ID__2;
 	
-		//P8OUT ^= BIT1;
 		TA0CTL |= TAIE;
 	
 		__bis_SR_register(LPM3_bits+GIE);
 
-		//P8OUT ^= BIT1;
-
-		P6OUT |= BIT1;
+		P4OUT |= BIT7;
 		spi_init();
 
-		P4OUT |= BIT1;
+		P8OUT |= BIT2;
 		rf_init_lora();
-		P4OUT &= ~BIT1;
+		P8OUT &= ~BIT2;
 		
-		P4OUT |= BIT1;
-		sx1276_send( buffer, 1 );
-		P4OUT &= ~BIT1;
+		P8OUT |= BIT2;
+		sx1276_send( buffer, 21 );
+		P8OUT &= ~BIT2;
 
 		__bis_SR_register(LPM4_bits+GIE);
 
 		while(irq_flag != 1);
 
-		P4OUT |= BIT1;
+		P8OUT |= BIT2;
 		sx1276_on_dio0irq();
-		P4OUT &= ~BIT1;
+		P8OUT &= ~BIT2;
 
 		irq_flag = 0;
 	
@@ -197,7 +192,7 @@ int main(void) {
 		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-		P6OUT &= ~BIT1;
+		P4OUT &= ~BIT7;
 
 	}
 	
@@ -213,7 +208,6 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_isr (void) {
 	TA0CTL &= ~TAIE;
 	TA0CTL &= ~TAIFG;
 	TA0CTL |= TACLR + MC__STOP;
-//	P4OUT |= BIT1;
 	__bic_SR_register_on_exit(LPM3_bits+GIE);
 
 }
