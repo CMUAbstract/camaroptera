@@ -9,6 +9,8 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
+#include <libov7670/ov7670.h>
+
 #include <libio/console.h>
 
 #define RF_FREQUENCY   915000000 // Hz
@@ -135,7 +137,7 @@ int main(void) {
 
 	//================== Camera Code begins here ==================
 
-
+	ov7670_init();
 
 	//================== Camera Code ends here ==================
 

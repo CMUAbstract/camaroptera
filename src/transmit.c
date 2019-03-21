@@ -115,8 +115,13 @@ int main(void) {
 	P4OUT &= ~BIT1;
 	P4DIR |= BIT1; 	 // To demarcate sections of the program
 
-	P6OUT &= ~BIT1;
+	// Initializing the SIP switch control pins to control power
+
+	P6OUT &= ~BIT1;			// Power to Camera
 	P6DIR |= BIT1;
+
+	P4OUT &= ~BIT7;			// Power to Radio
+	P4DIR |= BIT7;
 
   //uart_init();
   
@@ -136,6 +141,7 @@ int main(void) {
 		}
 
 	__delay_cycles(8000);
+		P4OUT |= BIT7;
 
 	for( i = 0; i < 1000; i++ ){
 		P8OUT |= BIT1; 
@@ -150,8 +156,10 @@ int main(void) {
 		__bis_SR_register(LPM3_bits+GIE);
 
 		//P8OUT ^= BIT1;
-
+		
 		P6OUT |= BIT1;
+
+		P4OUT |= BIT7;
 		spi_init();
 
 		P4OUT |= BIT1;

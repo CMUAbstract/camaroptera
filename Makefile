@@ -5,9 +5,9 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = transmit.o
+OBJECTS = main.o
 
-DEPS += liblora libio libmsp
+DEPS += liblora libio libmsp libov7670
 
 export MAIN_CLOCK_FREQ = 8000000
 
@@ -31,10 +31,14 @@ export LIBMSP_UART_BAUDRATE = 115200
 export LIBMSP_UART_CLOCK = SMCLK
 endif
 
+CFLAGS += -mlarge
+LFLAGS += -mlarge
+
 ifneq ($(INTERMITTENT),)
 override CFLAGS += -DCONFIG_INTERMITTENT=1
 endif
 
 export CFLAGS
+export LFLAGS
 include tools/maker/Makefile
 
