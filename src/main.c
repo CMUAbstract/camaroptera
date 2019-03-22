@@ -35,13 +35,18 @@
 #define TX_OUTPUT_POWER                   7        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
 
+// #define enable_debug
+
 uint8_t buffer[BUFFER_SIZE];
 char temp[30];
 
 extern uint8_t frame[];
 
-__nv uint8_t packet_track = 0;
+__nv uint8_t tx_packet_index = 0;
+__nv uint16_t sent_packet_count = 0;
 __nv uint16_t frame_track = 0;
+__nv uint8_t image_capt_not_sent = 0;
+__nv uint16_t nb = 0;
 
 static radio_events_t radio_events;
 
@@ -55,7 +60,8 @@ void OnTxDone() {
  // uart_write("$TXS\n");
   //if(state == 1) sx1276_set_rx(0);
 	P8OUT &= ~BIT2;
-	packet_track ++;
+	tx_packet_index ++;
+	sent_packet_count ++;
 	frame_track += 20;
 }
 
@@ -110,13 +116,41 @@ void rf_init_lora() {
 
 }
 
+void process(){
+	
+	int i, j;
+	uint16_t total;
+	uint8_t average;
+
+	for( i = 0; i < nb; i+=2 ){
+		frame[i/2] = frame[i];
+		}
+
+	nb /= 2;
+
+	for( i = 0; i < 120; i+=2 ){
+		for( j = 0; j < 160; j+=2 ){
+				total = frame[i*160+j] +frame[i*160+(j+1)] + frame[(i+1)*160+j] +	frame[(i+1)*160+(j+1)];
+				average = total/4;
+				frame[((i*160)/4) + j/2] = average;
+			}
+		}
+
+	nb /= 4;
+
+}
+
 int main(void) {
- 
+	
+	int i, j;
+	uint16_t packet_count, sent_history; 
+	char temp[100];
+
 	PM5CTL0 &= ~LOCKLPM5;
 
 	P8DIR |= BIT1 + BIT2;
 	P8OUT |= BIT1;			// To demarcate start and end of individual runs of the program
-	P8OUT &= ~BIT1; 	  // To demarcate smaller sections of the program
+	P8OUT &= ~BIT2; 	  // To demarcate smaller sections of the program
 
 	mcu_init();
 
@@ -126,45 +160,90 @@ int main(void) {
 	P4OUT &= ~BIT7;			// Power to Radio
 	P4DIR |= BIT7;
 
-  //uart_init();
-  
-	//uart_write("Starting the transmitter.\r\n");
+#ifdef enable_debug
+		uart_init();
+		uart_write("Starting the transmitter.\r\n");
+#endif
 
 	//================== Camera Code begins here ==================
 
-	P6OUT |= BIT1;
 
-	uint16_t nb = ov7670_get_photo();
+	if(image_capt_not_sent == 0){
 
-	P6OUT &= ~BIT1;
+#ifdef enable_debug
+			uart_write("Capturing a photo.\r\n");
+#endif
+
+			P6OUT |= BIT1;
+			P8OUT |= BIT2;
+			nb = ov7670_get_photo();
+			P8OUT &= ~BIT2;
+			P6OUT &= ~BIT1;
+
+#ifdef enable_debug
+			uart_write("\r\nStart frame\r\n");
+			for( i = 0 ; i < nb ; i++ ){
+				uart_printhex8(frame[i]);
+			}
+			uart_write("\r\nEnd frame\r\n");
+#endif
+
+			process();
+			image_capt_not_sent = 1;
+	}
+	else{
+#ifdef enable_debug
+			uart_write("Already have a stored photo.\r\n");
+#endif
+	}
+
+#ifdef enable_debug
+	sprintf(temp, "It's a photo of %u bytes.\r\n", nb);
+	uart_write(temp);
+#endif
+/*
+	for( i = 0 ; i < nb ; i++ ){
+		uart_printhex8(frame[i]);
+		}
+
+	uart_write("\r\nEnd frame\r\n");
+*/
 
 	//================== Camera Code ends here ==================
 
+		TA0CCTL0 = CCIE;
+		TA0CCR0 = 20000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+
+		TA0CTL |= TAIE;
+
+		__bis_SR_register(LPM3_bits+GIE);
+
 	//================== Radio Transmission begins here ==================
 
-	int i;
-	uint16_t packet_count; 
 
 	packet_count = nb/20;
 	
 	if(nb % 20 != 0)
 		packet_count ++;
 
-	buffer[0] = packet_track;
+	sent_history = sent_packet_count;
 
-	for( i = 1; i < 21; i++ ){
-			buffer[i] = frame[frame_track + i - 1];
-		}
-
-	for( i = 0; i < 1; i++ ){
+	for( i = 0; i < (packet_count - sent_history); i++ ){
 		P8OUT |= BIT1; 
 
+		buffer[0] = tx_packet_index;
+
+		for( j = 1; j < 21; j++ ){
+			buffer[j] = frame[frame_track + j - 1];
+		}
+
 		TA0CCTL0 = CCIE;
-		TA0CCR0 = 50000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__2;
-	
+		TA0CCR0 = 10000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+
 		TA0CTL |= TAIE;
-	
+
 		__bis_SR_register(LPM3_bits+GIE);
 
 		P4OUT |= BIT7;
@@ -173,7 +252,7 @@ int main(void) {
 		P8OUT |= BIT2;
 		rf_init_lora();
 		P8OUT &= ~BIT2;
-		
+
 		P8OUT |= BIT2;
 		sx1276_send( buffer, 21 );
 		P8OUT &= ~BIT2;
@@ -187,7 +266,12 @@ int main(void) {
 		P8OUT &= ~BIT2;
 
 		irq_flag = 0;
-	
+
+#ifdef enable_debug
+		sprintf(temp, "Sent packet (ID=%d). Frame at %d. Sent %d till now. %d more to go.\r\n",	tx_packet_index, frame_track, sent_packet_count, packet_count	- sent_packet_count);
+		uart_write(temp);
+#endif
+
 		P8OUT &= ~BIT1;
 		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
@@ -195,7 +279,17 @@ int main(void) {
 		P4OUT &= ~BIT7;
 
 	}
-	
+
+#ifdef enable_debug
+	uart_write("Sent full image\r\n");
+#endif
+
+	tx_packet_index = 0;
+	sent_packet_count = 0;
+	frame_track = 0;
+	image_capt_not_sent = 0;
+	nb = 0;
+
 	//================== Radio Transmission ends here ==================
 	
 	__bis_SR_register(LPM4_bits);
