@@ -29,7 +29,7 @@
 #define LORA_IQ_INVERSION_ON                        false
 
 #define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER                   17        // dBm
+#define TX_OUTPUT_POWER                   14        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
 
 uint8_t buffer[BUFFER_SIZE];
@@ -95,12 +95,22 @@ void rf_init_lora() {
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
-
+/*
+ sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, bw,
+																	sf, LORA_CODINGRATE,
+                                  LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                  true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
+*/
   sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
                                   LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-
+  /*
+	sx1276_set_rxconfig(MODEM_LORA, bw, sf,
+                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
+                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
+*/
 }
 
 int main(void) {
@@ -117,8 +127,8 @@ int main(void) {
 	P3SEL1 |= BIT4;
 	P3DIR |= BIT4;
 
-	P4OUT &= ~BIT1;
-	P4DIR |= BIT1; 	 // To demarcate sections of the program
+	P8OUT &= ~BIT2;
+	P8DIR |= BIT2; 	 // To demarcate sections of the program
 
 	// Initializing the SIP switch control pins to control power
 
@@ -132,27 +142,28 @@ int main(void) {
   
 	//uart_write("Starting the transmitter.\r\n");
 
-	int i;
+	uint16_t i;
 	
-	buffer[0] = 'H';
+	buffer[0] = 0x01;
 	buffer[1] = 'e';
 	buffer[2] = 'l';
 	buffer[3] = 'l';
 	buffer[4] = 'o';
 	//buffer[5] = '0';
 
-	for( i = 6; i < BUFFER_SIZE; i++ ){
+	for( i = 5; i < BUFFER_SIZE; i++ ){
 		buffer[i] = 48 + (i-5)%10;
 		}
 
 	__delay_cycles(8000);
-		P4OUT |= BIT7;
+		//P4OUT |= BIT7;
 
 	for( i = 0; i < 1000; i++ ){
+	//	for( j=7; j<13; j++){
 		P8OUT |= BIT1; 
 
 		TA0CCTL0 = CCIE;
-		TA0CCR0 = 6500;
+		TA0CCR0 = 50000;
 		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
 	
 		//P8OUT ^= BIT1;
@@ -162,28 +173,29 @@ int main(void) {
 
 		//P8OUT ^= BIT1;
 		
-		P6OUT |= BIT1;
+		//P6OUT |= BIT1;
 
 		P4OUT |= BIT7;
 		spi_init();
 
-		P4OUT |= BIT1;
+		P8OUT |= BIT2;
 		rf_init_lora();
-		P4OUT &= ~BIT1;
+		P8OUT &= ~BIT2;
 		
-		P4OUT |= BIT1;
+		P8OUT |= BIT2;
+		buffer[1] = i;
 		//sx1276_send( buffer, (20 + i) % 255 );
-		buffer[5] = packet_track;
-		sx1276_send( buffer, 6 );
-		P4OUT &= ~BIT1;
+		//buffer[5] = packet_track;
+		sx1276_send( buffer, 255 );
+		P8OUT &= ~BIT2;
 
 		__bis_SR_register(LPM4_bits+GIE);
 
 		while(irq_flag != 1);
 
-		P4OUT |= BIT1;
+		P8OUT |= BIT2;
 		sx1276_on_dio0irq();
-		P4OUT &= ~BIT1;
+		P8OUT &= ~BIT2;
 
 		irq_flag = 0;
 		//uint8_t paConfig, paDac;
@@ -197,9 +209,10 @@ int main(void) {
 		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-		P6OUT &= ~BIT1;
+		//P6OUT &= ~BIT1;
+		P4OUT &= ~BIT7;
 		//__bis_SR_register(LPM4_bits);
-
+	//}
 	}
 
 

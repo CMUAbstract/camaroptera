@@ -32,8 +32,12 @@
 #define LORA_IQ_INVERSION_ON                        false
 
 #define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER                   7        // dBm
+#define TX_OUTPUT_POWER										17        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
+
+#define DEV_ID														0x01
+
+#define PACKET_SIZE												255
 
 // #define enable_debug
 
@@ -143,7 +147,7 @@ void process(){
 int main(void) {
 	
 	int i, j;
-	uint16_t packet_count, sent_history; 
+	uint16_t packet_count, sent_history, last_packet_size; 
 	char temp[100];
 
 	PM5CTL0 &= ~LOCKLPM5;
@@ -164,6 +168,14 @@ int main(void) {
 		uart_init();
 		uart_write("Starting the transmitter.\r\n");
 #endif
+		
+		TA0CCTL0 = CCIE;
+		TA0CCR0 = 50000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+
+		TA0CTL |= TAIE;
+
+		__bis_SR_register(LPM3_bits+GIE);
 
 	//================== Camera Code begins here ==================
 
@@ -222,24 +234,36 @@ int main(void) {
 	//================== Radio Transmission begins here ==================
 
 
-	packet_count = nb/20;
-	
-	if(nb % 20 != 0)
+	packet_count = nb/(PACKET_SIZE-2);
+
+	last_packet_size = nb - packet_count*(PACKET_SIZE - 2) + 2;
+
+	if(nb % (PACKET_SIZE - 2) != 0){
 		packet_count ++;
+	}
+
 
 	sent_history = sent_packet_count;
 
-	for( i = 0; i < (packet_count - sent_history); i++ ){
+	for( i = sent_history; i < packet_count; i++ ){
 		P8OUT |= BIT1; 
 
-		buffer[0] = tx_packet_index;
+		buffer[0] = DEV_ID;
+		buffer[1] = tx_packet_index;
 
-		for( j = 1; j < 21; j++ ){
-			buffer[j] = frame[frame_track + j - 1];
+		if( i == packet_count - 1){
+			for( j = 2; j < last_packet_size; j++ ){
+				buffer[j] = frame[frame_track + j - 1];
+			}
+		}
+		else{
+			for( j = 2; j < PACKET_SIZE; j++ ){
+				buffer[j] = frame[frame_track + j - 1];
+			}
 		}
 
 		TA0CCTL0 = CCIE;
-		TA0CCR0 = 10000;
+		TA0CCR0 = 40000;
 		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
 
 		TA0CTL |= TAIE;
@@ -253,9 +277,17 @@ int main(void) {
 		rf_init_lora();
 		P8OUT &= ~BIT2;
 
-		P8OUT |= BIT2;
-		sx1276_send( buffer, 21 );
-		P8OUT &= ~BIT2;
+
+		if( i == packet_count - 1){
+			P8OUT |= BIT2;
+			sx1276_send( buffer,  last_packet_size);
+			P8OUT &= ~BIT2;
+		}
+		else{
+			P8OUT |= BIT2;
+			sx1276_send( buffer, PACKET_SIZE );
+			P8OUT &= ~BIT2;
+		}
 
 		__bis_SR_register(LPM4_bits+GIE);
 
