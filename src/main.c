@@ -48,9 +48,9 @@ extern uint8_t frame[];
 
 __nv uint8_t tx_packet_index = 0;
 __nv uint16_t sent_packet_count = 0;
-__nv uint16_t frame_track = 0;
-__nv uint8_t image_capt_not_sent = 0;
 __nv uint16_t nb = 0;
+__nv uint8_t image_capt_not_sent = 0;
+__nv uint16_t frame_track = 0;
 
 static radio_events_t radio_events;
 
@@ -66,7 +66,8 @@ void OnTxDone() {
 	P8OUT &= ~BIT2;
 	tx_packet_index ++;
 	sent_packet_count ++;
-	frame_track += 20;
+	if(sent_packet_count < 19)
+		frame_track += 253;
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
@@ -253,12 +254,12 @@ int main(void) {
 
 		if( i == packet_count - 1){
 			for( j = 2; j < last_packet_size; j++ ){
-				buffer[j] = frame[frame_track + j - 1];
+				buffer[j] = frame[frame_track + j - 2];
 			}
 		}
 		else{
 			for( j = 2; j < PACKET_SIZE; j++ ){
-				buffer[j] = frame[frame_track + j - 1];
+				buffer[j] = frame[frame_track + j - 2];
 			}
 		}
 
