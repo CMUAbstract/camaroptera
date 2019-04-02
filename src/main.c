@@ -123,9 +123,9 @@ void rf_init_lora() {
 
 void process(){
 	
-	int i, j;
+	uint16_t i, j;
 	uint16_t total;
-	uint8_t average;
+	uint16_t average;
 
 	for( i = 0; i < nb; i+=2 ){
 		frame[i/2] = frame[i];
@@ -137,7 +137,7 @@ void process(){
 		for( j = 0; j < 160; j+=2 ){
 				total = frame[i*160+j] +frame[i*160+(j+1)] + frame[(i+1)*160+j] +	frame[(i+1)*160+(j+1)];
 				average = total/4;
-				frame[((i*160)/4) + j/2] = average;
+				frame[((i*160)/4) + j/2] = (uint8_t)average;
 			}
 		}
 
@@ -169,7 +169,13 @@ int main(void) {
 		uart_init();
 		uart_write("Starting the transmitter.\r\n");
 #endif
-		
+	while(1){
+
+	//================== Camera Code begins here ==================
+
+
+	if(image_capt_not_sent == 0){
+
 		TA0CCTL0 = CCIE;
 		TA0CCR0 = 50000;
 		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
@@ -177,11 +183,6 @@ int main(void) {
 		TA0CTL |= TAIE;
 
 		__bis_SR_register(LPM3_bits+GIE);
-
-	//================== Camera Code begins here ==================
-
-
-	if(image_capt_not_sent == 0){
 
 #ifdef enable_debug
 			uart_write("Capturing a photo.\r\n");
@@ -203,6 +204,23 @@ int main(void) {
 
 			process();
 			image_capt_not_sent = 1;
+
+#ifdef enable_debug
+			uart_write("\r\nStart frame\r\n");
+			for( i = 0 ; i < nb ; i++ ){
+				uart_printhex8(frame[i]);
+			}
+			uart_write("\r\nEnd frame\r\n");
+#endif
+
+		TA0CCTL0 = CCIE;
+		TA0CCR0 = 20000;
+		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+
+		TA0CTL |= TAIE;
+
+		__bis_SR_register(LPM3_bits+GIE);
+
 	}
 	else{
 #ifdef enable_debug
@@ -224,13 +242,6 @@ int main(void) {
 
 	//================== Camera Code ends here ==================
 
-		TA0CCTL0 = CCIE;
-		TA0CCR0 = 20000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
-
-		TA0CTL |= TAIE;
-
-		__bis_SR_register(LPM3_bits+GIE);
 
 	//================== Radio Transmission begins here ==================
 
@@ -325,7 +336,8 @@ int main(void) {
 
 	//================== Radio Transmission ends here ==================
 	
-	__bis_SR_register(LPM4_bits);
+	}
+//	__bis_SR_register(LPM4_bits);
 
 
 }
