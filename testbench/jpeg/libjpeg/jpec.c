@@ -20,14 +20,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <libio/console.h>
 
 #include "jpec.h"
 
-#define JPEG_ENC_DEF_QUAL   93 /* default quality factor */
-#define JPEC_ENC_HEAD_SIZ  330 /* header typical size in bytes */
-#define JPEC_ENC_BLOCK_SIZ  30 /* 8x8 entropy coded block typical size in bytes */
-
-
+/** Standard JPEG quantizing table */
 const uint8_t jpec_qzr[64] = {
   16, 11, 10, 16, 24, 40, 51, 61,
   12, 12, 14, 19, 26, 58, 60, 55,
@@ -39,11 +36,13 @@ const uint8_t jpec_qzr[64] = {
   72, 92, 95, 98,112,100,103, 99
 };
 
+/** DCT coefficients */
 const float jpec_dct[7] = {
   0.49039, 0.46194, 0.41573, 0.35355,
   0.27779, 0.19134, 0.09755
 };
 
+/** Zig-zag order */
 const int jpec_zz[64] = {
    0,  1,  8, 16,  9,  2,  3, 10,
   17, 24, 32, 25, 18, 11,  4,  5,
@@ -55,10 +54,14 @@ const int jpec_zz[64] = {
   53, 60, 61, 54, 47, 55, 62, 63
 };
 
+/** JPEG standard Huffman tables */
+
+/** Luminance (Y) - DC */
 const uint8_t jpec_dc_nodes[17] = { 0,0,1,5,1,1,1,1,1,1,0,0,0,0,0,0,0 };
 const int jpec_dc_nb_vals = 12; /* sum of dc_nodes */
 const uint8_t jpec_dc_vals[12] = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 
+/** Luminance (Y) - AC */
 const uint8_t jpec_ac_nodes[17] = { 0,0,2,1,3,3,2,4,3,5,5,4,4,0,0,1,0x7d };
 const int jpec_ac_nb_vals = 162; /* sum of ac_nodes */
 const uint8_t jpec_ac_vals[162] = { 
@@ -85,12 +88,15 @@ const uint8_t jpec_ac_vals[162] = {
   0xf9,0xfa
 };
 
+/** Huffman inverted tables */
+/** Luminance (Y) - DC */
 const uint8_t jpec_dc_len[12] = { 2,3,3,3,3,3,4,5,6,7,8,9 };
 const int jpec_dc_code[12] = { 
   0x000,0x002,0x003,0x004,0x005,0x006,
   0x00e,0x01e,0x03e,0x07e,0x0fe,0x1fe 
 };
 
+/** Luminance (Y) - AC */
 const int8_t jpec_ac_len[256] = {
    4, 2, 2, 3, 4, 5, 7, 8,
   10,16,16, 0, 0, 0, 0, 0,
@@ -161,6 +167,12 @@ const int jpec_ac_code[256] = {
   0xfffc,0xfffd,0xfffe,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
+#define JPEG_ENC_DEF_QUAL   93 /* default quality factor */
+#define JPEC_ENC_HEAD_SIZ  330 /* header typical size in bytes */
+#define JPEC_ENC_BLOCK_SIZ  30 /* 8x8 entropy coded block typical size in bytes */
+
+uint8_t __attribute__((section(".upper.rodata"))) buf[19200];
+
 #define JPEC_BUFFER_INIT_SIZ 65536
 
 jpec_buffer_t *jpec_buffer_new(void) {
@@ -171,9 +183,9 @@ jpec_buffer_t *jpec_buffer_new2(int siz) {
   if (siz < 0) siz = 0;
   jpec_buffer_t *b = malloc(sizeof(*b));
 
-  b->stream = siz > 0 ? malloc(siz) : NULL;
+  //b->stream = siz > 0 ? malloc(siz) : NULL;
 
-  //b->stream = siz > 0 ? &buf[0] : NULL;
+  b->stream = siz > 0 ? &buf[0] : NULL;
   b->siz = siz;
   b->len = 0;
   return b;
@@ -373,6 +385,7 @@ jpec_enc_t *jpec_enc_new2(const uint8_t *img, uint16_t w, uint16_t h, int q) {
   e->bx = -1;
   e->by = -1;
   int bsiz = JPEC_ENC_HEAD_SIZ + e->bmax * JPEC_ENC_BLOCK_SIZ;
+  PRINTF("Compressor Buffer size: %i \n\r", bsiz);
   e->buf = jpec_buffer_new2(bsiz);
   e->hskel = malloc(sizeof(*e->hskel));
   return e;
