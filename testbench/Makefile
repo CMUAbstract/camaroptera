@@ -17,3 +17,5 @@ exec:
 		./a.out $$file; \
 	done
 
+clean:
+	rm *.out
