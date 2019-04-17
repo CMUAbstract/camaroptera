@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "hog.h"
+#include "display.h"
 
 #define PI 3.14159265
 
@@ -17,6 +18,8 @@ int main( int argc, char *argv[] ){
 
 	char * input_filename = argv[1];
 	char * output_filename = argv[2];
+
+	display();
 
 	uint16_t read_count, write_count;
 
@@ -172,7 +175,7 @@ void histogram(uint8_t height, uint8_t width){
 				for( l = 0; l < 8; l++ ){
 					pixel = (i*8 + k)*width + j*8 + l;
 //					printf("i = %d | j = %d | k = %d | l = %d | pixel = %d | mag = %d |	theta = %d\n", i, j, k, l, pixel, g[pixel], theta[pixel]);
-					x = floor(theta[pixel])%20;
+					x = (uint8_t)floor(theta[pixel])%20;
 					y = theta[pixel]/20;
 					lower = (uint8_t)floor(y)%9;
 					upper = ((uint8_t)floor(y)+1)%9;
