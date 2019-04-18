@@ -6,8 +6,9 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o
+OBJECTS = hog-svm.o
 
-DEPS += liblora libio libmsp libov7670
+DEPS += liblora libio libmsp libov7670 libfixed libmspmath
 
 export MAIN_CLOCK_FREQ = 8000000
 

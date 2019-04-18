@@ -1,0 +1,3 @@
+/home/reviewer/camaroptera/testbench/opencv/CMakeFiles/rebuild_cache.dir
+/home/reviewer/camaroptera/testbench/opencv/CMakeFiles/DisplayImage.dir
+/home/reviewer/camaroptera/testbench/opencv/CMakeFiles/edit_cache.dir

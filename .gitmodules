@@ -13,3 +13,9 @@
 [submodule "ext/libov7670"]
 	path = ext/libov7670
 	url = git@github.com:CMUAbstract/libov7670.git
+[submodule "ext/libfixed"]
+	path = ext/libfixed
+	url = git@github.com:CMUAbstract/libfixed.git
+[submodule "ext/libmspmath"]
+	path = ext/libmspmath
+	url = git@github.com:CMUAbstract/libmspmath.git

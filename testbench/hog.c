@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <time.h>
 #include "hog.h"
-#include "display.h"
 
 #define PI 3.14159265
 
@@ -18,8 +17,6 @@ int main( int argc, char *argv[] ){
 
 	char * input_filename = argv[1];
 	char * output_filename = argv[2];
-
-	display();
 
 	uint16_t read_count, write_count;
 
@@ -164,7 +161,9 @@ void histogram(uint8_t height, uint8_t width){
 	uint8_t i, i1, j, j1, k, l, lower, upper;
 	uint16_t pixel, count16;
 	float x, y, z;
-	double sum, max;
+	double sum;
+	uint16_t max;
+	max = 0;
 
 	for( i = 0; i < 9; i++ )
 		temp[i] = 0;
@@ -187,15 +186,16 @@ void histogram(uint8_t height, uint8_t width){
 			}
 			// End of 8x8 Loop
 			for( k = 0; k < 9; k++ ){
-//				printf("%d(%d)\n", temp[k]);
+		//		printf("%d\n", temp[k]);
 				hist8x8[((i*20)+j)*9+k] = temp[k];
+				if(temp[k] > max)
+					max = temp[k];
 				temp[k] = 0;
 			}
 		}
 	} // End of initial histogram
 
 	uint16_t count = 0;
-	max = 0;
 
 	count16 = 0;
 
@@ -213,26 +213,26 @@ void histogram(uint8_t height, uint8_t width){
 	//			printf("Hist1 = %d | Hist2 = %d | Hist3 = %d | Hist4 = %d | sum =	%d\n", hist[(i*20 + j)*9 + k],hist[((i+1)*20 + j)*9 + k], hist[(i*20 + j + 1)*9 + k], hist[((i+1)*20 + j + 1)*9 + k], sum);
 				}
 			count ++;
-			sum = sqrt(sum);
-			if(sum > max)
-				max = sum;
+	//		if(sum > max)
+//				max = sum;
 //			printf("Start: ");
+			sum = sqrt(sum);
 
 			for( i1 = 0; i1 < 2; i1++){
 				for( j1 = 0; j1 < 2; j1++){
 					for( k = 0; k < 9; k++ ){
 						hist16x16[count16] = (float)(hist8x8[((i+i1)*20 + j + j1)*9 +	k])/sum;
-						printf("%.5f (%d) | ", hist16x16[count16], (i1*2+j1)*9+k);
+						// printf("%.5f (%d) | ", hist16x16[count16], (i1*2+j1)*9+k);
 						count16 ++;
 					}
 				}
 			}
-			printf("\n\n");
+	//		printf("\n\n");
 
 		}
 	}
 
-	printf("total %d times. Max = %f\n", count16, max);
+	printf("total %d times. Max = %d\n", count16, max);
 }
 // ================================= HISTOGRAM ENDS HERE ====================================
 
