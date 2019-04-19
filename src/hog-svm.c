@@ -29,35 +29,34 @@ int main(void){
 	msp_gpio_unlock();
 
 	msp_clock_setup();
-	//INIT_CONSOLE();
+	INIT_CONSOLE();
 
 
 	P8OUT &= ~BIT0; 
 	P8DIR |= BIT0;
 
-	//PRINTF("Start\r\n");
+	PRINTF("Start\r\n");
 	P8OUT |= BIT0;
 	sobel(120, 160);
-	sobel(4, 4);
 	P8OUT &= ~BIT0; 
 
-	//PRINTF("Processing\r\n");
+	PRINTF("Processing\r\n");
 	P8OUT |= BIT0;
 	uint16_t count = histogram(120, 160, 8, 8, 2, 2);
 	P8OUT &= ~BIT0; 
 	
-	//PRINTF("Processed\r\n");
+	PRINTF("Processed\r\n");
 	
 	P8OUT |= BIT0;
 	fixed result = infer();
 	P8OUT &= ~BIT0; 
 	
-	//PRINTF("%i\r\n", result);
+	PRINTF("%i\r\n", result);
 	
-	//if( result < 0 )
-		//PRINTF("PERSON DETECTED !\r\n");
-	//else
-		//PRINTF("No Person :(\r\n");
+	if( result < 0 )
+		PRINTF("PERSON DETECTED !\r\n");
+	else
+		PRINTF("No Person :(\r\n");
 
 	return 0;
 }
@@ -161,7 +160,7 @@ uint16_t sqrt16(uint32_t x)
 void sobel(uint8_t height, uint8_t width){
 	uint8_t i, j;
 	uint16_t pixel;
-	float angle_temp;
+	fixed angle_temp;
 	uint32_t square;
 	uint16_t sqrt_temp;
 
@@ -182,24 +181,24 @@ void sobel(uint8_t height, uint8_t width){
 				y_temp = 0;
 			else
 				y_temp = frame[pixel+width] - frame[pixel-width];
-			
+
 			square = (x_temp*x_temp) + (y_temp*y_temp);
 			if(square == 0)
 				sqrt_temp = 0;
 			else{
 				sqrt_temp = sqrt16(square);
 			}
-			
+
 			g[pixel] = sqrt_temp;
 
 			if(square == 0)
-				angle_temp = 0.0;
+				angle_temp = F_LIT(0.0);
 			else if(x_temp == 0)
-				angle_temp = 100; // Arbitrary value larger than 5.67 to bin it in 80 deg
+				angle_temp = F_LIT(100); // Arbitrary value larger than 5.67 to bin it in 80 deg
 			else
-				angle_temp = (float)y_temp/(float)x_temp;
+				angle_temp = F_DIV( F_LIT(y_temp), F_LIT(x_temp));
 
-			theta[pixel] = F_LIT(angle_temp);
+			theta[pixel] = angle_temp;
 			}
 		}
 	}
@@ -208,24 +207,24 @@ void sobel(uint8_t height, uint8_t width){
 
 // ================================= HISTOGRAM BEGINS HERE ====================================
 
-uint8_t map_index( float x ){
-		if( x >= 0 && x < 0.36)
+uint8_t map_index( fixed x ){
+		if( x >= F_LIT(0.0) && x < F_LIT(0.36))
         return 0;
-    else if( x >= 0.36 && x < 0.84)
+    else if( x >= F_LIT(0.36) && x < F_LIT(0.84))
         return 1;
-    else if( x >= 0.84 && x < 1.73)
+    else if( x >= F_LIT(0.84) && x < F_LIT(1.73))
         return 2;
-    else if( x >= 1.73 && x < 5.67)
+    else if( x >= F_LIT(1.73) && x < F_LIT(5.67))
         return 3;
-    else if( x < -5.67 || x >= 5.67)
+    else if( x < F_LIT(-5.67) || x >= F_LIT(5.67))
         return 4;
-    else if( x >= -5.67 && x < -1.73 )
+    else if( x >= F_LIT(-5.67) && x < F_LIT(-1.73))
         return 5;
-    else if( x >= -1.73 && x < -0.84)
+    else if( x >= F_LIT(-1.73) && x < F_LIT(-0.84))
         return 6;
-    else if( x >= -0.84 && x < -0.36)
+    else if( x >= F_LIT(-0.84) && x < F_LIT(-0.36))
         return 7;
-    else if( x >= -0.36 && x < 0)
+    else if( x >= F_LIT(-0.36) && x < F_LIT(0))
         return 8;
 		return 255;
 }
@@ -241,7 +240,7 @@ uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t
 	uint8_t cells_in_y_dir = (uint8_t)height/rows_per_cell;
 	uint8_t strides_in_x_dir = cells_in_x_dir - col_cell_per_block + 1;
 	uint8_t strides_in_y_dir = cells_in_y_dir - row_cell_per_block + 1;
-	float a;
+	fixed a;
 
 	for( i = 0; i < 9; i++ )
 		temp[i] = 0;
@@ -251,7 +250,7 @@ uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t
 			for( k = 0; k < rows_per_cell; k++ ){
 				for( l = 0; l < cols_per_cell; l++ ){
 					pixel = (i*cols_per_cell + k)*width + j*rows_per_cell + l;
-					a	= F_TO_FLOAT(theta[pixel]);
+					a	= theta[pixel];
 
 					index = map_index(a);
 					temp[index] += g[pixel];
@@ -279,7 +278,7 @@ uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t
 				for( j1 = 0; j1 < row_cell_per_block; j1 ++ ){
 					for( k = 0; k < 9; k++ ){
 						pixel =((i+i1)*cells_in_x_dir + (j+j1))*9 + k; 
-						sum += (double)((double)(hist8x8[pixel]) *	(double)(hist8x8[pixel]));
+						sum += (uint32_t)((hist8x8[pixel]) *	(hist8x8[pixel]));
 						}
 				}
 			}
