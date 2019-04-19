@@ -8,5 +8,5 @@ uint16_t __attribute__ ((section(".upper.rodata"))) g[19200];
 fixed __attribute__ ((section(".upper.rodata"))) theta[19200];
 
 void sobel(uint8_t height, uint8_t width);
-void histogram(uint8_t height, uint8_t width);
-double infer();
+uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t cols_per_cell, uint8_t row_cell_per_block, uint8_t col_cell_per_block);
+fixed infer();
