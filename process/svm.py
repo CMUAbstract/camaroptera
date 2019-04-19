@@ -148,13 +148,10 @@ def write_header(name, mats, output_file):
     with open(path, 'w+') as f:
         f.write(contents)
 
-VL = 16
-VLs = [16, 32, 64]
 F_N = 5
 F_ONE = 1 << F_N
 to_fixed = lambda x: int(x * F_ONE)
 to_float = lambda x: float(x) / F_ONE
-
 
 def main(args):
     #input_file = sys.argv[1];

@@ -8,19 +8,10 @@
 #include "input.h"
 
 #include <libfixed/fixed.h>
-//#include <libmspmath/msp-math.h>
-
 #include <libio/console.h>
-
 #include <libmsp/clock.h>
 #include <libmsp/watchdog.h>
 #include <libmsp/gpio.h>
-
-#define PI 3.14159265
-
-uint8_t modulo( uint8_t , uint8_t );
-
-
 
 int main(void){
 
@@ -31,35 +22,165 @@ int main(void){
 	msp_clock_setup();
 	INIT_CONSOLE();
 
-
 	P8OUT &= ~BIT0; 
 	P8DIR |= BIT0;
 
 	PRINTF("Start\r\n");
 	P8OUT |= BIT0;
-	sobel(120, 160);
+	sobel(frame, g, theta, 120, 160);
 	P8OUT &= ~BIT0; 
 
 	PRINTF("Processing\r\n");
 	P8OUT |= BIT0;
-	uint16_t count = histogram(120, 160, 8, 8, 2, 2);
+	uint16_t count = histogram(g, theta, hist, 120, 160, 8, 8, 10);
 	P8OUT &= ~BIT0; 
 	
-	PRINTF("Processed\r\n");
+	// PRINTF("Processed\r\n");
 	
-	P8OUT |= BIT0;
-	fixed result = infer();
-	P8OUT &= ~BIT0; 
+	// P8OUT |= BIT0;
+	// fixed result = infer();
+	// P8OUT &= ~BIT0; 
 	
-	PRINTF("%i\r\n", result);
+	// PRINTF("%i\r\n", result);
 	
-	if( result < 0 )
-		PRINTF("PERSON DETECTED !\r\n");
-	else
-		PRINTF("No Person :(\r\n");
+	// if( result < 0 )
+	// 	PRINTF("PERSON DETECTED !\r\n");
+	// else
+	// 	PRINTF("No Person :(\r\n");
 
 	return 0;
 }
+
+void dump(fixed *src, uint8_t rows, uint8_t cols) {
+	for(uint8_t i = 0; i < 16; i++) {
+		for(uint8_t j = 0; j < 16; j++) {
+			PRINTF("%i ", *src++);	
+		}
+		src = src - 16 + cols;
+		PRINTF("\r\n");
+	}
+}
+
+uint8_t atan_lookup(fixed x) {
+	if( x >= F_LIT(0.0) && x < F_LIT(0.36)) return 0;
+	else if( x >= F_LIT(0.36) && x < F_LIT(0.84)) return 1;
+	else if( x >= F_LIT(0.84) && x < F_LIT(1.73)) return 2;
+	else if( x >= F_LIT(1.73) && x < F_LIT(5.67)) return 3;
+	else if( x < F_LIT(-5.67) || x >= F_LIT(5.67)) return 4;
+	else if( x >= F_LIT(-5.67) && x < F_LIT(-1.73)) return 5;
+	else if( x >= F_LIT(-1.73) && x < F_LIT(-0.84)) return 6;
+	else if( x >= F_LIT(-0.84) && x < F_LIT(-0.36)) return 7;
+	else if( x >= F_LIT(-0.36) && x < F_LIT(0)) return 8;
+	return 0;
+}
+
+void sobel(fixed *src, fixed *grad, fixed *angle, uint8_t rows, uint8_t cols) {
+	// First row
+	fixed *src_ptr = src + 1;
+	fixed *grad_ptr = grad + 1;
+	fixed *angle_ptr = angle + 1;
+	for(uint8_t i = 1; i < cols - 1; i++) {
+		*grad_ptr = 0;
+		*angle_ptr = 0; 
+		src_ptr++;
+		grad_ptr++;
+		angle_ptr++;
+	}
+
+	// First column
+	src_ptr = src + cols;
+	grad_ptr = grad + cols;
+	angle_ptr = angle + cols;
+	for(uint8_t i = 1; i < rows - 1; i++) {
+		*grad_ptr = 0;
+		*angle_ptr = 0;
+		src_ptr += cols;
+		grad_ptr += cols;
+		angle_ptr += cols;
+	}
+
+	// Last column
+	src_ptr = src + (cols << 1) - 1;
+	grad_ptr = grad + (cols << 1) - 1;
+	angle_ptr = angle + (cols << 1) - 1;
+	for(uint8_t i = 1; i < rows - 1; i++) {
+		*grad_ptr = 0;
+		*angle_ptr = 0;
+		src_ptr += cols;
+		grad_ptr += cols;
+		angle_ptr += cols;
+	}
+
+	// Last row
+	src_ptr = src + rows * (cols - 1) + 1;
+	grad_ptr = grad + rows * (cols - 1) + 1;
+	angle_ptr = angle + rows * (cols - 1) + 1;
+	for(uint8_t i = 1; i < cols - 1; i++) {
+		*grad_ptr = 0;
+		*angle_ptr = 0;
+		src_ptr++;
+		grad_ptr++;
+		angle_ptr++;
+	}
+
+	src_ptr = src + cols + 1;
+	grad_ptr = grad + cols + 1;
+	angle_ptr = angle + cols + 1;
+	for(uint8_t i = 1; i < rows - 1; i++) {
+		for(uint8_t j = 1; j < cols - 1; j++) {
+			uint32_t gx = (uint32_t)*(src_ptr + 1) - (uint32_t)*(src_ptr - 1);
+			uint32_t gy = (uint32_t)*(src_ptr + cols) - (uint32_t)*(src_ptr - cols); 
+			uint32_t tmp = gx * gx + gy * gy;
+			fixed sqrt_floor = F_SQRT(tmp << (F_N - 4));
+			*grad_ptr = sqrt_floor << 2;
+			*angle_ptr = atan_lookup(F_DIV(gy, gx));
+			grad_ptr++;
+			src_ptr++;
+			angle_ptr++;
+		}
+		grad_ptr += 2;
+		src_ptr += 2;
+		angle_ptr += 2;
+	}
+}
+
+
+void histogram(fixed *grad, fixed *angle, fixed *hist, 
+	uint8_t rows, uint8_t cols, uint8_t frows, uint8_t fcols, uint8_t buckets) {
+	fixed grad_base_ptr = grad;
+	fixed angle_base_ptr = angle;
+	fixed hist_ptr = hist;
+	for(uint8_t i = 0; i < rows; i += frows) {
+		for(uint8_t j = 0; j < cols; j += fcols) {
+			fixed *grad_ptr = grad_base_ptr;
+			fixed *angle_ptr = angle_base_ptr;
+			for(uint8_t k = 0; k < buckets; k++) *(hist_ptr + k) = 0;
+			for(uint8_t k = 0; k < frows; k++) {
+				for(uint8_t l = 0; l < fcols; l++) {
+					fixed *h = hist + *angle_ptr;
+					*h = F_ADD(*h, *grad_ptr);
+					grad_ptr++;
+					angle_ptr++;
+				}
+			}
+			hist_ptr += buckets;
+			grad_base_ptr += fcols;
+			theta_base_ptr += fcols;
+		}
+	}
+	dump(hist, 120, 160);
+}
+
+void normalize(fixed *src, fixed *dest, 
+	uint8_t rows, uint8_t cols, uint8_t frows, uint8_t fcols) {
+	for(uint8_t i = 0; i < rows; i += frows) {
+		for(uint8_t j = 0; j < cols; j += fcols) {
+
+		}
+	}
+}
+
+#if 0
 
 // ==================== FILE I/O BEGINS HERE ========================
 /*
@@ -198,7 +319,7 @@ void sobel(uint8_t height, uint8_t width){
 			else
 				angle_temp = F_DIV( F_LIT(y_temp), F_LIT(x_temp));
 
-			theta[pixel] = angle_temp;
+			angle[pixel] = angle_temp;
 			}
 		}
 	}
@@ -250,7 +371,7 @@ uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t
 			for( k = 0; k < rows_per_cell; k++ ){
 				for( l = 0; l < cols_per_cell; l++ ){
 					pixel = (i*cols_per_cell + k)*width + j*rows_per_cell + l;
-					a	= theta[pixel];
+					a	= angle[pixel];
 
 					index = map_index(a);
 					temp[index] += g[pixel];
@@ -315,3 +436,5 @@ fixed infer(){
 
 	return result;
 }
+
+#endif

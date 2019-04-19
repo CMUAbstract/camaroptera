@@ -1,12 +1,16 @@
 #include <libfixed/fixed.h>
 
+#define __nv __nvram
+#define __nvram __attribute__((section(".upper.rodata")))
 
-uint16_t nb = 19200;
-uint16_t __attribute__ ((section(".upper.rodata"))) hist8x8[2700];
-fixed __attribute__ ((section(".upper.rodata"))) hist16x16[9576];
-uint16_t __attribute__ ((section(".upper.rodata"))) g[19200];
-fixed __attribute__ ((section(".upper.rodata"))) theta[19200];
+__nvram fixed g[19200];
+__nvram fixed theta[19200];
+__nvram fixed hist[300][9];
+__nvram fixed histnorm[300][36];
 
-void sobel(uint8_t height, uint8_t width);
-uint16_t histogram(uint8_t height, uint8_t width, uint8_t rows_per_cell, uint8_t cols_per_cell, uint8_t row_cell_per_block, uint8_t col_cell_per_block);
-fixed infer();
+void sobel(fixed *src, fixed *grad, fixed *angle, uint8_t rows, uint8_t cols);
+
+uint16_t histogram(fixed *src, fixed *dest, uint8_t rows, uint8_t cols, 
+	uint8_t frows, uint8_t fcols);
+
+fixed infer(fixed *input);
