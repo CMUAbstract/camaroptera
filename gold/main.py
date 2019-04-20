@@ -4,6 +4,7 @@ import math
 import argparse
 import numpy as np
 import skimage
+import skimage.feature
 
 from input import frame
 
@@ -37,7 +38,11 @@ def main(args):
 	theta = np.degrees(np.arctan(gy / (gx + 1e-9)))
 	theta[theta < 0] += 180
 
-	print g[:16,:16]
+	print flit(g)[:16,:16]
+
+	hogs = skimage.feature.hog(data, orientations=9, pixels_per_cell=(8, 8), 
+		cells_per_block=(2, 2), block_norm='L2', multichannel=False)
+	print flit(hogs).reshape((14, 684))[:16:16]
 	# print theta[:16,:16].astype(int)
 
 if __name__ == '__main__':
