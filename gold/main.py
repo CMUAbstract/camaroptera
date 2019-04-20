@@ -1,5 +1,6 @@
 import os
 import pickle
+import math
 import argparse
 import numpy as np
 import skimage
@@ -33,10 +34,11 @@ def main(args):
 	gy = skimage.filters.sobel_v(data)
 
 	g = np.sqrt(gx * gx + gy * gy)
-	theta = np.arctan(gy / (gx + 1e-9))
+	theta = np.degrees(np.arctan(gy / (gx + 1e-9)))
+	theta[theta < 0] += 180
 
-	print flit(g)[:16,:16]
-	print flit(theta)[:16,:16]
+	print g[:16,:16]
+	# print theta[:16,:16].astype(int)
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
