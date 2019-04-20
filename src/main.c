@@ -39,7 +39,11 @@
 
 #define PACKET_SIZE												255
 
-// #define enable_debug
+#define High_Threshold 0xF62         // ~3.15V
+
+#define enable_debug
+
+void wait_for_charge();
 
 uint8_t buffer[BUFFER_SIZE];
 char temp[30];
@@ -155,7 +159,7 @@ int main(void) {
 
 	P8DIR |= BIT1 + BIT2;
 	P8OUT |= BIT1;			// To demarcate start and end of individual runs of the program
-	P8OUT &= ~BIT2; 	  // To demarcate smaller sections of the program
+	P8OUT &= ~BIT2; 	  	// To demarcate smaller sections of the program
 
 	mcu_init();
 
@@ -176,15 +180,11 @@ int main(void) {
 
 	if(image_capt_not_sent == 0){
 
-		TA0CCTL0 = CCIE;
-		TA0CCR0 = 50000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+		//Wait to charge up
+		wait_for_charge();
 
-		TA0CTL |= TAIE;
-
-		__bis_SR_register(LPM3_bits+GIE);
-
-#ifdef enable_debug
+#ifdef enable_debug        	
+        	uart_write("Cap ready\n\r");
 			uart_write("Capturing a photo.\r\n");
 #endif
 
@@ -213,14 +213,12 @@ int main(void) {
 			uart_write("\r\nEnd frame\r\n");
 #endif
 
-		TA0CCTL0 = CCIE;
-		TA0CCR0 = 20000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+		//Wait to charge up
+		wait_for_charge();
 
-		TA0CTL |= TAIE;
-
-		__bis_SR_register(LPM3_bits+GIE);
-
+#ifdef enable_debug        	
+        	uart_write("Cap ready\n\r");
+#endif  
 	}
 	else{
 #ifdef enable_debug
@@ -232,19 +230,11 @@ int main(void) {
 	sprintf(temp, "It's a photo of %u bytes.\r\n", nb);
 	uart_write(temp);
 #endif
-/*
-	for( i = 0 ; i < nb ; i++ ){
-		uart_printhex8(frame[i]);
-		}
-
-	uart_write("\r\nEnd frame\r\n");
-*/
 
 	//================== Camera Code ends here ==================
 
 
 	//================== Radio Transmission begins here ==================
-
 
 	packet_count = nb/(PACKET_SIZE-2);
 
@@ -274,13 +264,12 @@ int main(void) {
 			}
 		}
 
-		TA0CCTL0 = CCIE;
-		TA0CCR0 = 40000;
-		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
+		//Wait to charge up
+		wait_for_charge();
 
-		TA0CTL |= TAIE;
-
-		__bis_SR_register(LPM3_bits+GIE);
+#ifdef enable_debug        	
+        	uart_write("Cap ready\n\r");
+#endif  
 
 		P4OUT |= BIT7;
 		spi_init();
@@ -337,17 +326,87 @@ int main(void) {
 	//================== Radio Transmission ends here ==================
 	
 	}
-//	__bis_SR_register(LPM4_bits);
-
 
 }
 
-void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_isr (void) {
-	TA0CCTL0 &= ~CCIE;
-	TA0CTL &= ~TAIE;
-	TA0CTL &= ~TAIFG;
-	TA0CTL |= TACLR + MC__STOP;
-	__bic_SR_register_on_exit(LPM3_bits+GIE);
+void wait_for_charge(){
 
+	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
+
+    P1SEL0 |= BIT0;                                 //P1.0 ADC mode
+    P1SEL1 |= BIT0;                                 //
+
+    //Configure ADC
+    ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
+    ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
+    ADC12MCTL0 = ADC12INCH_0 | ADC12EOS | ADC12WINC;        // A0 ADC input select; Vref+ = AVCC
+    ADC12HI = High_Threshold;                               // Enable ADC interrupt
+    ADC12IER2 = ADC12HIIE | ADC12INIE;                      // Enable ADC threshold interrupt
+    ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
+
+    // Configure Timer0_A3 to periodically trigger the ADC12
+    TA0CCR0 = 2048-1;                                       // PWM Period
+    TA0CCTL1 = OUTMOD_3;                                    // TACCR1 set/reset
+    TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
+    TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
+#ifdef enable_debug
+    uart_write("W8ing for capt to be charged. Going To Sleep\n\r");
+#endif
+
+    __bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
+
+    TA0CTL |= TACLR + MC__STOP;
+    ADC12CTL0 = ~(ADC12ON);
 }
 
+void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
+
+    switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
+    {
+        case ADC12IV__NONE:        break;   // Vector  0:  No interrupt
+        case ADC12IV__ADC12OVIFG:  break;   // Vector  2:  ADC12MEMx Overflow
+        case ADC12IV__ADC12TOVIFG: break;   // Vector  4:  Conversion time overflow
+        case ADC12IV__ADC12HIIFG:  		    // Vector  6:  ADC12BHI
+        ADC12IER2 = ~(ADC12HIIE);
+       	__bic_SR_register_on_exit(LPM3_bits | GIE);
+        	break;
+        case ADC12IV__ADC12LOIFG:  break;   // Vector  8:  ADC12BLO
+        case ADC12IV__ADC12INIFG:  break;   // Vector 10:  ADC12BIN
+        case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0 Interrupt
+			//PRINTF("ADC: %i\n\r", ADC12MEM0);
+            break;
+        case ADC12IV__ADC12IFG1:   break;   // Vector 14:  ADC12MEM1
+        case ADC12IV__ADC12IFG2:   break;   // Vector 16:  ADC12MEM2
+        case ADC12IV__ADC12IFG3:   break;   // Vector 18:  ADC12MEM3
+        case ADC12IV__ADC12IFG4:   break;   // Vector 20:  ADC12MEM4
+        case ADC12IV__ADC12IFG5:   break;   // Vector 22:  ADC12MEM5
+        case ADC12IV__ADC12IFG6:   break;   // Vector 24:  ADC12MEM6
+        case ADC12IV__ADC12IFG7:   break;   // Vector 26:  ADC12MEM7
+        case ADC12IV__ADC12IFG8:   break;   // Vector 28:  ADC12MEM8
+        case ADC12IV__ADC12IFG9:   break;   // Vector 30:  ADC12MEM9
+        case ADC12IV__ADC12IFG10:  break;   // Vector 32:  ADC12MEM10
+        case ADC12IV__ADC12IFG11:  break;   // Vector 34:  ADC12MEM11
+        case ADC12IV__ADC12IFG12:  break;   // Vector 36:  ADC12MEM12
+        case ADC12IV__ADC12IFG13:  break;   // Vector 38:  ADC12MEM13
+        case ADC12IV__ADC12IFG14:  break;   // Vector 40:  ADC12MEM14
+        case ADC12IV__ADC12IFG15:  break;   // Vector 42:  ADC12MEM15
+        case ADC12IV__ADC12IFG16:  break;   // Vector 44:  ADC12MEM16
+        case ADC12IV__ADC12IFG17:  break;   // Vector 46:  ADC12MEM17
+        case ADC12IV__ADC12IFG18:  break;   // Vector 48:  ADC12MEM18
+        case ADC12IV__ADC12IFG19:  break;   // Vector 50:  ADC12MEM19
+        case ADC12IV__ADC12IFG20:  break;   // Vector 52:  ADC12MEM20
+        case ADC12IV__ADC12IFG21:  break;   // Vector 54:  ADC12MEM21
+        case ADC12IV__ADC12IFG22:  break;   // Vector 56:  ADC12MEM22
+        case ADC12IV__ADC12IFG23:  break;   // Vector 58:  ADC12MEM23
+        case ADC12IV__ADC12IFG24:  break;   // Vector 60:  ADC12MEM24
+        case ADC12IV__ADC12IFG25:  break;   // Vector 62:  ADC12MEM25
+        case ADC12IV__ADC12IFG26:  break;   // Vector 64:  ADC12MEM26
+        case ADC12IV__ADC12IFG27:  break;   // Vector 66:  ADC12MEM27
+        case ADC12IV__ADC12IFG28:  break;   // Vector 68:  ADC12MEM28
+        case ADC12IV__ADC12IFG29:  break;   // Vector 70:  ADC12MEM29
+        case ADC12IV__ADC12IFG30:  break;   // Vector 72:  ADC12MEM30
+        case ADC12IV__ADC12IFG31:  break;   // Vector 74:  ADC12MEM31
+        case ADC12IV__ADC12RDYIFG: break;   // Vector 76:  ADC12RDY
+        default: break;
+    }
+}
