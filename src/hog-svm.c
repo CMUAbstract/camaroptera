@@ -5,8 +5,8 @@
 #include <msp430.h>
 #include "hog-svm.h"
 #include "svm.h"
-// #include "input.h"
-#include "test/input_Time0_P2.h"
+#include "input.h"
+// #include "test/input_Time0_P2.h"
 
 #include <libfixed/fixed.h>
 #include <libio/console.h>
@@ -57,7 +57,7 @@ int main(void){
 }
 
 void dump(fixed *src, uint8_t rows, uint8_t cols) {
-	uint16_t block_size = 18;
+	uint16_t block_size = 16;
 	for(uint8_t i = 0; i < block_size; i++) {
 		for(uint8_t j = 0; j < block_size; j++) {
 			PRINTF("%i ", *src++);	
@@ -77,17 +77,17 @@ uint32_t i_sqrt(uint32_t x) {
 	return i - 1; 
 }
 
-uint8_t atan_lookup(fixed x) {
-	if( x >= F_LIT(0.0) && x < F_LIT(0.36)) return 0;
-	else if( x >= F_LIT(0.36) && x < F_LIT(0.84)) return 1;
-	else if( x >= F_LIT(0.84) && x < F_LIT(1.73)) return 2;
-	else if( x >= F_LIT(1.73) && x < F_LIT(5.67)) return 3;
-	else if( x < F_LIT(-5.67) || x >= F_LIT(5.67)) return 4;
-	else if( x >= F_LIT(-5.67) && x < F_LIT(-1.73)) return 5;
-	else if( x >= F_LIT(-1.73) && x < F_LIT(-0.84)) return 6;
-	else if( x >= F_LIT(-0.84) && x < F_LIT(-0.36)) return 7;
-	else if( x >= F_LIT(-0.36) && x < F_LIT(0)) return 8;
-	return 0;
+uint8_t atan_lookup(fixed a, fixed b) {
+	fixed x = F_DIV(a, b + 2);
+	if(x >= F_LIT(0.0) && x < F_LIT(0.36)) return 0;
+	else if(x >= F_LIT(0.36) && x < F_LIT(0.84)) return 1;
+	else if(x >= F_LIT(0.84) && x < F_LIT(1.73)) return 2;
+	else if(x >= F_LIT(1.73) && x < F_LIT(5.67)) return 3;
+	else if(x >= F_LIT(-5.67) && x < F_LIT(-1.73)) return 5;
+	else if(x >= F_LIT(-1.73) && x < F_LIT(-0.84)) return 6;
+	else if(x >= F_LIT(-0.84) && x < F_LIT(-0.36)) return 7;
+	else if(x >= F_LIT(-0.36) && x < F_LIT(0)) return 8;
+	return 4;
 }
 
 fixed interp(fixed min, fixed max, fixed v) {
@@ -99,20 +99,18 @@ uint8_t _lookup(fixed min, fixed max, fixed v, uint16_t idx) {
 	return 0;
 }
 
-fixed atan_lookup_interp(fixed v) {
+fixed atan_lookup_interp(fixed a, fixed b) {
+	fixed v = F_DIV(a, b + 2);
 	fixed x;
 	if((x = _lookup(F_LIT(0), F_LIT(0.36), v, 0))) return x;
 	else if((x = _lookup(F_LIT(0.36), F_LIT(0.84), v, 1))) return x;
 	else if((x = _lookup(F_LIT(0.84), F_LIT(1.73), v, 2))) return x;
 	else if((x = _lookup(F_LIT(1.73), F_LIT(5.67), v, 3))) return x;
-	else if(v > F_LIT(5.67) || v <= F_LIT(5.67)) return F_LIT(4);
-	// else if(v > F_LIT(5.67)) return F_ADD(F_LIT(4), F_SUB(v, F_LIT(5.67)));
-	// else if(v <= F_LIT(-5.67)) return F_ADD(F_LIT(4), F_ADD(v, F_LIT(5.67)));
 	else if((x = _lookup(F_LIT(-5.67), F_LIT(-1.73), v, 5))) return x;
 	else if((x = _lookup(F_LIT(-1.73), F_LIT(-0.84), v, 7))) return x;
 	else if((x = _lookup(F_LIT(-0.84), F_LIT(-0.36), v, 6))) return x;
 	else if((x = _lookup(F_LIT(-0.36), F_LIT(0), v, 8))) return x;
-	return 0;
+	return 4;
 }
 
 void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t cols) {
@@ -174,9 +172,9 @@ void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t col
 			uint32_t tmp = gx * gx + gy * gy;
 			*grad_ptr = i_sqrt(tmp);
 #if 1
-			*angle_ptr = atan_lookup(F_DIV(gy << F_N, gx << F_N));
+			*angle_ptr = atan_lookup(gy << F_N, gx << F_N);
 #else
-			*angle_ptr = atan_lookup_interp(F_DIV(gy << F_N, gx << F_N));
+			*angle_ptr = atan_lookup_interp(gy << F_N, gx << F_N);
 #endif
 			grad_ptr++;
 			src_ptr++;
@@ -193,7 +191,7 @@ void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t col
 }
 
 
-void histogram(uint16_t *grad, fixed *angle, fixed *hist, uint8_t rows, uint8_t cols, 
+void histogram(uint16_t *grad, fixed *angle, uint16_t *hist, uint8_t rows, uint8_t cols, 
 	uint8_t frows, uint8_t fcols, uint8_t buckets) {
 	fixed *hist_ptr = hist;
 	for(uint8_t i = 0; i < rows; i += frows) {
