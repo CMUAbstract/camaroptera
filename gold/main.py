@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 import math
 import argparse
@@ -16,7 +17,7 @@ to_float = lambda x: float(x) / F_ONE
 flit = np.vectorize(to_fixed)
 floatlit = np.vectorize(to_float)
 
-np.set_printoptions(precision=3, suppress=True)
+np.set_printoptions(precision=3, suppress=True, threshold=sys.maxsize)
 
 def atan_lookup(x):
 	if x >= 0.0 and x < 0.36: return 0
@@ -101,6 +102,8 @@ def histo(g, angle, height, width, cell_prows, cell_pcols, block_r, block_c):
 			for a in xrange(block_c):
 				for b in xrange(block_r):
 					for k in xrange(9):
+						if i == 1 and j == 0:
+							print hist8x8[i+a][j+b][k], root
 						hist16x16.append(hist8x8[i+a][j+b][k]/root)
 
 	
@@ -127,8 +130,10 @@ def main(args):
 	theta_idx = np.asarray(theta_idx).reshape((120, 160))
 	print g[:16,:16].astype(int)
 	print theta_idx[:16,:16]
-	print hist8x8[:2,:2]
-	print flit(hist16x16)[:2,:2]
+	# print hist8x8.shape
+	# print hist16x16.shape
+	print hist8x8[:15,:1]
+	print flit(hist16x16)[:14,:1]
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()

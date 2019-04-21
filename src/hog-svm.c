@@ -5,8 +5,8 @@
 #include <msp430.h>
 #include "hog-svm.h"
 #include "svm.h"
-#include "input.h"
-// #include "test/input_Time0_P2.h"
+// #include "input.h"
+#include "test/input_Time0_P2.h"
 
 #include <libfixed/fixed.h>
 #include <libio/console.h>
@@ -56,20 +56,19 @@ int main(void){
 	return 0;
 }
 
-void dump(fixed *src, uint8_t rows, uint8_t cols) {
-	uint16_t block_size = 16;
-	for(uint8_t i = 0; i < block_size; i++) {
-		for(uint8_t j = 0; j < block_size; j++) {
+void dump(fixed *src, uint8_t rows, uint8_t cols, uint8_t yblock, uint8_t xblock) {
+	for(uint8_t i = 0; i < yblock; i++) {
+		for(uint8_t j = 0; j < xblock; j++) {
 			PRINTF("%i ", *src++);	
 		}
-		src = src - block_size + cols;
+		src = src - xblock + cols;
 		PRINTF("\r\n");
 	}
 }
 
 uint32_t i_sqrt(uint32_t x) {
 	if (x == 0 || x == 1) return x; 
-	int i = 1, result = 1; 
+	uint32_t i = 1, result = 1; 
 	while(result <= x) { 
 		i++; 
 		result = i * i; 
@@ -77,8 +76,30 @@ uint32_t i_sqrt(uint32_t x) {
 	return i - 1; 
 }
 
+fixed f_abs(fixed v) {
+	if(v < 0) return F_MUL(F_LIT(-1), v);
+	return v;
+}
+
+int32_t f_long_mul(int32_t a, int32_t b) {
+	int64_t tmp = a * b;
+	tmp += F_K;
+	tmp >>= F_N;
+	return (int32_t)tmp;
+}
+int32_t f_long_abs(int32_t v) {
+	if(v < 0) {
+		int32_t neg_one = 1 << F_N;
+		neg_one *= -1;
+		return f_long_mul(neg_one, v);
+	}
+	return v;
+}
+
 uint8_t atan_lookup(fixed a, fixed b) {
-	fixed x = F_DIV(a, b + 2);
+	if(F_MUL(f_abs(b) + 1, F_LIT(5.67)) < f_abs(a) || b == F_LIT(0)) return 4;
+
+	fixed x = F_DIV(a, b + 1);
 	if(x >= F_LIT(0.0) && x < F_LIT(0.36)) return 0;
 	else if(x >= F_LIT(0.36) && x < F_LIT(0.84)) return 1;
 	else if(x >= F_LIT(0.84) && x < F_LIT(1.73)) return 2;
@@ -90,27 +111,39 @@ uint8_t atan_lookup(fixed a, fixed b) {
 	return 4;
 }
 
-fixed interp(fixed min, fixed max, fixed v) {
-	return F_DIV(F_SUB(v, min), F_SUB(max, min));
+__nvram uint8_t atan_bucket_reg_pos[33] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2};
+__nvram uint8_t atan_bucket_reg_neg[33] = {0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
+	7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6};
+__nvram uint8_t atan_bucket_inv_pos[33] = {4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 
+	3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+__nvram uint8_t atan_bucket_inv_neg[33] = {4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 
+	5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6};
+
+int32_t f_long_div(int32_t a, int32_t b) {
+	int64_t tmp = a << F_N;
+	if((tmp >= 0 && b >= 0) || (tmp < 0 && b < 0)) {
+		tmp += b / 2;
+	} else {
+		tmp -= b / 2;
+	}
+	return (int32_t)(tmp / b);
 }
 
-uint8_t _lookup(fixed min, fixed max, fixed v, uint16_t idx) {
-	if(v >= min && v < max) return F_ADD((idx << F_N), interp(min, max, v));
-	return 0;
-}
-
-fixed atan_lookup_interp(fixed a, fixed b) {
-	fixed v = F_DIV(a, b + 2);
-	fixed x;
-	if((x = _lookup(F_LIT(0), F_LIT(0.36), v, 0))) return x;
-	else if((x = _lookup(F_LIT(0.36), F_LIT(0.84), v, 1))) return x;
-	else if((x = _lookup(F_LIT(0.84), F_LIT(1.73), v, 2))) return x;
-	else if((x = _lookup(F_LIT(1.73), F_LIT(5.67), v, 3))) return x;
-	else if((x = _lookup(F_LIT(-5.67), F_LIT(-1.73), v, 5))) return x;
-	else if((x = _lookup(F_LIT(-1.73), F_LIT(-0.84), v, 7))) return x;
-	else if((x = _lookup(F_LIT(-0.84), F_LIT(-0.36), v, 6))) return x;
-	else if((x = _lookup(F_LIT(-0.36), F_LIT(0), v, 8))) return x;
-	return 4;
+uint8_t f_atan2(int32_t y, int32_t x) {
+	int32_t ax = f_long_abs(x);
+	int32_t ay = f_long_abs(y); 
+	if(ax == 0) return 4;
+	if((y < 0 && x > 0) || (x < 0 && y > 0)) {
+		if(ay > ax) {
+			return atan_bucket_inv_neg[f_long_div(ax, ay)];
+		}
+		return atan_bucket_reg_neg[f_long_div(ay, ax)];
+	}
+	if(ay > ax) {
+		return atan_bucket_inv_pos[f_long_div(ax, ay)];
+	}
+	return atan_bucket_reg_pos[f_long_div(ay, ax)];
 }
 
 void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t cols) {
@@ -171,10 +204,10 @@ void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t col
 			uint32_t gy = (uint32_t)*(src_ptr + cols) - (uint32_t)*(src_ptr - cols); 
 			uint32_t tmp = gx * gx + gy * gy;
 			*grad_ptr = i_sqrt(tmp);
-#if 1
+#if 0
 			*angle_ptr = atan_lookup(gy << F_N, gx << F_N);
 #else
-			*angle_ptr = atan_lookup_interp(gy << F_N, gx << F_N);
+			*angle_ptr = f_atan2(gy << F_N, gx << F_N);
 #endif
 			grad_ptr++;
 			src_ptr++;
@@ -184,10 +217,12 @@ void sobel(uint8_t *src, uint16_t *grad, fixed *angle, uint8_t rows, uint8_t col
 		src_ptr += 2;
 		angle_ptr += 2;
 	}
+#ifdef DEBUG
 	PRINTF("\r\nSobel G:\r\n");
-	dump((fixed *)grad, rows, cols);
+	dump((fixed *)grad, rows, cols, 16, 16);
 	PRINTF("\r\nSobel Theta:\r\n");
-	dump(angle, rows, cols);
+	dump(angle, rows, cols, 16, 16);
+#endif
 }
 
 
@@ -201,16 +236,7 @@ void histogram(uint16_t *grad, fixed *angle, uint16_t *hist, uint8_t rows, uint8
 			for(uint8_t k = 0; k < buckets; k++) *(hist_ptr + k) = 0;
 			for(uint8_t k = 0; k < frows; k++) {
 				for(uint8_t l = 0; l < fcols; l++) {
-#if 1
 					*(hist_ptr + *angle_ptr) += *grad_ptr;
-#else
-					uint16_t idx = *angle_ptr >> F_N;
-					fixed frac = F_SUB(*angle_ptr, (idx << F_N));
-					*(hist_ptr + idx % buckets) += F_MUL(frac, *grad_ptr);
-					*(hist_ptr + (idx + 1) % buckets) += F_MUL(
-						F_SUB(F_LIT(1), frac), *grad_ptr); 
-#endif
-
 					grad_ptr++;
 					angle_ptr++;
 				}
@@ -220,21 +246,13 @@ void histogram(uint16_t *grad, fixed *angle, uint16_t *hist, uint8_t rows, uint8
 			hist_ptr += buckets;
 		}
 	}
+#ifdef DEBUG
 	PRINTF("\r\nHIST:\r\n");
-	dump(hist, rows, cols);
+	dump(hist, 15, 180, 15, 18);
+#endif
 }
 
-int32_t f_long_div(int32_t a, int32_t b) {
-	int64_t tmp = a << F_N;
-	if((tmp >= 0 && b >= 0) || (tmp < 0 && b < 0)) {
-		tmp += b / 2;
-	} else {
-		tmp -= b / 2;
-	}
-	return (int32_t)(tmp / b);
-}
-
-void normalize(fixed *src, fixed *dest, uint8_t rows, uint8_t cols, 
+void normalize(uint16_t *src, fixed *dest, uint8_t rows, uint8_t cols, 
 	uint8_t frows, uint8_t fcols, uint8_t buckets) {
 	fixed *dest_ptr = dest;
 	uint8_t size = buckets * frows * fcols;
@@ -242,8 +260,8 @@ void normalize(fixed *src, fixed *dest, uint8_t rows, uint8_t cols,
 	uint16_t remaindersize = buckets * (cols + 1) - colsize; 
 	for(uint8_t i = 0; i < rows; i++) {
 		for(uint8_t j = 0; j < cols; j++) {
-			fixed *src_base_ptr = src + (i * (cols + 1) + j) * buckets;
-			fixed *src_ptr = src_base_ptr;
+			uint16_t *src_base_ptr = src + (i * (cols + 1) + j) * buckets;
+			uint16_t *src_ptr = src_base_ptr;
 			uint32_t denom = 0;
 			for(uint8_t k = 0; k < size; k++) {
 				uint32_t s = *src_ptr;
@@ -261,8 +279,10 @@ void normalize(fixed *src, fixed *dest, uint8_t rows, uint8_t cols,
 			}
 		}
 	}
+#ifdef DEBUG
 	PRINTF("\r\nNORM:\r\n");
-	dump(dest, rows, cols);
+	dump(dest, 14, 171, 14, 18);
+#endif
 }
 
 fixed infer(fixed *src){
