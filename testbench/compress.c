@@ -365,9 +365,17 @@ uint16_t lzw(bool quantization_on){
 
 	}
 
+	uint16_t max = 0;
+
 	// If no more data, output code for P and end.
 	returned_code = inDictionary ( prev_char_read, prev_length, entry_row, pattern_length, current_row);
 	printf("Final Dictionary Length: %d entries.\n", current_row);
+	for( i = 0; i < current_row; i++ ){
+//		printf("CODE ID %d --- >   Length = %d\n", i,  pattern_length[i]);
+	if( pattern_length[i] > max)
+			max = pattern_length[i];
+		}
+		printf("Longest Pattern Length= %d (%c)\n", max, 35);
 	//fwrite( &returned_code, sizeof(unsigned short int), 1, op_file );
 		// Writing to output array -- LSB first
 	frame2[out_count] = returned_code & 0xFF;
@@ -391,15 +399,15 @@ uint16_t lzw(bool quantization_on){
 
 // ==================== HUFFMAN CODE ENDS HERE ========================
 typedef struct node{
+	struct node *parent_node;
+	uint16_t freq;
+	uint16_t final_code_mask;
 	uint8_t element;
 	uint8_t code_bit;
 	uint8_t code_length;
 	//Disposable
 	uint8_t *final_code_array;
-	uint16_t freq;
-	uint16_t final_code_mask;
 
-	struct node *parent_node;
 }node;
 
 node * addNode( uint8_t a, uint16_t b){
@@ -500,6 +508,8 @@ uint16_t huffman(bool quantization_on){
 	printf ("Starting Compression.\n");
 
 	// --------------- Compute Frequency Table ------------------------------------------------------------------------------------------------------
+
+	printf("Size of a node = %ld\n", sizeof(node));
 
 	freq_table = ( uint16_t * ) calloc( 256 , sizeof(uint16_t) );
 	node_array = ( node ** ) malloc( sizeof(node *) );

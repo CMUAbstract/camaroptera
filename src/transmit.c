@@ -80,7 +80,8 @@ void OnRxError() {
   uart_write("$RXE\n");
 }
 
-void rf_init_lora() {
+//void rf_init_lora() {
+void rf_init_lora( uint8_t bw, uint8_t sf) {
   radio_events.TxDone = OnTxDone;
   radio_events.RxDone = OnRxDone;
   //radio_events.TxTimeout = OnTxTimeout;
@@ -90,27 +91,27 @@ void rf_init_lora() {
   sx1276_init(radio_events);
   sx1276_set_channel(RF_FREQUENCY);
 
-
+/*
   sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
-/*
+                                true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
+*/
  sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, bw,
 																	sf, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 4, LORA_IQ_INVERSION_ON, 2000);
-*/
+/*
   sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
                                   LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-  /*
+  */
 	sx1276_set_rxconfig(MODEM_LORA, bw, sf,
                                   LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
                                   LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-*/
+
 }
 
 int main(void) {
@@ -142,7 +143,7 @@ int main(void) {
   
 	//uart_write("Starting the transmitter.\r\n");
 
-	uint16_t i;
+	uint16_t i, j;
 	
 	buffer[0] = 0x01;
 	buffer[1] = 'e';
@@ -158,12 +159,12 @@ int main(void) {
 	__delay_cycles(8000);
 		//P4OUT |= BIT7;
 
-	for( i = 0; i < 1000; i++ ){
-	//	for( j=7; j<13; j++){
+	for( i = 0; i < 3; i++ ){
+		for( j=7; j<13; j++){
 		P8OUT |= BIT1; 
 
 		TA0CCTL0 = CCIE;
-		TA0CCR0 = 50000;
+		TA0CCR0 = 5000;
 		TA0CTL = TASSEL__ACLK | MC__UP | ID__1;
 	
 		//P8OUT ^= BIT1;
@@ -179,14 +180,14 @@ int main(void) {
 		spi_init();
 
 		P8OUT |= BIT2;
-		rf_init_lora();
+		rf_init_lora( i, j);
 		P8OUT &= ~BIT2;
 		
 		P8OUT |= BIT2;
 		buffer[1] = i;
 		//sx1276_send( buffer, (20 + i) % 255 );
 		//buffer[5] = packet_track;
-		sx1276_send( buffer, 255 );
+		sx1276_send( buffer, 64 );
 		P8OUT &= ~BIT2;
 
 		__bis_SR_register(LPM4_bits+GIE);
@@ -212,7 +213,7 @@ int main(void) {
 		//P6OUT &= ~BIT1;
 		P4OUT &= ~BIT7;
 		//__bis_SR_register(LPM4_bits);
-	//}
+	}
 	}
 
 

@@ -230,7 +230,7 @@ uint16_t lzw(){
 
 
 	// Build Initial Dictionary.
-	int i;
+	uint16_t i;
 
 #ifdef enable_debug
 	uart_write("Building Initial Dictionary\n");
@@ -256,18 +256,14 @@ uint16_t lzw(){
 	prev_length = 0;
 	in_count = out_count = 0;
 
-	while(1){
+	for( i = 0; i < nb; i++ ){
 
 		// Read char.
-		*char_read = frame[in_count];
-		in_count ++;
-
-		if( in_count > nb )			// Break if EOF.
-			break;
+		*char_read = frame[i];
 
 		// Generate P+C
 		new_char = concat( char_read, prev_char_read, prev_length );
-		
+
 		if( inDictionary ( new_char, prev_length + 1, entry_row, pattern_length, current_row) == -1 ){
 			// P+C not in dictionary.
 

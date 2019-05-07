@@ -20,24 +20,15 @@ int main( int argc, char * argv[] ){
 	msp_clock_setup();
 	INIT_CONSOLE();
 
+	uint8_t input[15] = [ 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4];
 
-	fixed a = F_LIT(161.37);
-	fixed c = F_LIT(0.8);
-	fixed d = F_ADD(a, c);
-	double x, y;
-	uint16_t b = 0;
-	d = F_ROUND(a);
-	b = (uint16_t)F_TO_FLOAT(a);
-	b = b%20;
-	c = F_DIV( F_LIT(b), F_LIT(20));
-	d = F_MUL( F_LIT(10.5), c);
-	x = -11.5;
-	y = x + 180.0;
-	a = F_LIT( y);
+	uint16_t freq_array[2][256];
+	uint32_t node_parent[512 ];
 
+	uint16_t i;
 
-	PRINTF("%u | %u | %u | %u\n\r", a, c, d, b);
-
+	for( i = 0; i < 15; i++ )
+		freq_array[input[i]] ++;
 
 	return 0;
 	}
