@@ -375,7 +375,7 @@ void wait_for_charge(){
     TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
     TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
 #ifdef enable_debug
-    uart_write("W8ing for capt to be charged. Going To Sleep\n\r");
+    uart_write("W8ing for cap to be charged. Going To Sleep\n\r");
 #endif
 
     __bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
