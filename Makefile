@@ -5,7 +5,7 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o
+OBJECTS = main.o jpec.o
 OBJECTS = hog-svm.o
 
 DEPS += liblora libio libmsp libov7670 libfixed libmspmath

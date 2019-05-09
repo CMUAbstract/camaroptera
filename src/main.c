@@ -14,6 +14,8 @@
 
 #include <libio/console.h>
 
+#include "jpec.h" 
+
 #define RF_FREQUENCY   915000000 // Hz
 
 #define FSK_FDEV                          25e3      // Hz
@@ -137,15 +139,38 @@ void process(){
 
 	nb /= 2;
 
-	for( i = 0; i < 120; i+=2 ){
-		for( j = 0; j < 160; j+=2 ){
-				total = frame[i*160+j] +frame[i*160+(j+1)] + frame[(i+1)*160+j] +	frame[(i+1)*160+(j+1)];
-				average = total/4;
-				frame[((i*160)/4) + j/2] = (uint8_t)average;
-			}
-		}
+	int len = 0;
+#ifdef enable_debug        	
+	uart_write("Starting JPEG compression\n\r");
+#endif
 
-	nb /= 4;
+	jpec_enc_t *e = jpec_enc_new2(frame, 160, 120, 50);
+
+	uint8_t *jpeg = jpec_enc_run(e, &len);
+
+	for( i = 0; i < len; i+=2 ){
+
+		frame[i] = *jpeg;
+		jpeg++;
+
+	}
+
+#ifdef enable_debug
+	sprintf(temp, "Done. New img size:  %u bytes.\r\n", len);
+	uart_write(temp);
+#endif
+
+	nb = len;
+
+	// for( i = 0; i < 120; i+=2 ){
+	// 	for( j = 0; j < 160; j+=2 ){
+	// 			total = frame[i*160+j] +frame[i*160+(j+1)] + frame[(i+1)*160+j] +	frame[(i+1)*160+(j+1)];
+	// 			average = total/4;
+	// 			frame[((i*160)/4) + j/2] = (uint8_t)average;
+	// 		}
+	// 	}
+
+	// nb /= 4;
 
 }
 
