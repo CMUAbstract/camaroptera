@@ -148,7 +148,7 @@ void process(){
 
 	uint8_t *jpeg = jpec_enc_run(e, &len);
 
-	for( i = 0; i < len; i+=2 ){
+	for( i = 0; i < len; i++ ){
 
 		frame[i] = *jpeg;
 		jpeg++;
