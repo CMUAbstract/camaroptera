@@ -2,17 +2,18 @@
 #include <stdint.h>
 #include <stdio.h>
 
+
+#include <libio/console.h>
+#include <libmsp/mem.h>
+
 #include <liblora/mcu.h>
-#include <liblora/uart.h>
+//#include <liblora/uart.h>
 #include <liblora/spi.h>
 #include <liblora/sx1276.h>
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
-#include <libmsp/mem.h>
 
-#include <libov7670/ov7670.h>
-
-#include <libio/console.h>
+#include <libhimax/hm01b0.h>
 
 #include "jpec.h" 
 
@@ -41,22 +42,25 @@
 
 #define PACKET_SIZE												255
 
-#define High_Threshold 0xF62         // ~3.15V
+#define High_Threshold 0xFba         // ~2.95V
 
 #define enable_debug
 
 void wait_for_charge();
+void capture();
 
 uint8_t buffer[BUFFER_SIZE];
 char temp[30];
 
 extern uint8_t frame[];
+extern uint8_t buf[];
 
 __nv uint8_t tx_packet_index = 0;
 __nv uint16_t sent_packet_count = 0;
-__nv uint16_t nb = 0;
 __nv uint8_t image_capt_not_sent = 0;
 __nv uint16_t frame_track = 0;
+
+__nv HM01B0 cam = {0};
 
 static radio_events_t radio_events;
 
@@ -77,32 +81,17 @@ void OnTxDone() {
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-  uart_write("Packet Received.\r\n");
 
-	uart_write("RSSI: ");
-	sprintf( temp, "%d", rssi);
-	uart_write(temp);
-  uart_write("dBm\r\n");
-	
-	uart_write("SNR: ");
-	sprintf( temp, "%d", snr);
-	uart_write(temp);
-  uart_write("dB\r\n");
+	PRINTF("Packet Received.\r\n");
+	PRINTF("RSSI: %d dBm\r\n", rssi);
+	PRINTF("SNR: %d dB\r\n", snr);
+	PRINTF("Received -- %d -- bytes.\r\n", size);
+	PRINTF("Packet Contents: %s.\r\n", (char *)payload);
 
-	uart_write("Received -- ");
-	sprintf( temp, "%d", size);
-	uart_write(temp);
-  uart_write(" -- bytes.\r\n");
-
-	uart_write("Packet Contents: ");
-	uart_write((char *)payload);
-  uart_write(" .\r\n");
-
-  //if(state == 1) SendPing();
 }
 
 void OnRxError() {
-  uart_write("RX Error Detected.\r\n");
+	PRINTF("RX Error Detected.\r\n");
 }
 
 void rf_init_lora() {
@@ -133,45 +122,20 @@ void process(){
 	uint16_t total;
 	uint16_t average;
 
-	for( i = 0; i < nb; i+=2 ){
-		frame[i/2] = frame[i];
-		}
-
-	nb /= 2;
-
 	int len = 0;
 #ifdef enable_debug        	
-	uart_write("Starting JPEG compression\n\r");
+	PRINTF("Starting JPEG compression\n\r");
 #endif
 
-	jpec_enc_t *e = jpec_enc_new2(frame, 160, 120, 50);
+	jpec_enc_t *e = jpec_enc_new2(frame, 164, 122, 50);
 
 	uint8_t *jpeg = jpec_enc_run(e, &len);
 
-	for( i = 0; i < len; i++ ){
-
-		frame[i] = *jpeg;
-		jpeg++;
-
-	}
-
 #ifdef enable_debug
-	sprintf(temp, "Done. New img size:  %u bytes.\r\n", len);
-	uart_write(temp);
+	PRINTF("Done. New img size: -- %u -- bytes.\r\n", len);
 #endif
 
-	nb = len;
-
-	// for( i = 0; i < 120; i+=2 ){
-	// 	for( j = 0; j < 160; j+=2 ){
-	// 			total = frame[i*160+j] +frame[i*160+(j+1)] + frame[(i+1)*160+j] +	frame[(i+1)*160+(j+1)];
-	// 			average = total/4;
-	// 			frame[((i*160)/4) + j/2] = (uint8_t)average;
-	// 		}
-	// 	}
-
-	// nb /= 4;
-
+	cam.pixels = len;
 }
 
 int main(void) {
@@ -195,8 +159,8 @@ int main(void) {
 	P4DIR |= BIT7;
 
 #ifdef enable_debug
-		uart_init();
-		uart_write("Starting the transmitter.\r\n");
+		INIT_CONSOLE();
+		PRINTF("Starting the transmitter.\r\n");
 #endif
 	while(1){
 
@@ -209,51 +173,59 @@ int main(void) {
 		wait_for_charge();
 
 #ifdef enable_debug        	
-        	uart_write("Cap ready\n\r");
-			uart_write("Capturing a photo.\r\n");
+        	PRINTF("Cap ready\n\rCapturing a photo.\r\n");
 #endif
 
 			P6OUT |= BIT1;
 			P8OUT |= BIT2;
-			nb = ov7670_get_photo();
+			capture();
 			P8OUT &= ~BIT2;
 			P6OUT &= ~BIT1;
 
 #ifdef enable_debug
-			uart_write("\r\nStart frame\r\n");
-			for( i = 0 ; i < nb ; i++ ){
-				uart_printhex8(frame[i]);
-			}
-			uart_write("\r\nEnd frame\r\n");
-#endif
+			PRINTF("\r\nStart frame\r\n");
 
+			for( i = 0 ; i < cam.pixels ; i++ ){
+
+				PRINTF("%u ", frame[i]);
+
+			}
+
+			PRINTF("\r\nEnd frame\r\n");
+#endif
 			process();
+
 			image_capt_not_sent = 1;
 
 #ifdef enable_debug
-			uart_write("\r\nStart frame\r\n");
-			for( i = 0 ; i < nb ; i++ ){
-				uart_printhex8(frame[i]);
+			PRINTF("\r\nStart frame\r\n");
+
+			for( i = 0 ; i < cam.pixels ; i++ ){
+
+				PRINTF("%u ", buf[i]);
+
 			}
-			uart_write("\r\nEnd frame\r\n");
+
+			PRINTF("\r\nEnd frame\r\n");
 #endif
 
 		//Wait to charge up
 		wait_for_charge();
 
 #ifdef enable_debug        	
-        	uart_write("Cap ready\n\r");
+        	PRINTF("Cap ready\n\r");
 #endif  
 	}
 	else{
+
 #ifdef enable_debug
-			uart_write("Already have a stored photo.\r\n");
+			PRINTF("Already have a stored photo.\r\n");
 #endif
+
 	}
 
 #ifdef enable_debug
-	sprintf(temp, "It's a photo of %u bytes.\r\n", nb);
-	uart_write(temp);
+	PRINTF("It's a photo of -- %n -- bytes.\r\n", cam.pixels);
 #endif
 
 	//================== Camera Code ends here ==================
@@ -261,31 +233,38 @@ int main(void) {
 
 	//================== Radio Transmission begins here ==================
 
-	packet_count = nb/(PACKET_SIZE-2);
+	packet_count = cam.pixels  /(PACKET_SIZE - 2);
 
-	last_packet_size = nb - packet_count*(PACKET_SIZE - 2) + 2;
+	last_packet_size = cam.pixels - packet_count * (PACKET_SIZE - 2) + 2;
 
-	if(nb % (PACKET_SIZE - 2) != 0){
+	if(cam.pixels % (PACKET_SIZE - 2) != 0){
+
 		packet_count ++;
-	}
 
+	}
 
 	sent_history = sent_packet_count;
 
 	for( i = sent_history; i < packet_count; i++ ){
+
 		P8OUT |= BIT1; 
 
 		buffer[0] = DEV_ID;
 		buffer[1] = tx_packet_index;
 
 		if( i == packet_count - 1){
+
 			for( j = 2; j < last_packet_size; j++ ){
+
 				buffer[j] = frame[frame_track + j - 2];
+
 			}
 		}
 		else{
 			for( j = 2; j < PACKET_SIZE; j++ ){
+
 				buffer[j] = frame[frame_track + j - 2];
+
 			}
 		}
 
@@ -293,7 +272,7 @@ int main(void) {
 		wait_for_charge();
 
 #ifdef enable_debug        	
-        	uart_write("Cap ready\n\r");
+        PRINTF("Cap ready\n\r");
 #endif  
 
 		P4OUT |= BIT7;
@@ -305,14 +284,18 @@ int main(void) {
 
 
 		if( i == packet_count - 1){
+
 			P8OUT |= BIT2;
 			sx1276_send( buffer,  last_packet_size);
 			P8OUT &= ~BIT2;
+
 		}
 		else{
+
 			P8OUT |= BIT2;
 			sx1276_send( buffer, PACKET_SIZE );
 			P8OUT &= ~BIT2;
+
 		}
 
 		__bis_SR_register(LPM4_bits+GIE);
@@ -326,8 +309,7 @@ int main(void) {
 		irq_flag = 0;
 
 #ifdef enable_debug
-		sprintf(temp, "Sent packet (ID=%d). Frame at %d. Sent %d till now. %d more to go.\r\n",	tx_packet_index, frame_track, sent_packet_count, packet_count	- sent_packet_count);
-		uart_write(temp);
+		PRINTF(temp, "Sent packet (ID=%d). Frame at %d. Sent %d till now. %d more to go.\r\n",	tx_packet_index, frame_track, sent_packet_count, packet_count - sent_packet_count);
 #endif
 
 		P8OUT &= ~BIT1;
@@ -339,19 +321,42 @@ int main(void) {
 	}
 
 #ifdef enable_debug
-	uart_write("Sent full image\r\n");
+	PRINTF("Sent full image\r\n");
 #endif
 
 	tx_packet_index = 0;
 	sent_packet_count = 0;
 	frame_track = 0;
 	image_capt_not_sent = 0;
-	nb = 0;
 
 	//================== Radio Transmission ends here ==================
 	
 	}
 
+}
+
+void capture(){
+
+	uint16_t id = 0;
+
+	hm01b0_init();
+
+	id = hm01b0_reg_default_init();
+
+#ifdef enable_debug
+	PRINTF("Camera ID 0x%04x\n\r", id);	
+#endif
+
+	cam.mode = Streaming3;		// External trigger
+	cam.state = sleep;			// Camera inited but to be configured
+	cam.resolution = QQVGA;		// QQVGA resolution
+	cam.dataDepth = EightB;		// 8-bit per pixel
+	cam.dataIo = EightL;		// 8 Data lines
+	cam.tPattern = 0;			// Test Pattern
+		
+	hm01b0_capture(&cam);
+
+	hm01b0_deinit();
 }
 
 void wait_for_charge(){
@@ -374,8 +379,9 @@ void wait_for_charge(){
     TA0CCTL1 = OUTMOD_3;                                    // TACCR1 set/reset
     TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
     TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
+
 #ifdef enable_debug
-    uart_write("W8ing for cap to be charged. Going To Sleep\n\r");
+    PRINTF("W8ing for cap to be charged. Going To Sleep\n\r");
 #endif
 
     __bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts

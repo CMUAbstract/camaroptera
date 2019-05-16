@@ -6,11 +6,11 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o jpec.o
-OBJECTS = hog-svm.o
+#OBJECTS = hog-svm.o
 
-DEPS += liblora libio libmsp libov7670 libfixed libmspmath
+DEPS += liblora libio libmsp libhimax libfixed libmspmath
 
-export MAIN_CLOCK_FREQ = 8000000
+export MAIN_CLOCK_FREQ = 16000000
 
 export CLOCK_FREQ_ACLK = 32768
 export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
