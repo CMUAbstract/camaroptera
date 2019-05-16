@@ -16,3 +16,6 @@
 [submodule "ext/libmspmath"]
 	path = ext/libmspmath
 	url = git@github.com:CMUAbstract/libmspmath.git
+[submodule "ext/libhimax"]
+	path = ext/libhimax
+	url = git@github.com:CMUAbstract/libhimax.git
