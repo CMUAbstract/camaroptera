@@ -44,7 +44,7 @@
 
 #define High_Threshold 0xFba         	// ~2.95V
 
-#define enable_debug
+//#define enable_debug
 
 // Photo resolution
 #define H 120
