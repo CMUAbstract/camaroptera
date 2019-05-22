@@ -171,7 +171,7 @@ int __attribute__((section(".upper.rodata"))) jpec_ac_code[256] = {
 #define JPEC_ENC_HEAD_SIZ  330 /* header typical size in bytes */
 #define JPEC_ENC_BLOCK_SIZ  30 /* 8x8 entropy coded block typical size in bytes */
 
-uint8_t __attribute__((section(".upper.rodata"))) buf[20008];
+uint8_t __attribute__((section(".upper.rodata"))) buf[19200];
 
 jpec_buffer_t __attribute__((section(".upper.rodata")))bu;
 jpec_huff_t __attribute__((section(".upper.rodata")))ht;
