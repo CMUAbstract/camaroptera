@@ -42,15 +42,21 @@
 
 #define PACKET_SIZE												255
 
-#define High_Threshold 0xFba         // ~2.95V
+#define High_Threshold 0xFba         	// ~2.95V
 
 #define enable_debug
+
+// Photo resolution
+#define H 120
+#define W 160
+
+//Jpeg quality factor
+#define JQ 50
 
 void wait_for_charge();
 void capture();
 
 uint8_t buffer[BUFFER_SIZE];
-char temp[30];
 
 extern uint8_t frame[];
 extern uint8_t buf[];
@@ -118,37 +124,51 @@ void rf_init_lora() {
 
 void process(){
 	
-	uint16_t i, j;
-	uint16_t total;
-	uint16_t average;
+	P8OUT |= BIT3;
 
-	int len = 0;
+	uint16_t i, j, len = 0;
+
+	for(j = 1; j < H - 1; j++){
+	
+		for(i = 2; i < W - 2; i++){
+			
+			frame[((i - 2) + ( j - 1) * (W - 4))] = frame[((W * j) + i)];
+		}
+	}
+
+	P8OUT &= ~BIT3;
+
 #ifdef enable_debug        	
 	PRINTF("Starting JPEG compression\n\r");
 #endif
 
-	jpec_enc_t *e = jpec_enc_new2(frame, 164, 122, 50);
+	P8OUT |= BIT3;
 
-	uint8_t *jpeg = jpec_enc_run(e, &len);
+	jpec_enc_t *e = jpec_enc_new2(frame, W, H, JQ);
+
+	jpec_enc_run(e, &len);
 
 #ifdef enable_debug
 	PRINTF("Done. New img size: -- %u -- bytes.\r\n", len);
 #endif
 
 	cam.pixels = len;
+
+	P8OUT &= ~BIT3;
 }
 
 int main(void) {
 	
 	int i, j;
 	uint16_t packet_count, sent_history, last_packet_size; 
-	char temp[100];
 
 	PM5CTL0 &= ~LOCKLPM5;
 
-	P8DIR |= BIT1 + BIT2;
-	P8OUT |= BIT1;			// To demarcate start and end of individual runs of the program
-	P8OUT &= ~BIT2; 	  	// To demarcate smaller sections of the program
+	
+	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
+	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
+	P8OUT &= ~BIT3;
+	P8DIR |= BIT1 + BIT2 + BIT3;
 
 	mcu_init();
 
@@ -193,7 +213,9 @@ int main(void) {
 
 			PRINTF("\r\nEnd frame\r\n");
 #endif
+			P8OUT |= BIT2;
 			process();
+			P8OUT &= ~BIT2;
 
 			image_capt_not_sent = 1;
 
@@ -233,7 +255,7 @@ int main(void) {
 
 	//================== Radio Transmission begins here ==================
 
-	packet_count = cam.pixels  /(PACKET_SIZE - 2);
+	packet_count = cam.pixels  / (PACKET_SIZE - 2);
 
 	last_packet_size = cam.pixels - packet_count * (PACKET_SIZE - 2) + 2;
 
@@ -309,7 +331,7 @@ int main(void) {
 		irq_flag = 0;
 
 #ifdef enable_debug
-		PRINTF(temp, "Sent packet (ID=%d). Frame at %d. Sent %d till now. %d more to go.\r\n",	tx_packet_index, frame_track, sent_packet_count, packet_count - sent_packet_count);
+		PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
 #endif
 
 		P8OUT &= ~BIT1;
@@ -339,9 +361,13 @@ void capture(){
 
 	uint16_t id = 0;
 
+	P8OUT |= BIT3;
+
 	hm01b0_init();
 
 	id = hm01b0_reg_default_init();
+
+	P8OUT &= ~BIT3;
 
 #ifdef enable_debug
 	PRINTF("Camera ID 0x%04x\n\r", id);	
@@ -353,23 +379,25 @@ void capture(){
 	cam.dataDepth = EightB;		// 8-bit per pixel
 	cam.dataIo = EightL;		// 8 Data lines
 	cam.tPattern = 0;			// Test Pattern
-		
+	
+	P8OUT |= BIT3;
 	hm01b0_capture(&cam);
 
 	hm01b0_deinit();
+	P8OUT &= ~BIT3;
 }
 
 void wait_for_charge(){
 
 	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
 
-    P1SEL0 |= BIT0;                                 //P1.0 ADC mode
-    P1SEL1 |= BIT0;                                 //
+    P2SEL0 |= BIT4;                                 //P1.0 ADC mode
+    P2SEL1 |= BIT4;                                 //
 
     //Configure ADC
     ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
     ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
-    ADC12MCTL0 = ADC12INCH_0 | ADC12EOS | ADC12WINC;        // A0 ADC input select; Vref+ = AVCC
+    ADC12MCTL0 = ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
     ADC12HI = High_Threshold;                               // Enable ADC interrupt
     ADC12IER2 = ADC12HIIE | ADC12INIE;                      // Enable ADC threshold interrupt
     ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion

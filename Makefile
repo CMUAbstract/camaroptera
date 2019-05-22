@@ -10,7 +10,7 @@ OBJECTS = main.o jpec.o
 
 DEPS += liblora libio libmsp libhimax libfixed libmspmath
 
-export MAIN_CLOCK_FREQ = 16000000
+export MAIN_CLOCK_FREQ = 4000000
 
 export CLOCK_FREQ_ACLK = 32768
 export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
