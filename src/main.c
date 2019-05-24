@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <libhimax/hm01b0.h>
 
 #include <libio/console.h>
 #include <libmsp/mem.h>
@@ -12,8 +13,6 @@
 #include <liblora/sx1276.h>
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
-
-#include <libhimax/hm01b0.h>
 
 #include "jpec.h" 
 
@@ -44,22 +43,19 @@
 
 #define High_Threshold 0xFba         	// ~2.95V
 
-//#define enable_debug
+#define enable_debug
 
 // Photo resolution
 #define H 120
 #define W 160
+#define offset 19200
 
 //Jpeg quality factor
 #define JQ 50
 
-void wait_for_charge();
-void capture();
-
 uint8_t buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
-extern uint8_t buf[];
 
 __nv uint8_t tx_packet_index = 0;
 __nv uint16_t sent_packet_count = 0;
@@ -72,90 +68,14 @@ static radio_events_t radio_events;
 
 int state = 0;
 
-void SendPing() {
-   sx1276_send(buffer, 5);
-}
-
-void OnTxDone() {
- // uart_write("$TXS\n");
-  //if(state == 1) sx1276_set_rx(0);
-	P8OUT &= ~BIT2;
-	tx_packet_index ++;
-	sent_packet_count ++;
-	if(sent_packet_count < 19)
-		frame_track += 253;
-}
-
-void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-
-	PRINTF("Packet Received.\r\n");
-	PRINTF("RSSI: %d dBm\r\n", rssi);
-	PRINTF("SNR: %d dB\r\n", snr);
-	PRINTF("Received -- %d -- bytes.\r\n", size);
-	PRINTF("Packet Contents: %s.\r\n", (char *)payload);
-
-}
-
-void OnRxError() {
-	PRINTF("RX Error Detected.\r\n");
-}
-
-void rf_init_lora() {
-  radio_events.TxDone = OnTxDone;
-  radio_events.RxDone = OnRxDone;
-  //radio_events.TxTimeout = OnTxTimeout;
-  //radio_events.RxTimeout = OnRxTimeout;
-  radio_events.RxError = OnRxError;
-
-  sx1276_init(radio_events);
-  sx1276_set_channel(RF_FREQUENCY);
-
-  sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
-                                  LORA_SPREADING_FACTOR, LORA_CODINGRATE,
-                                  LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
-
-  sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
-                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
-                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-
-}
-
-void process(){
-	
-	P8OUT |= BIT3;
-
-	uint16_t i, j, len = 0;
-
-	for(j = 1; j < H - 1; j++){
-	
-		for(i = 2; i < W - 2; i++){
-			
-			frame[((i - 2) + ( j - 1) * (W - 4))] = frame[((W * j) + i)];
-		}
-	}
-
-	P8OUT &= ~BIT3;
-
-#ifdef enable_debug        	
-	PRINTF("Starting JPEG compression\n\r");
-#endif
-
-	P8OUT |= BIT3;
-
-	jpec_enc_t *e = jpec_enc_new2(frame, W, H, JQ);
-
-	jpec_enc_run(e, &len);
-
-#ifdef enable_debug
-	PRINTF("Done. New img size: -- %u -- bytes.\r\n", len);
-#endif
-
-	cam.pixels = len;
-
-	P8OUT &= ~BIT3;
-}
+void process();
+void rf_init_lora();
+void OnRxError();
+void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
+void OnTxDone();
+void SendPing();
+void wait_for_charge();
+void capture();
 
 int main(void) {
 	
@@ -224,7 +144,7 @@ int main(void) {
 
 			for( i = 0 ; i < cam.pixels ; i++ ){
 
-				PRINTF("%u ", buf[i]);
+				PRINTF("%u ", frame[offset + i]);
 
 			}
 
@@ -278,14 +198,22 @@ int main(void) {
 
 			for( j = 2; j < last_packet_size; j++ ){
 
-				buffer[j] = frame[frame_track + j - 2];
+				buffer[j] = frame[offset + frame_track + j - 2];
+        
+#ifdef enable_debug
+	PRINTF("%u ", buffer[j]);
+#endif
 
 			}
 		}
 		else{
 			for( j = 2; j < PACKET_SIZE; j++ ){
 
-				buffer[j] = frame[frame_track + j - 2];
+				buffer[j] = frame[offset + frame_track + j - 2];
+        
+#ifdef enable_debug
+	PRINTF("%u ", buffer[j]);
+#endif
 
 			}
 		}
@@ -356,7 +284,6 @@ int main(void) {
 	}
 
 }
-
 void capture(){
 
 	uint16_t id = 0;
@@ -378,7 +305,6 @@ void capture(){
 	cam.resolution = QQVGA;		// QQVGA resolution
 	cam.dataDepth = EightB;		// 8-bit per pixel
 	cam.dataIo = EightL;		// 8 Data lines
-	cam.tPattern = 0;			// Test Pattern
 	
 	P8OUT |= BIT3;
 	hm01b0_capture(&cam);
@@ -399,7 +325,7 @@ void wait_for_charge(){
     ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
     ADC12MCTL0 = ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
     ADC12HI = High_Threshold;                               // Enable ADC interrupt
-    ADC12IER2 = ADC12HIIE | ADC12INIE;                      // Enable ADC threshold interrupt
+    ADC12IER2 = ADC12HIIE;                                  // Enable ADC threshold interrupt
     ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
 
     // Configure Timer0_A3 to periodically trigger the ADC12
@@ -416,6 +342,99 @@ void wait_for_charge(){
 
     TA0CTL |= TACLR + MC__STOP;
     ADC12CTL0 = ~(ADC12ON);
+}
+
+void SendPing() {
+   sx1276_send(buffer, 5);
+}
+
+void OnTxDone() {
+ // uart_write("$TXS\n");
+  //if(state == 1) sx1276_set_rx(0);
+	P8OUT &= ~BIT2;
+	tx_packet_index ++;
+	sent_packet_count ++;
+	if(sent_packet_count < 19)
+		frame_track += 253;
+}
+
+void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
+
+	PRINTF("Packet Received.\r\n");
+	PRINTF("RSSI: %d dBm\r\n", rssi);
+	PRINTF("SNR: %d dB\r\n", snr);
+	PRINTF("Received -- %d -- bytes.\r\n", size);
+	PRINTF("Packet Contents: %s.\r\n", (char *)payload);
+
+}
+
+void OnRxError() {
+	PRINTF("RX Error Detected.\r\n");
+}
+
+void rf_init_lora() {
+  radio_events.TxDone = OnTxDone;
+  radio_events.RxDone = OnRxDone;
+  //radio_events.TxTimeout = OnTxTimeout;
+  //radio_events.RxTimeout = OnRxTimeout;
+  radio_events.RxError = OnRxError;
+
+  sx1276_init(radio_events);
+  sx1276_set_channel(RF_FREQUENCY);
+
+  sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
+                                  LORA_SPREADING_FACTOR, LORA_CODINGRATE,
+                                  LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                  true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
+
+  sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
+                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
+                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
+
+}
+
+void process(){
+	
+	P8OUT |= BIT3;
+
+	uint16_t i, j, len = 0;
+ 
+#ifdef enable_debug        	
+	PRINTF("\n\rPROCESSING\n\r");
+#endif
+
+	for(j = 1; j < (H + 2) - 1; j++){
+	
+		for(i = 2; i < (W + 4) - 2; i++){
+			
+			frame[((i - 2) + ( j - 1) * ((W + 4) - 4))] = frame[(((W + 4) * j) + i)];
+      
+#ifdef enable_debug
+	PRINTF("%u ", frame[((i - 2) + ( j - 1) * ((W + 4) - 4))]);
+#endif
+		}
+	}
+
+	P8OUT &= ~BIT3;
+
+#ifdef enable_debug        	
+	PRINTF("\n\rStarting JPEG compression\n\r");
+#endif
+
+	P8OUT |= BIT3;
+
+	jpec_enc_t *e = jpec_enc_new2(frame, W, H, JQ);
+
+	jpec_enc_run(e, &len);
+
+#ifdef enable_debug
+	PRINTF("Done. New img size: -- %u -- bytes.\r\n", len);
+#endif
+
+	cam.pixels = len;
+
+	P8OUT &= ~BIT3;
 }
 
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
