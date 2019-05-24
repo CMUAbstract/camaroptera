@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <libhimax/hm01b0.h>
-
 #include <libio/console.h>
 #include <libmsp/mem.h>
 
@@ -14,7 +12,16 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
+#include <libhimax/hm01b0.h>
+
 #include "jpec.h" 
+
+#define enable_debug
+
+#ifdef enable_debug
+  #include <libio/console.h>
+#endif
+
 
 #define RF_FREQUENCY   915000000 // Hz
 
@@ -41,9 +48,7 @@
 
 #define PACKET_SIZE												255
 
-#define High_Threshold 0xFba         	// ~2.95V
-
-#define enable_debug
+#define High_Threshold 0xFF0         	    // ~2.95V
 
 // Photo resolution
 #define H 120
@@ -123,15 +128,15 @@ int main(void) {
 			P6OUT &= ~BIT1;
 
 #ifdef enable_debug
-			PRINTF("\r\nStart frame\r\n");
-
-			for( i = 0 ; i < cam.pixels ; i++ ){
-
-				PRINTF("%u ", frame[i]);
-
-			}
-
-			PRINTF("\r\nEnd frame\r\n");
+//			PRINTF("\r\nStart frame\r\n");
+//
+//			for( i = 0 ; i < cam.pixels ; i++ ){
+//
+//				PRINTF("%u ", frame[i]);
+//
+//			}
+//
+//			PRINTF("\r\nEnd frame\r\n");
 #endif
 			P8OUT |= BIT2;
 			process();
@@ -140,15 +145,15 @@ int main(void) {
 			image_capt_not_sent = 1;
 
 #ifdef enable_debug
-			PRINTF("\r\nStart frame\r\n");
-
-			for( i = 0 ; i < cam.pixels ; i++ ){
-
-				PRINTF("%u ", frame[offset + i]);
-
-			}
-
-			PRINTF("\r\nEnd frame\r\n");
+//			PRINTF("\r\nStart frame\r\n");
+//
+//			for( i = 0 ; i < cam.pixels ; i++ ){
+//
+//				PRINTF("%u ", frame[offset + i]);
+//
+//			}
+//
+//			PRINTF("\r\nEnd frame\r\n");
 #endif
 
 		//Wait to charge up
@@ -200,9 +205,9 @@ int main(void) {
 
 				buffer[j] = frame[offset + frame_track + j - 2];
         
-#ifdef enable_debug
-	PRINTF("%u ", buffer[j]);
-#endif
+//#ifdef enable_debug
+//	PRINTF("%u ", buffer[j]);
+//#endif
 
 			}
 		}
@@ -211,9 +216,9 @@ int main(void) {
 
 				buffer[j] = frame[offset + frame_track + j - 2];
         
-#ifdef enable_debug
-	PRINTF("%u ", buffer[j]);
-#endif
+//#ifdef enable_debug
+//	PRINTF("%u ", buffer[j]);
+//#endif
 
 			}
 		}
@@ -410,9 +415,9 @@ void process(){
 			
 			frame[((i - 2) + ( j - 1) * ((W + 4) - 4))] = frame[(((W + 4) * j) + i)];
       
-#ifdef enable_debug
-	PRINTF("%u ", frame[((i - 2) + ( j - 1) * ((W + 4) - 4))]);
-#endif
+//#ifdef enable_debug
+//	PRINTF("%u ", frame[((i - 2) + ( j - 1) * ((W + 4) - 4))]);
+//#endif
 		}
 	}
 
