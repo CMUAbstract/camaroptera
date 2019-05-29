@@ -24,6 +24,13 @@
 
 #include "jpec.h"
 
+#define JPEG_ENC_DEF_QUAL     93 /* default quality factor */
+#define JPEC_ENC_HEAD_SIZ     330 /* header typical size in bytes */
+#define JPEC_ENC_BLOCK_SIZ    30 /* 8x8 entropy coded block typical size in bytes */
+#define JPEC_BUFFER_INIT_SIZ  9600
+
+extern uint8_t frame[];
+
 /** Standard JPEG quantizing table */
 uint8_t __attribute__((section(".lower.rodata")))  jpec_qzr[64] = {
   16, 11, 10, 16, 24, 40, 51, 61,
@@ -167,19 +174,11 @@ int __attribute__((section(".lower.rodata"))) jpec_ac_code[256] = {
   0xfffc,0xfffd,0xfffe,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-#define JPEG_ENC_DEF_QUAL   93 /* default quality factor */
-#define JPEC_ENC_HEAD_SIZ  330 /* header typical size in bytes */
-#define JPEC_ENC_BLOCK_SIZ  30 /* 8x8 entropy coded block typical size in bytes */
-
-extern uint8_t frame[];
 
 jpec_buffer_t __attribute__((section(".lower.rodata")))bu;
 jpec_huff_t __attribute__((section(".lower.rodata")))ht;
 jpec_enc_t __attribute__((section(".lower.rodata")))str;
 
-uint8_t __attribute__((section(".upper.rodata"))) frame2[29696] = {0};
-
-#define JPEC_BUFFER_INIT_SIZ 10496
 
 jpec_buffer_t *jpec_buffer_new(void) {
   return jpec_buffer_new2(-1);
@@ -190,7 +189,7 @@ jpec_buffer_t *jpec_buffer_new2(int siz) {
   //jpec_buffer_t *b = malloc(sizeof(*b));
   //b->stream = siz > 0 ? malloc(siz) : NULL;
   jpec_buffer_t *b = &bu;
-  b->stream = siz > 0 ? &frame2[0] : NULL;
+  b->stream = siz > 0 ? &frame[19200] : NULL;
   b->siz = siz;
   b->len = 0;
   return b;

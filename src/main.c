@@ -50,9 +50,7 @@
 
 #define High_Threshold 0xFF0         	    // ~2.95V
 
-// Photo resolution
-#define H 120
-#define W 160
+//Buffer offsett for jpec
 #define offset 19200
 
 //Jpeg quality factor
@@ -128,15 +126,15 @@ int main(void) {
 			P6OUT &= ~BIT1;
 
 #ifdef enable_debug
-//			PRINTF("\r\nStart frame\r\n");
-//
-//			for( i = 0 ; i < cam.pixels ; i++ ){
-//
-//				PRINTF("%u ", frame[i]);
-//
-//			}
-//
-//			PRINTF("\r\nEnd frame\r\n");
+			PRINTF("\r\nStart frame\r\n");
+
+			for( i = 0 ; i < cam.pixels ; i++ ){
+
+				PRINTF("%u ", frame[i]);
+
+			}
+
+			PRINTF("\r\nEnd frame\r\n");
 #endif
 			P8OUT |= BIT2;
 			process();
@@ -145,15 +143,15 @@ int main(void) {
 			image_capt_not_sent = 1;
 
 #ifdef enable_debug
-//			PRINTF("\r\nStart frame\r\n");
-//
-//			for( i = 0 ; i < cam.pixels ; i++ ){
-//
-//				PRINTF("%u ", frame[offset + i]);
-//
-//			}
-//
-//			PRINTF("\r\nEnd frame\r\n");
+			PRINTF("\r\nStart frame\r\n");
+
+			for( i = 0 ; i < cam.pixels ; i++ ){
+
+				PRINTF("%u ", frame[offset + i]);
+
+			}
+
+			PRINTF("\r\nEnd frame\r\n");
 #endif
 
 		//Wait to charge up
@@ -204,22 +202,12 @@ int main(void) {
 			for( j = 2; j < last_packet_size; j++ ){
 
 				buffer[j] = frame[offset + frame_track + j - 2];
-        
-//#ifdef enable_debug
-//	PRINTF("%u ", buffer[j]);
-//#endif
-
 			}
 		}
 		else{
 			for( j = 2; j < PACKET_SIZE; j++ ){
 
 				buffer[j] = frame[offset + frame_track + j - 2];
-        
-//#ifdef enable_debug
-//	PRINTF("%u ", buffer[j]);
-//#endif
-
 			}
 		}
 
@@ -400,36 +388,16 @@ void rf_init_lora() {
 }
 
 void process(){
-	
+
 	P8OUT |= BIT3;
 
-	uint16_t i, j, len = 0;
- 
-#ifdef enable_debug        	
-	PRINTF("\n\rPROCESSING\n\r");
-#endif
-
-	for(j = 1; j < (H + 2) - 1; j++){
-	
-		for(i = 2; i < (W + 4) - 2; i++){
-			
-			frame[((i - 2) + ( j - 1) * ((W + 4) - 4))] = frame[(((W + 4) * j) + i)];
-      
-//#ifdef enable_debug
-//	PRINTF("%u ", frame[((i - 2) + ( j - 1) * ((W + 4) - 4))]);
-//#endif
-		}
-	}
-
-	P8OUT &= ~BIT3;
+	uint16_t len = 0;
 
 #ifdef enable_debug        	
 	PRINTF("\n\rStarting JPEG compression\n\r");
 #endif
 
-	P8OUT |= BIT3;
-
-	jpec_enc_t *e = jpec_enc_new2(frame, W, H, JQ);
+	jpec_enc_t *e = jpec_enc_new2(frame, cam.W, cam.H, JQ);
 
 	jpec_enc_run(e, &len);
 
