@@ -1,0 +1,7 @@
+Added Pin To Net: NetName=NetIC6_1 Pin=IC6-1
+Added Pin To Net: NetName=NetIC6_1 Pin=P5-13
+Added Net: Name=NetIC6_1
+Added Pin To Net: NetName=NetIC6_3 Pin=IC6-3
+Added Pin To Net: NetName=NetIC6_3 Pin=P4-10
+Added Pin To Net: NetName=NetIC6_3 Pin=R18-2
+Added Net: Name=NetIC6_3
