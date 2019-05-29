@@ -177,6 +177,8 @@ jpec_buffer_t __attribute__((section(".lower.rodata")))bu;
 jpec_huff_t __attribute__((section(".lower.rodata")))ht;
 jpec_enc_t __attribute__((section(".lower.rodata")))str;
 
+uint8_t __attribute__((section(".upper.rodata"))) frame2[29696] = {0};
+
 #define JPEC_BUFFER_INIT_SIZ 10496
 
 jpec_buffer_t *jpec_buffer_new(void) {
@@ -188,7 +190,7 @@ jpec_buffer_t *jpec_buffer_new2(int siz) {
   //jpec_buffer_t *b = malloc(sizeof(*b));
   //b->stream = siz > 0 ? malloc(siz) : NULL;
   jpec_buffer_t *b = &bu;
-  b->stream = siz > 0 ? &frame[19200] : NULL;
+  b->stream = siz > 0 ? &frame2[0] : NULL;
   b->siz = siz;
   b->len = 0;
   return b;
