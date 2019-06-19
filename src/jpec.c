@@ -32,7 +32,7 @@
 extern uint8_t frame[];
 
 /** Standard JPEG quantizing table */
-uint8_t __attribute__((section(".upper.data")))  jpec_qzr[64] = {
+uint8_t __attribute__((section(".upper.rodata")))  jpec_qzr[64] = {
   16, 11, 10, 16, 24, 40, 51, 61,
   12, 12, 14, 19, 26, 58, 60, 55,
   14, 13, 16, 24, 40, 57, 69, 56,
@@ -44,13 +44,13 @@ uint8_t __attribute__((section(".upper.data")))  jpec_qzr[64] = {
 };
 
 /** DCT coefficients */
-float __attribute__((section(".upper.data")))  jpec_dct[7] = {
+float __attribute__((section(".upper.rodata")))  jpec_dct[7] = {
   0.49039, 0.46194, 0.41573, 0.35355,
   0.27779, 0.19134, 0.09755
 };
 
 /** Zig-zag order */
-int __attribute__((section(".upper.data")))  jpec_zz[64] = {
+int __attribute__((section(".upper.rodata")))  jpec_zz[64] = {
    0,  1,  8, 16,  9,  2,  3, 10,
   17, 24, 32, 25, 18, 11,  4,  5,
   12, 19, 26, 33, 40, 48, 41, 34,
@@ -64,14 +64,14 @@ int __attribute__((section(".upper.data")))  jpec_zz[64] = {
 /** JPEG standard Huffman tables */
 
 /** Luminance (Y) - DC */
-uint8_t __attribute__((section(".upper.data")))  jpec_dc_nodes[17] = { 0,0,1,5,1,1,1,1,1,1,0,0,0,0,0,0,0 };
-int __attribute__((section(".upper.data")))  jpec_dc_nb_vals = 12; /* sum of dc_nodes */
-uint8_t  __attribute__((section(".upper.data"))) jpec_dc_vals[12] = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+uint8_t __attribute__((section(".upper.rodata")))  jpec_dc_nodes[17] = { 0,0,1,5,1,1,1,1,1,1,0,0,0,0,0,0,0 };
+int __attribute__((section(".upper.rodata")))  jpec_dc_nb_vals = 12; /* sum of dc_nodes */
+uint8_t  __attribute__((section(".upper.rodata"))) jpec_dc_vals[12] = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 
 /** Luminance (Y) - AC */
-uint8_t __attribute__((section(".upper.data")))  jpec_ac_nodes[17] = { 0,0,2,1,3,3,2,4,3,5,5,4,4,0,0,1,0x7d };
-int __attribute__((section(".upper.data")))  jpec_ac_nb_vals = 162; /* sum of ac_nodes */
-uint8_t __attribute__((section(".upper.data")))  jpec_ac_vals[162] = { 
+uint8_t __attribute__((section(".upper.rodata")))  jpec_ac_nodes[17] = { 0,0,2,1,3,3,2,4,3,5,5,4,4,0,0,1,0x7d };
+int __attribute__((section(".upper.rodata")))  jpec_ac_nb_vals = 162; /* sum of ac_nodes */
+uint8_t __attribute__((section(".upper.rodata")))  jpec_ac_vals[162] = { 
   0x01,0x02,0x03,0x00,0x04,0x11,0x05,0x12, /* 0x00: EOB */
   0x21,0x31,0x41,0x06,0x13,0x51,0x61,0x07,
   0x22,0x71,0x14,0x32,0x81,0x91,0xa1,0x08,
@@ -104,7 +104,7 @@ const int jpec_dc_code[12] = {
 };
 
 /** Luminance (Y) - AC */
-int8_t __attribute__((section(".upper.data")))  jpec_ac_len[256] = {
+int8_t __attribute__((section(".upper.rodata")))  jpec_ac_len[256] = {
    4, 2, 2, 3, 4, 5, 7, 8,
   10,16,16, 0, 0, 0, 0, 0,
    0, 4, 5, 7, 9,11,16,16,
@@ -139,7 +139,7 @@ int8_t __attribute__((section(".upper.data")))  jpec_ac_len[256] = {
   16,16,16, 0, 0, 0, 0, 0
 };
 
-int __attribute__((section(".upper.data"))) jpec_ac_code[256] = {
+int __attribute__((section(".upper.rodata"))) jpec_ac_code[256] = {
   0x000a,0x0000,0x0001,0x0004,0x000b,0x001a,0x0078,0x00f8,
   0x03f6,0xff82,0xff83,0x0000,0x0000,0x0000,0x0000,0x0000,
   0x0000,0x000c,0x001b,0x0079,0x01f6,0x07f6,0xff84,0xff85,
@@ -175,9 +175,9 @@ int __attribute__((section(".upper.data"))) jpec_ac_code[256] = {
 };
 
 
-jpec_buffer_t __attribute__((section(".upper.data")))bu;
-jpec_huff_t __attribute__((section(".upper.data")))ht;
-jpec_enc_t __attribute__((section(".upper.data")))str;
+jpec_buffer_t __attribute__((section(".upper.rodata")))bu;
+jpec_huff_t __attribute__((section(".upper.rodata")))ht;
+jpec_enc_t __attribute__((section(".upper.rodata")))str;
 
 
 jpec_buffer_t *jpec_buffer_new(void) {
