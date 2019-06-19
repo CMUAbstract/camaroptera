@@ -63,7 +63,7 @@ extern uint8_t frame[];
 __nv uint8_t tx_packet_index = 0;
 __nv uint16_t sent_packet_count = 0;
 __nv uint8_t image_capt_not_sent = 0;
-__nv uint16_t frame_track = 0;
+__nv uint16_t frame_track = offset;
 
 __nv HM01B0 cam = {0};
 
@@ -95,11 +95,8 @@ int main(void) {
 
 	mcu_init();
 
-	P6OUT &= ~BIT1;			// Power to Camera
-	P6DIR |= BIT1;
-
-	P4OUT &= ~BIT7;			// Power to Radio
-	P4DIR |= BIT7;
+	P4OUT &= ~BIT4;			// Power to Radio
+	P4DIR |= BIT4;
 
 #ifdef enable_debug
 		INIT_CONSOLE();
@@ -119,14 +116,12 @@ int main(void) {
         	PRINTF("Cap ready\n\rCapturing a photo.\r\n");
 #endif
 
-			P6OUT |= BIT1;
 			P8OUT |= BIT2;
 			capture();
 			P8OUT &= ~BIT2;
-			P6OUT &= ~BIT1;
 
 #ifdef enable_debug
-			PRINTF("\r\nStart frame\r\n");
+			PRINTF("Start captured frame\r\n");
 
 			for( i = 0 ; i < cam.pixels ; i++ ){
 
@@ -134,7 +129,7 @@ int main(void) {
 
 			}
 
-			PRINTF("\r\nEnd frame\r\n");
+			PRINTF("End frame\r\n");
 #endif
 			P8OUT |= BIT2;
 			process();
@@ -143,7 +138,7 @@ int main(void) {
 			image_capt_not_sent = 1;
 
 #ifdef enable_debug
-			PRINTF("\r\nStart frame\r\n");
+			PRINTF("Start JPEG frame\r\n");
 
 			for( i = 0 ; i < cam.pixels ; i++ ){
 
@@ -151,7 +146,7 @@ int main(void) {
 
 			}
 
-			PRINTF("\r\nEnd frame\r\n");
+			PRINTF("End JPEG frame\r\n");
 #endif
 
 		//Wait to charge up
@@ -165,16 +160,12 @@ int main(void) {
 
 #ifdef enable_debug
 			PRINTF("Already have a stored photo.\r\n");
+			PRINTF("It's a photo of -- %n -- bytes.\r\n", cam.pixels);
 #endif
 
 	}
 
-#ifdef enable_debug
-	PRINTF("It's a photo of -- %n -- bytes.\r\n", cam.pixels);
-#endif
-
 	//================== Camera Code ends here ==================
-
 
 	//================== Radio Transmission begins here ==================
 
@@ -197,20 +188,31 @@ int main(void) {
 		buffer[0] = DEV_ID;
 		buffer[1] = tx_packet_index;
 
+#ifdef enable_debug        	
+        PRINTF("START PACKET\r\n");
+#endif
 		if( i == packet_count - 1){
 
 			for( j = 2; j < last_packet_size; j++ ){
 
-				buffer[j] = frame[offset + frame_track + j - 2];
+				buffer[j] = frame[frame_track + j - 2];
+#ifdef enable_debug        	
+        PRINTF("%u ", buffer[j]);
+#endif 
 			}
 		}
 		else{
 			for( j = 2; j < PACKET_SIZE; j++ ){
 
-				buffer[j] = frame[offset + frame_track + j - 2];
+				buffer[j] = frame[frame_track + j - 2];
+#ifdef enable_debug        	
+        PRINTF("%u ", buffer[j]);
+#endif 
 			}
 		}
-
+#ifdef enable_debug        	
+        PRINTF("\r\nEND PACKET\r\n");
+#endif
 		//Wait to charge up
 		wait_for_charge();
 
@@ -218,7 +220,7 @@ int main(void) {
         PRINTF("Cap ready\n\r");
 #endif  
 
-		P4OUT |= BIT7;
+		P4OUT |= BIT4;
 		spi_init();
 
 		P8OUT |= BIT2;
@@ -259,7 +261,7 @@ int main(void) {
 		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-		P4OUT &= ~BIT7;
+		P4OUT &= ~BIT4;
 
 	}
 
@@ -269,7 +271,7 @@ int main(void) {
 
 	tx_packet_index = 0;
 	sent_packet_count = 0;
-	frame_track = 0;
+	frame_track = offset;
 	image_capt_not_sent = 0;
 
 	//================== Radio Transmission ends here ==================
@@ -282,6 +284,8 @@ void capture(){
 	uint16_t id = 0;
 
 	P8OUT |= BIT3;
+
+	hm01b0_enable();
 
 	hm01b0_init();
 
@@ -302,6 +306,8 @@ void capture(){
 	P8OUT |= BIT3;
 	hm01b0_capture(&cam);
 
+	hm01b0_disable();
+
 	hm01b0_deinit();
 	P8OUT &= ~BIT3;
 }
@@ -310,13 +316,13 @@ void wait_for_charge(){
 
 	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
 
-    P2SEL0 |= BIT4;                                 //P1.0 ADC mode
-    P2SEL1 |= BIT4;                                 //
+    P1SEL0 |= BIT5;                                 //P1.0 ADC mode
+    P1SEL1 |= BIT5;                                 //
 
     //Configure ADC
     ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
     ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
-    ADC12MCTL0 = ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
+    ADC12MCTL0 = ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
     ADC12HI = High_Threshold;                               // Enable ADC interrupt
     ADC12IER2 = ADC12HIIE;                                  // Enable ADC threshold interrupt
     ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
@@ -401,12 +407,12 @@ void process(){
 
 	jpec_enc_run(e, &len);
 
-#ifdef enable_debug
-	PRINTF("Done. New img size: -- %u -- bytes.\r\n", len);
-#endif
-
 	cam.pixels = len;
 
+#ifdef enable_debug
+	PRINTF("Done. New img size: -- %u -- bytes.\r\n", cam.pixels);
+#endif
+	
 	P8OUT &= ~BIT3;
 }
 
