@@ -129,7 +129,7 @@ int main(void) {
 
 			}
 
-			PRINTF("End frame\r\n");
+			PRINTF("\r\nEnd frame\r\n");
 #endif
 			P8OUT |= BIT2;
 			process();
@@ -146,7 +146,7 @@ int main(void) {
 
 			}
 
-			PRINTF("End JPEG frame\r\n");
+			PRINTF("\r\nEnd JPEG frame\r\n");
 #endif
 
 		//Wait to charge up
@@ -285,9 +285,9 @@ void capture(){
 
 	P8OUT |= BIT3;
 
-	hm01b0_enable();
-
 	hm01b0_init();
+
+	hm01b0_enable();
 
 	id = hm01b0_reg_default_init();
 
@@ -304,11 +304,13 @@ void capture(){
 	cam.dataIo = EightL;		// 8 Data lines
 	
 	P8OUT |= BIT3;
+
 	hm01b0_capture(&cam);
 
 	hm01b0_disable();
 
 	hm01b0_deinit();
+	
 	P8OUT &= ~BIT3;
 }
 
@@ -412,7 +414,7 @@ void process(){
 #ifdef enable_debug
 	PRINTF("Done. New img size: -- %u -- bytes.\r\n", cam.pixels);
 #endif
-	
+
 	P8OUT &= ~BIT3;
 }
 
