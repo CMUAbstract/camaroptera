@@ -1,0 +1,3 @@
+Removed Pin From Net: NetName=GND Pin=P2-4
+Added Pin To Net: NetName=MSP_RST\ Pin=P2-4
+Added Net: Name=MSP_RST\

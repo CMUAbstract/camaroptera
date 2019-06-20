@@ -1,0 +1,4 @@
+Removed Pin From Net: NetName=GND Pin=P2-2
+Removed Pin From Net: NetName=TPS_EN Pin=P2-10
+Added Pin To Net: NetName=TPS_EN Pin=P2-2
+Added Pin To Net: NetName=GND Pin=P2-10

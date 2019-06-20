@@ -1,0 +1,318 @@
+Change Component Designator: OldDesignator=C1 NewDesignator=C8
+Change Component Designator: OldDesignator=C2 NewDesignator=C5
+Change Component Designator: OldDesignator=C3 NewDesignator=C6
+Change Component Designator: OldDesignator=C4 NewDesignator=C7
+Change Component Designator: OldDesignator=IC1 NewDesignator=IC3
+Change Component Designator: OldDesignator=P1 NewDesignator=P2
+Change Component Designator: OldDesignator=R1 NewDesignator=R6
+Change Component Designator: OldDesignator=R2 NewDesignator=R5
+Added Component: Designator=C1(C1210)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "LatestRevisionDate"; Value = "29-May-2009"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "LatestRevisionNote"; Value = "IPC-7351 Footprint Added."; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "C0805"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Published"; Value = "8-Jun-2000"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "10uF"; VariantName = "[No Variations]"
+Added Component: Designator=C2(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "100nF"; VariantName = "[No Variations]"
+Added Component: Designator=C3(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "100nF"; VariantName = "[No Variations]"
+Added Component: Designator=C4(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "100nF"; VariantName = "[No Variations]"
+Added Component: Designator=C9(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "10uF"; VariantName = "[No Variations]"
+Added Component: Designator=C10(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "0.1uF"; VariantName = "[No Variations]"
+Added Component: Designator=C11(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "10uF"; VariantName = "[No Variations]"
+Added Component: Designator=C12(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "0.1uF"; VariantName = "[No Variations]"
+Added Component: Designator=C13(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "0.1uF"; VariantName = "[No Variations]"
+Added Component: Designator=C14(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Capacitor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "10uF"; VariantName = "[No Variations]"
+Added Component: Designator=IC1(SOT65P210X110-5N)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "ComponentLink1Description"; Value = "Manufacturer URL"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink1URL"; Value = "https://www.microchip.com"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2Description"; Value = "Package Specification"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2URL"; Value = "http://94.251.15.129/chip/ChipDoc.nsf/Package/4907A36056EE3CAB47257B96006A2837!OpenDocument"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3Description"; Value = "Datasheet"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3URL"; Value = "http://ww1.microchip.com/downloads/en/devicedoc/20005758a.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Datasheet Link"; Value = "http://ww1.microchip.com/downloads/en/devicedoc/20005758a.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "1.1mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Microchip"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "MIC841HYC5-TR"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Part Number"; Value = "998-MIC841HYC5TR"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Price/Stock"; Value = ""; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RS Part Number"; Value = "1654292"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RS Price/Stock"; Value = "http://uk.rs-online.com/web/p/products/1654292"; VariantName = "[No Variations]"
+Added Component: Designator=IC2(QFP50P1200X1200X160-64N)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "Datasheet Link"; Value = "http://www.ti.com/lit/gpn/msp430fr5994"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "1.6mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Texas Instruments"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "MSP430FR5994IPM"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Part Number"; Value = "595-MSP430FR5994IPM"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Price/Stock"; Value = "https://www.mouser.com/Search/Refine.aspx?Keyword=595-MSP430FR5994IPM"; VariantName = "[No Variations]"
+Added Component: Designator=IC4(SOT65P210X110-6N)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "ComponentLink1Description"; Value = "Datasheet"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink1URL"; Value = "https://www.vishay.com/docs/66597/sip32431.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2Description"; Value = "Package Specification"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2URL"; Value = "https://www.vishay.com/docs/71154/71154.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3Description"; Value = "Manufacturer URL"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3URL"; Value = "https://www.vishay.com"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Datasheet Link"; Value = "https://componentsearchengine.com/Datasheets/1/SIP32431DR3-T1GE3.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "1.1mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Vishay"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "SIP32431DR3-T1GE3"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Part Number"; Value = "781-SIP32431DR3-GE3"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Price/Stock"; Value = "https://www.mouser.com/Search/Refine.aspx?Keyword=781-SIP32431DR3-GE3"; VariantName = "[No Variations]"
+Added Component: Designator=J1(5037722410)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "ComponentLink1Description"; Value = "Package Specification"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink1URL"; Value = "https://www.molex.com/pdm_docs/sd/5037722420_sd.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2Description"; Value = "Manufacturer URL"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2URL"; Value = "https://www.molex.com"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3Description"; Value = "Datasheet"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3URL"; Value = "https://www.molex.com/webdocs/datasheets/pdf/en-us/5037722420_PCB_RECEPTACLES.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Datasheet Link"; Value = "https://componentsearchengine.com/Datasheets/1/503772-2410.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "0.76mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Molex"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "503772-2410"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Part Number"; Value = "538-503772-2410"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Price/Stock"; Value = "https://www.mouser.com/Search/Refine.aspx?Keyword=538-503772-2410"; VariantName = "[No Variations]"
+Added Component: Designator=P1(MHDR1X5)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "LatestRevisionDate"; Value = "17-Jul-2002"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "LatestRevisionNote"; Value = "Re-released for DXP Platform."; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Added Component: Designator=R1(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "453k"; VariantName = "[No Variations]"
+Added Component: Designator=R2(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "1.3M"; VariantName = "[No Variations]"
+Added Component: Designator=R3(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "2M"; VariantName = "[No Variations]"
+Added Component: Designator=R4(1608[0603])
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "1.24M"; VariantName = "[No Variations]"
+Added Component: Designator=R7(J1-0603)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "2M"; VariantName = "[No Variations]"
+Added Component: Designator=R8(J1-0603)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "0"; VariantName = "[No Variations]"
+Added Component: Designator=R9(J1-0603)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "4.7k"; VariantName = "[No Variations]"
+Added Component: Designator=R10(J1-0603)
+Add component. Clean all parameters for all variants
+Add component (AddParameter): Name = "PackageDescription"; Value = "Chip Resistor, Body 1.6x0.8mm, IPC High Density"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Publisher"; Value = "Altium Limited"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = "4.7k"; VariantName = "[No Variations]"
+Added Pin To Net: NetName=GND Pin=C1-2
+Added Pin To Net: NetName=GND Pin=C2-1
+Added Pin To Net: NetName=GND Pin=C3-1
+Added Pin To Net: NetName=GND Pin=C4-1
+Added Pin To Net: NetName=GND Pin=C9-1
+Added Pin To Net: NetName=GND Pin=C12-1
+Added Pin To Net: NetName=GND Pin=C13-1
+Added Pin To Net: NetName=GND Pin=C14-1
+Added Pin To Net: NetName=GND Pin=IC1-2
+Added Pin To Net: NetName=GND Pin=IC2-15
+Added Pin To Net: NetName=RADIO_CS Pin=IC2-25
+Added Pin To Net: NetName=RADIO_RST Pin=IC2-26
+Added Pin To Net: NetName=RADIO_D0 Pin=IC2-27
+Added Pin To Net: NetName=RADIO_MOSI Pin=IC2-41
+Added Pin To Net: NetName=RADIO_MISO Pin=IC2-42
+Added Pin To Net: NetName=RADIO_SCK Pin=IC2-43
+Added Pin To Net: NetName=RADIO_EN Pin=IC2-45
+Added Pin To Net: NetName=GND Pin=IC2-48
+Added Pin To Net: NetName=GND Pin=IC2-57
+Added Pin To Net: NetName=GND Pin=IC2-60
+Added Pin To Net: NetName=GND Pin=IC2-63
+Added Pin To Net: NetName=GND Pin=IC4-2
+Added Pin To Net: NetName=GND Pin=IC4-5
+Added Pin To Net: NetName=GND Pin=J1-6
+Added Pin To Net: NetName=GND Pin=J1-19
+Added Pin To Net: NetName=GND Pin=J1-20
+Added Pin To Net: NetName=GND Pin=J1-23
+Added Pin To Net: NetName=GND Pin=J1-FN1
+Added Pin To Net: NetName=GND Pin=J1-FN2
+Added Pin To Net: NetName=GND Pin=J1-FN3
+Added Pin To Net: NetName=GND Pin=J1-FN4
+Added Pin To Net: NetName=GND Pin=P1-4
+Added Pin To Net: NetName=GND Pin=R3-1
+Added Pin To Net: NetName=GND Pin=R4-1
+Added Pin To Net: NetName=GND Pin=R7-1
+Added Pin To Net: NetName=GND Pin=R8-2
+Added Pin To Net: NetName=AGND Pin=C10-1
+Added Pin To Net: NetName=AGND Pin=C11-1
+Added Pin To Net: NetName=AGND Pin=J1-2
+Added Pin To Net: NetName=AGND Pin=R8-1
+Added Net: Name=AGND
+Added Pin To Net: NetName=CAM_CLK Pin=IC2-17
+Added Pin To Net: NetName=CAM_CLK Pin=J1-21
+Added Net: Name=CAM_CLK
+Added Pin To Net: NetName=CAM_D0 Pin=IC2-4
+Added Pin To Net: NetName=CAM_D0 Pin=J1-15
+Added Net: Name=CAM_D0
+Added Pin To Net: NetName=CAM_D1 Pin=IC2-5
+Added Pin To Net: NetName=CAM_D1 Pin=J1-13
+Added Net: Name=CAM_D1
+Added Pin To Net: NetName=CAM_D2 Pin=IC2-6
+Added Pin To Net: NetName=CAM_D2 Pin=J1-11
+Added Net: Name=CAM_D2
+Added Pin To Net: NetName=CAM_D3 Pin=IC2-7
+Added Pin To Net: NetName=CAM_D3 Pin=J1-9
+Added Net: Name=CAM_D3
+Added Pin To Net: NetName=CAM_D4 Pin=IC2-35
+Added Pin To Net: NetName=CAM_D4 Pin=J1-7
+Added Net: Name=CAM_D4
+Added Pin To Net: NetName=CAM_D5 Pin=IC2-36
+Added Pin To Net: NetName=CAM_D5 Pin=J1-5
+Added Net: Name=CAM_D5
+Added Pin To Net: NetName=CAM_D6 Pin=IC2-37
+Added Pin To Net: NetName=CAM_D6 Pin=J1-3
+Added Net: Name=CAM_D6
+Added Pin To Net: NetName=CAM_D7 Pin=IC2-38
+Added Pin To Net: NetName=CAM_D7 Pin=J1-1
+Added Net: Name=CAM_D7
+Added Pin To Net: NetName=CAM_EN Pin=IC2-24
+Added Pin To Net: NetName=CAM_EN Pin=IC4-3
+Added Pin To Net: NetName=CAM_EN Pin=R7-2
+Added Net: Name=CAM_EN
+Added Pin To Net: NetName=CAM_FVLD Pin=IC2-3
+Added Pin To Net: NetName=CAM_FVLD Pin=J1-10
+Added Net: Name=CAM_FVLD
+Added Pin To Net: NetName=CAM_INTR Pin=IC2-12
+Added Pin To Net: NetName=CAM_INTR Pin=J1-18
+Added Net: Name=CAM_INTR
+Added Pin To Net: NetName=CAM_LVLD Pin=IC2-2
+Added Pin To Net: NetName=CAM_LVLD Pin=J1-12
+Added Net: Name=CAM_LVLD
+Added Pin To Net: NetName=CAM_PCLK Pin=IC2-1
+Added Pin To Net: NetName=CAM_PCLK Pin=J1-17
+Added Net: Name=CAM_PCLK
+Added Pin To Net: NetName=CAM_TRIG Pin=IC2-13
+Added Pin To Net: NetName=CAM_TRIG Pin=J1-8
+Added Net: Name=CAM_TRIG
+Added Pin To Net: NetName=CAM_VCC Pin=C10-2
+Added Pin To Net: NetName=CAM_VCC Pin=C11-2
+Added Pin To Net: NetName=CAM_VCC Pin=C13-2
+Added Pin To Net: NetName=CAM_VCC Pin=C14-2
+Added Pin To Net: NetName=CAM_VCC Pin=IC4-1
+Added Pin To Net: NetName=CAM_VCC Pin=J1-4
+Added Pin To Net: NetName=CAM_VCC Pin=J1-22
+Added Pin To Net: NetName=CAM_VCC Pin=R9-2
+Added Pin To Net: NetName=CAM_VCC Pin=R10-2
+Added Net: Name=CAM_VCC
+Added Pin To Net: NetName=DVDD Pin=C12-2
+Added Pin To Net: NetName=DVDD Pin=J1-24
+Added Net: Name=DVDD
+Added Pin To Net: NetName=HTH Pin=IC1-1
+Added Pin To Net: NetName=HTH Pin=R1-1
+Added Pin To Net: NetName=HTH Pin=R4-2
+Added Net: Name=HTH
+Added Pin To Net: NetName=LTH Pin=IC1-3
+Added Pin To Net: NetName=LTH Pin=R1-2
+Added Pin To Net: NetName=LTH Pin=R2-1
+Added Net: Name=LTH
+Added Pin To Net: NetName=MSP_RST Pin=IC1-4
+Added Pin To Net: NetName=MSP_RST Pin=IC2-31
+Added Pin To Net: NetName=MSP_RST Pin=P1-2
+Added Pin To Net: NetName=MSP_RST Pin=R3-2
+Added Net: Name=MSP_RST
+Added Pin To Net: NetName=SBWTCK Pin=IC2-30
+Added Pin To Net: NetName=SBWTCK Pin=P1-1
+Added Net: Name=SBWTCK
+Added Pin To Net: NetName=SCL Pin=IC2-10
+Added Pin To Net: NetName=SCL Pin=J1-14
+Added Pin To Net: NetName=SCL Pin=R10-1
+Added Net: Name=SCL
+Added Pin To Net: NetName=SDA Pin=IC2-9
+Added Pin To Net: NetName=SDA Pin=J1-16
+Added Pin To Net: NetName=SDA Pin=R9-1
+Added Net: Name=SDA
+Added Pin To Net: NetName=TPS_EN Pin=IC2-14
+Added Net: Name=TPS_EN
+Added Pin To Net: NetName=UART_TX Pin=IC2-32
+Added Pin To Net: NetName=UART_TX Pin=P1-3
+Added Net: Name=UART_TX
+Added Pin To Net: NetName=VCC Pin=C1-1
+Added Pin To Net: NetName=VCC Pin=C2-2
+Added Pin To Net: NetName=VCC Pin=C3-2
+Added Pin To Net: NetName=VCC Pin=C4-2
+Added Pin To Net: NetName=VCC Pin=C9-2
+Added Pin To Net: NetName=VCC Pin=IC1-5
+Added Pin To Net: NetName=VCC Pin=IC2-16
+Added Pin To Net: NetName=VCC Pin=IC2-49
+Added Pin To Net: NetName=VCC Pin=IC2-64
+Added Pin To Net: NetName=VCC Pin=IC4-4
+Added Pin To Net: NetName=VCC Pin=P1-5
+Added Pin To Net: NetName=VCC Pin=R2-2
+Added Net: Name=VCC

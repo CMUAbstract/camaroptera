@@ -1,0 +1,6 @@
+Record=DiagramHierarchy|SourceDocument=CamaropteraV2.MbsDoc|Kind=Multi-board Schematic Module|Designator=Back Board|Source=..\Back\Back.PrjPcb
+Record=SubProject|SourceDocument=CamaropteraV2.MbsDoc|ProjectPath=..\Back\Back.PrjPcb
+Record=DiagramHierarchy|SourceDocument=CamaropteraV2.MbsDoc|Kind=Multi-board Schematic Module|Designator=Front Board|Source=..\Front\Front.PrjPcb
+Record=SubProject|SourceDocument=CamaropteraV2.MbsDoc|ProjectPath=..\Front\Front.PrjPcb
+Record=DiagramHierarchy|SourceDocument=CamaropteraV2.MbsDoc|Kind=Multi-board Schematic Module|Designator=Top Board|Source=Top.PrjPcb
+Record=SubProject|SourceDocument=CamaropteraV2.MbsDoc|ProjectPath=Top.PrjPcb

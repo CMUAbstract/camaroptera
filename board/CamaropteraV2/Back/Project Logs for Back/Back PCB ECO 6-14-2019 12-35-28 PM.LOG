@@ -1,0 +1,6 @@
+Removed Pin From Net: NetName=GND Pin=P1-5
+Removed Pin From Net: NetName=VCAP Pin=P1-7
+Removed Pin From Net: NetName=VCAP Pin=P1-9
+Added Pin To Net: NetName=V_HARVEST Pin=P1-5
+Added Pin To Net: NetName=V_HARVEST Pin=P1-7
+Added Pin To Net: NetName=V_HARVEST Pin=P1-9
