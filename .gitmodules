@@ -22,3 +22,15 @@
 [submodule "src/camaroptera-dnn"]
 	path = src/camaroptera-dnn
 	url = git@github.com:CMUAbstract/camaroptera-dnn.git
+[submodule "ext/libmspbuiltins"]
+	path = ext/libmspbuiltins
+	url = git@github.com:CMUAbstract/libmspbuiltins.git
+[submodule "ext/libalpaca"]
+	path = ext/libalpaca
+	url = git@github.com:CMUAbstract/libalpaca-SONIC.git
+[submodule "ext/libmat"]
+	path = ext/libmat
+	url = git@github.com:CMUAbstract/libmat.git
+[submodule "ext/libdnn"]
+	path = ext/libdnn
+	url = git@github.com:CMUAbstract/libdnn.git
