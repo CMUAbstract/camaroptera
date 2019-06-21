@@ -19,3 +19,6 @@
 [submodule "ext/libhimax"]
 	path = ext/libhimax
 	url = git@github.com:CMUAbstract/libhimax.git
+[submodule "src/camaroptera-dnn"]
+	path = src/camaroptera-dnn
+	url = git@github.com:CMUAbstract/camaroptera-dnn.git
