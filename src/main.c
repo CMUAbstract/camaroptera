@@ -122,9 +122,15 @@ int main(void) {
 #ifdef enable_debug        	
         	PRINTF("Cap ready\n\rCapturing a photo.\r\n");
 #endif
+        	
+			cam.mode = Streaming3;		// External trigger
+			cam.state = sleep;			// Camera inited but to be configured
+			cam.resolution = QQVGA;		// QQVGA resolution
+			cam.dataDepth = EightB;		// 8-bit per pixel
+			cam.dataIo = EightL;		// 8 Data lines
 
 			P8OUT |= BIT2;
-			capture();
+			capture(&cam);
 			P8OUT &= ~BIT2;
 
 #ifdef enable_debug
@@ -296,40 +302,6 @@ int main(void) {
 	
 	}
 
-}
-void capture(){
-
-	uint16_t id = 0;
-
-	P8OUT |= BIT3;
-
-	hm01b0_init();
-
-	hm01b0_enable();
-
-	id = hm01b0_reg_default_init();
-
-	P8OUT &= ~BIT3;
-
-#ifdef enable_debug
-	PRINTF("Camera ID 0x%04x\n\r", id);	
-#endif
-
-	cam.mode = Streaming3;		// External trigger
-	cam.state = sleep;			// Camera inited but to be configured
-	cam.resolution = QQVGA;		// QQVGA resolution
-	cam.dataDepth = EightB;		// 8-bit per pixel
-	cam.dataIo = EightL;		// 8 Data lines
-	
-	P8OUT |= BIT3;
-
-	hm01b0_capture(&cam);
-
-	hm01b0_disable();
-
-	hm01b0_deinit();
-	
-	P8OUT &= ~BIT3;
 }
 
 void wait_for_charge(){
