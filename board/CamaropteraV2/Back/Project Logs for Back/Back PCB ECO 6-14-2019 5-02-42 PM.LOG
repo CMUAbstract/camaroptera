@@ -1,4 +1,0 @@
-Removed Pin From Net: NetName=V_HARVEST Pin=P1-7
-Removed Pin From Net: NetName=V_HARVEST Pin=P1-9
-Added Pin To Net: NetName=GND Pin=P1-7
-Added Pin To Net: NetName=GND Pin=P1-9

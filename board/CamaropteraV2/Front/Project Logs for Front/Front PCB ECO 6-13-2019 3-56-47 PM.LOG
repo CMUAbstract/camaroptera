@@ -1,4 +1,0 @@
-Removed Pin From Net: NetName=SBWTCK Pin=P1-1
-Removed Pin From Net: NetName=UART_TX Pin=P1-3
-Added Pin To Net: NetName=UART_TX Pin=P1-1
-Added Pin To Net: NetName=SBWTCK Pin=P1-3
