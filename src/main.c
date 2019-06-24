@@ -14,7 +14,7 @@
 
 #include <libhimax/hm01b0.h>
 
-#include "jpec.h" 
+#include <libjpeg/jpec.h> 
 #include "camaroptera-dnn.h"
 
 #define enable_debug

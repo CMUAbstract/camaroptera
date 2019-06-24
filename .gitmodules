@@ -34,3 +34,6 @@
 [submodule "ext/libdnn"]
 	path = ext/libdnn
 	url = git@github.com:CMUAbstract/libdnn.git
+[submodule "ext/libjpeg"]
+	path = ext/libjpeg
+	url = git@github.com:CMUAbstract/libjpeg.git

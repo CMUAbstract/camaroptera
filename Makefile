@@ -5,10 +5,10 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o jpec.o camaroptera-dnn.o
+OBJECTS = main.o camaroptera-dnn.o
 #OBJECTS = hog-svm.o
 
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn libjpeg
 
 export MAIN_CLOCK_FREQ = 4000000
 
@@ -20,6 +20,8 @@ export LIBMSP_CLOCK_SOURCE = DCO
 export LIBMSP_DCO_FREQ = $(MAIN_CLOCK_FREQ)
 
 export LIBFIXED_PRECISE = 1
+export LIBFIXED_BITWIDTH = 16
+export LIBFIXED_FRAC_BITWIDTH = 5
 
 CONSOLE ?= 1
 INTERMITTENT ?= 
