@@ -1,3 +1,7 @@
+#ifndef CAMAROPTERA
+	#define CAMAROPTERA
+#endif
+
 #include <msp430.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -23,6 +27,7 @@
   #include <libio/console.h>
 #endif
 
+#define __ro_hifram __attribute__((section(".upper.rodata")))
 //#define old_pins
 
 #define RF_FREQUENCY   915000000 // Hz
@@ -58,25 +63,27 @@
 //Jpeg quality factor
 #define JQ 50
 
-uint8_t buffer[BUFFER_SIZE];
+__ro_hifram uint8_t buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
 
-__nv uint8_t tx_packet_index = 0;
-__nv uint16_t sent_packet_count = 0;
-__nv uint8_t image_capt_not_sent = 0;
-__nv uint16_t frame_track = offset;
+__ro_hifram uint8_t tx_packet_index = 0;
+__ro_hifram uint16_t sent_packet_count = 0;
+__ro_hifram uint8_t image_capt_not_sent = 0;
+__ro_hifram uint16_t frame_track = offset;
 
-__nv HM01B0 cam = {0};
+__ro_hifram HM01B0 cam = {0};
 
-static radio_events_t radio_events;
+__ro_hifram static radio_events_t radio_events;
 
-int state = 0;
+__ro_hifram int state = 0;
+__ro_hifram int i, j;
+__ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
+__ro_hifram	uint16_t len = 0;
+__ro_hifram jpec_enc_t *e;
 
 void process();
 void rf_init_lora();
-void OnRxError();
-void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
 void OnTxDone();
 void SendPing();
 void wait_for_charge();
@@ -84,8 +91,6 @@ void capture();
 
 int main(void) {
 	
-	int i, j;
-	uint16_t packet_count, sent_history, last_packet_size; 
 
 	PM5CTL0 &= ~LOCKLPM5;
 
@@ -356,26 +361,8 @@ void OnTxDone() {
 		frame_track += 253;
 }
 
-void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-
-	PRINTF("Packet Received.\r\n");
-	PRINTF("RSSI: %d dBm\r\n", rssi);
-	PRINTF("SNR: %d dB\r\n", snr);
-	PRINTF("Received -- %d -- bytes.\r\n", size);
-	PRINTF("Packet Contents: %s.\r\n", (char *)payload);
-
-}
-
-void OnRxError() {
-	PRINTF("RX Error Detected.\r\n");
-}
-
 void rf_init_lora() {
   radio_events.TxDone = OnTxDone;
-  radio_events.RxDone = OnRxDone;
-  //radio_events.TxTimeout = OnTxTimeout;
-  //radio_events.RxTimeout = OnRxTimeout;
-  radio_events.RxError = OnRxError;
 
   sx1276_init(radio_events);
   sx1276_set_channel(RF_FREQUENCY);
@@ -384,25 +371,18 @@ void rf_init_lora() {
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
-
-  sx1276_set_rxconfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
-                                  LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
-                                  LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-
 }
 
 void process(){
 
 	P8OUT |= BIT3;
 
-	uint16_t len = 0;
 
 #ifdef enable_debug        	
 	PRINTF("\n\rStarting JPEG compression\n\r");
 #endif
 
-	jpec_enc_t *e = jpec_enc_new2(frame, cam.W, cam.H, JQ);
+	e = jpec_enc_new2(frame, cam.W, cam.H, JQ);
 
 	jpec_enc_run(e, &len);
 

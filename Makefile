@@ -45,8 +45,7 @@ export LIBMAT_CONSOLE = 1
 override CFLAGS += -DCONFIG_CONSOLE=1
 endif
 
-CFLAGS += -mlarge
-LFLAGS += -mlarge
+#override CFLAGS += -s
 
 ifneq ($(INTERMITTENT),)
 export LIBDNN_INTERMITTENT = 1
@@ -66,7 +65,7 @@ export LIBDNN_BACKEND = $(BACKEND)
 export LIBDNN_TILE_SIZE = 128
 export LIBDNN_MAT_BUF_SIZE = $(MAT_BUF_SIZE)
 export LIBDNN_LAYER_BUF_SIZE = $(LAYER_BUF_SIZE)
-override CC_LD_FLAGS += -mlarge
+override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY
 
 export CC_LD_FLAGS
 
