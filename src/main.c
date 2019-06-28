@@ -67,12 +67,12 @@ __ro_hifram uint8_t buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
 
+__ro_hifram pixels = 0;
+
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = offset;
-
-__ro_hifram HM01B0 cam = {0};
 
 __ro_hifram static radio_events_t radio_events;
 
@@ -87,7 +87,6 @@ void rf_init_lora();
 void OnTxDone();
 void SendPing();
 void wait_for_charge();
-void capture();
 
 int main(void) {
 	
@@ -128,21 +127,15 @@ int main(void) {
 #ifdef enable_debug        	
         	PRINTF("Cap ready\n\rCapturing a photo.\r\n");
 #endif
-        	
-			cam.mode = Streaming3;		// External trigger
-			cam.state = sleep;			// Camera inited but to be configured
-			cam.resolution = QQVGA;		// QQVGA resolution
-			cam.dataDepth = EightB;		// 8-bit per pixel
-			cam.dataIo = EightL;		// 8 Data lines
 
 			P8OUT |= BIT2;
-			capture(&cam);
+			pixels = capture();
 			P8OUT &= ~BIT2;
 
 #ifdef enable_debug
 			PRINTF("Start captured frame\r\n");
 
-			for( i = 0 ; i < cam.pixels ; i++ ){
+			for( i = 0 ; i < pixels ; i++ ){
 
 				PRINTF("%u ", frame[i]);
 
@@ -159,7 +152,7 @@ int main(void) {
 #ifdef enable_debug
 			PRINTF("Start JPEG frame\r\n");
 
-			for( i = 0 ; i < cam.pixels ; i++ ){
+			for( i = 0 ; i < pixels ; i++ ){
 
 				PRINTF("%u ", frame[offset + i]);
 
@@ -382,14 +375,14 @@ void process(){
 	PRINTF("\n\rStarting JPEG compression\n\r");
 #endif
 
-	e = jpec_enc_new2(frame, cam.W, cam.H, JQ);
+	e = jpec_enc_new2(frame, 160, 120, JQ);
 
 	jpec_enc_run(e, &len);
 
-	cam.pixels = len;
+	pixels = len;
 
 #ifdef enable_debug
-	PRINTF("Done. New img size: -- %u -- bytes.\r\n", cam.pixels);
+	PRINTF("Done. New img size: -- %u -- bytes.\r\n", pixels);
 #endif
 
 	P8OUT &= ~BIT3;
