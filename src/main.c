@@ -172,7 +172,7 @@ int main(void) {
 
 #ifdef enable_debug
 			PRINTF("Already have a stored photo.\r\n");
-			PRINTF("It's a photo of -- %n -- bytes.\r\n", cam.pixels);
+			PRINTF("It's a photo of -- %n -- bytes.\r\n", pixels);
 #endif
 
 	}
