@@ -22,9 +22,10 @@
 #include <libhimax/hm01b0.h>
 
 #include <libjpeg/jpec.h> 
-//#include "camaroptera-dnn.h"
-//
+#include "camaroptera-dnn.h"
+
 #define enable_debug
+#define cont_power
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -60,9 +61,6 @@
 
 #define High_Threshold 0xFF0         	    // ~2.95V
 
-//Buffer offsett for jpec
-#define offset 19200
-
 //Jpeg quality factor
 #define JQ 50
 
@@ -76,7 +74,7 @@ __ro_hifram pixels = 0;
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
-__ro_hifram uint16_t frame_track = offset;
+__ro_hifram uint16_t frame_track = 0;
 __ro_hifram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
 
@@ -92,49 +90,29 @@ void OnTxDone();
 void SendPing();
 void wait_for_charge();
 uint8_t next_task(uint8_t current_task);
+extern void task_init();
 
-int main(void) {
+int camaroptera_main(void) {
 	
-	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
-	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
-	P8OUT &= ~BIT3;
-	P8DIR |= BIT1 + BIT2 + BIT3;
-
-	//mcu_init();
-	msp_watchdog_disable();
-	msp_gpio_unlock();
-	msp_clock_setup();
-
-#ifdef old_pins
-	P4OUT &= ~BIT7;			// Power to Radio
-	P4DIR |= BIT7;
-#else
-	P4OUT &= ~BIT4;			// Power to Radio
-	P4DIR |= BIT4;
-#endif
-
-
-#ifdef enable_debug
-		INIT_CONSOLE();
-		PRINTF("Starting the transmitter.\r\n");
-#endif
 	while(1){
 
 	switch( camaroptera_state ){
 
 		case 0: 									// == CAPTURE IMAGE ==
-				
+			
+#ifndef cont_power
 			wait_for_charge(); 			//Wait to charge up 
+#endif
 
 #ifdef enable_debug        	
-			PRINTF("Cap ready\n\rCapturing a photo.\r\n");
+			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
 #endif
 
 			P8OUT |= BIT2;
 			pixels = capture();
 			P8OUT &= ~BIT2;
 
-#ifdef enable_debug
+#ifdef print_image
 			PRINTF("Start captured frame\r\n");
 			for( i = 0 ; i < pixels ; i++ )
 				PRINTF("%u ", frame[i]);
@@ -145,22 +123,32 @@ int main(void) {
 	
 		case 1: 									// == DIFF ==
 			
+#ifdef enable_debug        	
+			PRINTF("STATE 1: Performing Diff.\r\n");
+#endif
 			// diff();
 			camaroptera_state = next_task(1);
 			break;
 
 		case 2: 									// == DNN ==
 			
+#ifdef enable_debug        	
+			PRINTF("STATE 2: Calling DNN.\r\n");
+#endif
 			// dnn();
-			camaroptera_state = next_task(2);
+			TRANSITION_TO(task_init);
+			//camaroptera_state = next_task(2);
 			break;
 
 		case 3: 									// == COMPRESS ==
-	
+
+#ifdef enable_debug        	
+			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
+#endif
 			P8OUT |= BIT2;
 			process();
 			P8OUT &= ~BIT2;
-#ifdef enable_debug
+#ifdef print_image
 			PRINTF("Start JPEG frame\r\n");
 			for( i = 0 ; i < len ; i++ )
 				PRINTF("%u ", frame_jpeg[i]);
@@ -171,10 +159,10 @@ int main(void) {
 			
 		case 4: 									// == SEND BY RADIO==
 
-			image_capt_not_sent = 1;
-			//Wait to charge up
-			wait_for_charge();
-			pixels = 19200;
+#ifdef enable_debug        	
+			PRINTF("STATE 4: Calling Radio.\r\n");
+#endif
+
 			packet_count = pixels  / (PACKET_SIZE - 2);
 
 			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
@@ -194,7 +182,7 @@ int main(void) {
 #endif
 				if( i == packet_count - 1){
 					for( j = 2; j < last_packet_size; j++ ){
-						buffer[j] = frame[frame_track + j - 2];
+						buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef enable_debug        	
        			PRINTF("%u ", buffer[j]);
 #endif 
@@ -202,7 +190,7 @@ int main(void) {
 					}
 				else{
 					for( j = 2; j < PACKET_SIZE; j++ ){
-						buffer[j] = frame[frame_track + j - 2];
+						buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef enable_debug        	
     		    PRINTF("%u ", buffer[j]);
 #endif 
@@ -211,8 +199,13 @@ int main(void) {
 #ifdef enable_debug        	
         PRINTF("\r\nEND PACKET\r\n");
 #endif
+				
+#ifndef cont_power
 				//Wait to charge up
 				wait_for_charge();
+#else
+				__delay_cycles(16000000);
+#endif
 
 #ifdef enable_debug        	
         PRINTF("Cap ready\n\r");
@@ -274,6 +267,9 @@ int main(void) {
 #ifdef enable_debug
 				PRINTF("Sent full image\r\n");
 #endif
+				tx_packet_index = 0;
+				sent_packet_count = 0;
+				frame_track = 0;
 
 				camaroptera_state = next_task(4);
 				break;
@@ -282,11 +278,6 @@ int main(void) {
 				camaroptera_state = 0;
 				break;
 		} // End switch
-
-	tx_packet_index = 0;
-	sent_packet_count = 0;
-	frame_track = offset;
-	image_capt_not_sent = 0;
 
 	} // End while(1)
 
@@ -339,8 +330,7 @@ void OnTxDone() {
 	P8OUT &= ~BIT2;
 	tx_packet_index ++;
 	sent_packet_count ++;
-	if(sent_packet_count < 19)
-		frame_track += 253;
+	frame_track += 253;
 }
 
 void rf_init_lora() {

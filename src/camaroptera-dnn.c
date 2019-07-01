@@ -10,7 +10,6 @@
 #include <libmsp/watchdog.h>
 #include <libmsp/gpio.h>
 
-#include <libalpaca/alpaca.h>
 #include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
@@ -26,10 +25,12 @@
 #include "headers/conv2.h"
 #include "headers/fc1.h"
 #include "headers/fc2.h"
-//#include "headers/input.h"
+#include "headers/input.h"
 #include "camaroptera-dnn.h"
 
 extern uint8_t frame[];
+extern uint8_t camaroptera_state;
+//#define old_pins
 
 void init();
 
@@ -42,10 +43,11 @@ __ro_hifram uint8_t *data_dest[MEM_SIZE];
 __ro_hifram unsigned int data_size[MEM_SIZE];
 void clear_isDirty() {}
 
-TASK(1, task_init);
-TASK(2, task_compute);
-TASK(3, task_finish);
-TASK(4, task_exit);
+TASK(1, camaroptera_main);
+TASK(2, task_init);
+TASK(3, task_compute);
+TASK(4, task_finish);
+TASK(5, task_exit);
 
 ENTRY_TASK(camaroptera_main)
 INIT_FUNC(init)
@@ -85,7 +87,21 @@ void init() {
   P5DIR = 0x00;
   P6DIR = 0x00;
   P7DIR = 0x00;   
-  P8DIR = 0x00;   
+	
+	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
+	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
+	P8OUT &= ~BIT3;
+	P8DIR |= BIT1 + BIT2 + BIT3;
+
+#ifdef old_pins
+	P4OUT &= ~BIT7;			// Power to Radio
+	P4DIR |= BIT7;
+#else
+	P4OUT &= ~BIT4;			// Power to Radio
+	P4DIR |= BIT4;
+#endif
+
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -214,7 +230,7 @@ __ro_hifram mat_t mat_input = {
 	.dims = {1, 28, 28},
 	.strides = {784, 28, 1},
 	.len_dims = 3,
-	.data = frame,
+	.data = input,
 };
 
 __ro_hifram mat_t buf1 = {.data = LAYER_BUFFER(1)};
@@ -242,6 +258,7 @@ void task_init() {
 }
 
 void task_compute() {
+	PRINTF("\r\nTask Compute");
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {
 		MAT_RESHAPE(b2, 1, 28, 28);
@@ -440,6 +457,12 @@ void task_compute() {
 		TASK_REF(task_d_fc)->info.return_task = TASK_REF(task_compute);
 		TRANSITION_TO(task_d_fc);
 	}
+	scratch_bak[0] = 0;
+	scratch_bak[1] = 0;
+	scratch_bak[2] = 0;
+	write_to_gbuf((uint8_t *)(scratch_bak), 
+		(uint8_t *)(CUR_SCRATCH), 3*sizeof(uint16_t));
+
 	TRANSITION_TO(task_finish);
 }
 
@@ -447,6 +470,7 @@ __ro_hifram fixed max = 0;
 __ro_hifram uint16_t predict = 0;
 void task_finish() {
 	fixed max = 0;
+	PRINTF("\r\nTask Finish");
 	PRINTF("\r\n=====================");
 	for(uint16_t i = CUR_SCRATCH[0]; i < 10; i = ++CUR_SCRATCH[0]) {
 		fixed v = MAT_GET(b2, i, 0);
@@ -457,12 +481,16 @@ void task_finish() {
 		PRINTF("\r\n%u => %i", i, v);
 	}
 	PRINTF("\r\n=====================");
-	PRINTF("\r\n=====================");
+	PRINTF("\r\n=====================\r\n");
+	scratch_bak[0] = 0;
+	write_to_gbuf((uint8_t *)(scratch_bak), 
+		(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+
 	TRANSITION_TO(task_exit);
 }
 
 void task_exit() {
-	P8OUT ^= BIT1;
-	exit(0);
+	camaroptera_state = next_task(2);
+	TRANSITION_TO(camaroptera_main);
 }
 

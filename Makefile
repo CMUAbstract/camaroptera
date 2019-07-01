@@ -6,7 +6,7 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o camaroptera-dnn.o
-OBJECTS = main.o 
+#OBJECTS = main.o 
 
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn libjpeg
 
