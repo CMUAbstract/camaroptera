@@ -8,6 +8,9 @@
 
 #include <libio/console.h>
 #include <libmsp/mem.h>
+#include <libmsp/clock.h>
+#include <libmsp/watchdog.h>
+#include <libmsp/gpio.h>
 
 #include <liblora/mcu.h>
 //#include <liblora/uart.h>
@@ -19,8 +22,8 @@
 #include <libhimax/hm01b0.h>
 
 #include <libjpeg/jpec.h> 
-#include "camaroptera-dnn.h"
-
+//#include "camaroptera-dnn.h"
+//
 #define enable_debug
 
 #ifdef enable_debug
@@ -66,6 +69,7 @@
 __ro_hifram uint8_t buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
+extern uint8_t frame_jpeg[];
 
 __ro_hifram pixels = 0;
 
@@ -73,7 +77,7 @@ __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = offset;
-
+__ro_hifram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
 
 __ro_hifram int state = 0;
@@ -87,19 +91,19 @@ void rf_init_lora();
 void OnTxDone();
 void SendPing();
 void wait_for_charge();
+uint8_t next_task(uint8_t current_task);
 
 int main(void) {
-	
-
-	PM5CTL0 &= ~LOCKLPM5;
-
 	
 	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
 	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
 	P8OUT &= ~BIT3;
 	P8DIR |= BIT1 + BIT2 + BIT3;
 
-	mcu_init();
+	//mcu_init();
+	msp_watchdog_disable();
+	msp_gpio_unlock();
+	msp_clock_setup();
 
 #ifdef old_pins
 	P4OUT &= ~BIT7;			// Power to Radio
@@ -116,16 +120,14 @@ int main(void) {
 #endif
 	while(1){
 
-	//================== Camera Code begins here ==================
+	switch( camaroptera_state ){
 
-
-	if(image_capt_not_sent == 0){
-
-		//Wait to charge up
-		wait_for_charge();
+		case 0: 									// == CAPTURE IMAGE ==
+				
+			wait_for_charge(); 			//Wait to charge up 
 
 #ifdef enable_debug        	
-        	PRINTF("Cap ready\n\rCapturing a photo.\r\n");
+			PRINTF("Cap ready\n\rCapturing a photo.\r\n");
 #endif
 
 			P8OUT |= BIT2;
@@ -134,174 +136,161 @@ int main(void) {
 
 #ifdef enable_debug
 			PRINTF("Start captured frame\r\n");
-
-			for( i = 0 ; i < pixels ; i++ ){
-
+			for( i = 0 ; i < pixels ; i++ )
 				PRINTF("%u ", frame[i]);
-
-			}
-
 			PRINTF("\r\nEnd frame\r\n");
 #endif
+			camaroptera_state = next_task(0);
+			break;
+	
+		case 1: 									// == DIFF ==
+			
+			// diff();
+			camaroptera_state = next_task(1);
+			break;
+
+		case 2: 									// == DNN ==
+			
+			// dnn();
+			camaroptera_state = next_task(2);
+			break;
+
+		case 3: 									// == COMPRESS ==
+	
 			P8OUT |= BIT2;
 			process();
 			P8OUT &= ~BIT2;
-
-			image_capt_not_sent = 1;
-
 #ifdef enable_debug
 			PRINTF("Start JPEG frame\r\n");
-
-			for( i = 0 ; i < pixels ; i++ ){
-
-				PRINTF("%u ", frame[offset + i]);
-
-			}
-
+			for( i = 0 ; i < len ; i++ )
+				PRINTF("%u ", frame_jpeg[i]);
 			PRINTF("\r\nEnd JPEG frame\r\n");
 #endif
+			camaroptera_state = next_task(3);
+			break;
+			
+		case 4: 									// == SEND BY RADIO==
 
-		//Wait to charge up
-		wait_for_charge();
+			image_capt_not_sent = 1;
+			//Wait to charge up
+			wait_for_charge();
+			pixels = 19200;
+			packet_count = pixels  / (PACKET_SIZE - 2);
 
+			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
+
+			if(pixels % (PACKET_SIZE - 2) != 0)
+				packet_count ++;
+
+			sent_history = sent_packet_count;
+
+			for( i = sent_history; i < packet_count; i++ ){
+
+				P8OUT |= BIT1; 
+				buffer[0] = DEV_ID;
+				buffer[1] = tx_packet_index;
 #ifdef enable_debug        	
-        	PRINTF("Cap ready\n\r");
-#endif  
-	}
-	else{
-
-#ifdef enable_debug
-			PRINTF("Already have a stored photo.\r\n");
-			PRINTF("It's a photo of -- %n -- bytes.\r\n", pixels);
+	      PRINTF("START PACKET\r\n");
 #endif
-
-	}
-
-	//================== Camera Code ends here ==================
-
-	//================== Radio Transmission begins here ==================
-
-	packet_count = cam.pixels  / (PACKET_SIZE - 2);
-
-	last_packet_size = cam.pixels - packet_count * (PACKET_SIZE - 2) + 2;
-
-	if(cam.pixels % (PACKET_SIZE - 2) != 0){
-
-		packet_count ++;
-
-	}
-
-	sent_history = sent_packet_count;
-
-	for( i = sent_history; i < packet_count; i++ ){
-
-		P8OUT |= BIT1; 
-
-		buffer[0] = DEV_ID;
-		buffer[1] = tx_packet_index;
-
+				if( i == packet_count - 1){
+					for( j = 2; j < last_packet_size; j++ ){
+						buffer[j] = frame[frame_track + j - 2];
 #ifdef enable_debug        	
-        PRINTF("START PACKET\r\n");
-#endif
-		if( i == packet_count - 1){
-
-			for( j = 2; j < last_packet_size; j++ ){
-
-				buffer[j] = frame[frame_track + j - 2];
-#ifdef enable_debug        	
-        PRINTF("%u ", buffer[j]);
+       			PRINTF("%u ", buffer[j]);
 #endif 
-			}
-		}
-		else{
-			for( j = 2; j < PACKET_SIZE; j++ ){
-
-				buffer[j] = frame[frame_track + j - 2];
+						}
+					}
+				else{
+					for( j = 2; j < PACKET_SIZE; j++ ){
+						buffer[j] = frame[frame_track + j - 2];
 #ifdef enable_debug        	
-        PRINTF("%u ", buffer[j]);
+    		    PRINTF("%u ", buffer[j]);
 #endif 
-			}
-		}
+						}
+					}
 #ifdef enable_debug        	
         PRINTF("\r\nEND PACKET\r\n");
 #endif
-		//Wait to charge up
-		wait_for_charge();
+				//Wait to charge up
+				wait_for_charge();
 
 #ifdef enable_debug        	
         PRINTF("Cap ready\n\r");
 #endif  
 
 #ifdef old_pins
-	P4OUT |= BIT7;
+				P4OUT |= BIT7;
 #else
-	P4OUT |= BIT4;
+				P4OUT |= BIT4;
 #endif
 
-		spi_init();
+				spi_init();
 
-		P8OUT |= BIT2;
-		rf_init_lora();
-		P8OUT &= ~BIT2;
+				P8OUT |= BIT2;
+				rf_init_lora();
+				P8OUT &= ~BIT2;
 
 
-		if( i == packet_count - 1){
+				if( i == packet_count - 1){
+#ifdef enable_debug        	
+					PRINTF("Sending packet\n\r");
+#endif  
+					P8OUT |= BIT2;
+					sx1276_send( buffer,  last_packet_size);
+					P8OUT &= ~BIT2;
+					}
+				else{
+					P8OUT |= BIT2;
+					sx1276_send( buffer, PACKET_SIZE );
+					P8OUT &= ~BIT2;
+					}
 
-			P8OUT |= BIT2;
-			sx1276_send( buffer,  last_packet_size);
-			P8OUT &= ~BIT2;
+				__bis_SR_register(LPM4_bits+GIE);
 
-		}
-		else{
+				while(irq_flag != 1);
 
-			P8OUT |= BIT2;
-			sx1276_send( buffer, PACKET_SIZE );
-			P8OUT &= ~BIT2;
+				P8OUT |= BIT2;
+				sx1276_on_dio0irq();
+				P8OUT &= ~BIT2;
 
-		}
-
-		__bis_SR_register(LPM4_bits+GIE);
-
-		while(irq_flag != 1);
-
-		P8OUT |= BIT2;
-		sx1276_on_dio0irq();
-		P8OUT &= ~BIT2;
-
-		irq_flag = 0;
+				irq_flag = 0;
 
 #ifdef enable_debug
-		PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
+				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
 #endif
 
-		P8OUT &= ~BIT1;
-		P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-		P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-		P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+				P8OUT &= ~BIT1;
+				P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+				P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
+				P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 
 #ifdef old_pins
-	P4OUT &= ~BIT7;
+				P4OUT &= ~BIT7;
 #else
-	P4OUT &= ~BIT4;
+				P4OUT &= ~BIT4;
 #endif
-
-
-	}
+				}  // End for i
 
 #ifdef enable_debug
-	PRINTF("Sent full image\r\n");
+				PRINTF("Sent full image\r\n");
 #endif
+
+				camaroptera_state = next_task(4);
+				break;
+
+		default:
+				camaroptera_state = 0;
+				break;
+		} // End switch
 
 	tx_packet_index = 0;
 	sent_packet_count = 0;
 	frame_track = offset;
 	image_capt_not_sent = 0;
 
-	//================== Radio Transmission ends here ==================
-	
-	}
+	} // End while(1)
 
-}
+} // End main()
 
 void wait_for_charge(){
 
@@ -387,6 +376,10 @@ void process(){
 
 	P8OUT &= ~BIT3;
 }
+
+uint8_t next_task( uint8_t current_task ){
+	return current_task + 1;
+	}
 
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
 

@@ -6,14 +6,14 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o camaroptera-dnn.o
-#OBJECTS = hog-svm.o
+OBJECTS = main.o 
 
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn libjpeg
 
-export MAIN_CLOCK_FREQ = 4000000
+export MAIN_CLOCK_FREQ = 16000000
 
 export CLOCK_FREQ_ACLK = 32768
-export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
+export CLOCK_FREQ_SMCLK = 4000000
 export CLOCK_FREQ_MCLK = $(MAIN_CLOCK_FREQ)
 
 export LIBMSP_CLOCK_SOURCE = DCO
