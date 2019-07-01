@@ -84,12 +84,11 @@ __ro_hifram uint16_t packet_count, sent_history, last_packet_size;
 __ro_hifram	uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
-void process();
-void rf_init_lora();
+void camaroptera_compression();
+void camaroptera_init_lora();
 void OnTxDone();
-void SendPing();
-void wait_for_charge();
-uint8_t next_task(uint8_t current_task);
+void camaroptera_wait_for_charge();
+uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
 
 int camaroptera_main(void) {
@@ -101,7 +100,7 @@ int camaroptera_main(void) {
 		case 0: 									// == CAPTURE IMAGE ==
 			
 #ifndef cont_power
-			wait_for_charge(); 			//Wait to charge up 
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
 
 #ifdef enable_debug        	
@@ -118,7 +117,7 @@ int camaroptera_main(void) {
 				PRINTF("%u ", frame[i]);
 			PRINTF("\r\nEnd frame\r\n");
 #endif
-			camaroptera_state = next_task(0);
+			camaroptera_state = camaroptera_next_task(0);
 			break;
 	
 		case 1: 									// == DIFF ==
@@ -127,7 +126,7 @@ int camaroptera_main(void) {
 			PRINTF("STATE 1: Performing Diff.\r\n");
 #endif
 			// diff();
-			camaroptera_state = next_task(1);
+			camaroptera_state = camaroptera_next_task(1);
 			break;
 
 		case 2: 									// == DNN ==
@@ -137,7 +136,6 @@ int camaroptera_main(void) {
 #endif
 			// dnn();
 			TRANSITION_TO(task_init);
-			//camaroptera_state = next_task(2);
 			break;
 
 		case 3: 									// == COMPRESS ==
@@ -146,7 +144,7 @@ int camaroptera_main(void) {
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
 #endif
 			P8OUT |= BIT2;
-			process();
+			camaroptera_compression();
 			P8OUT &= ~BIT2;
 #ifdef print_image
 			PRINTF("Start JPEG frame\r\n");
@@ -154,7 +152,7 @@ int camaroptera_main(void) {
 				PRINTF("%u ", frame_jpeg[i]);
 			PRINTF("\r\nEnd JPEG frame\r\n");
 #endif
-			camaroptera_state = next_task(3);
+			camaroptera_state = camaroptera_next_task(3);
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
@@ -202,7 +200,7 @@ int camaroptera_main(void) {
 				
 #ifndef cont_power
 				//Wait to charge up
-				wait_for_charge();
+				camaroptera_wait_for_charge();
 #else
 				__delay_cycles(16000000);
 #endif
@@ -220,7 +218,7 @@ int camaroptera_main(void) {
 				spi_init();
 
 				P8OUT |= BIT2;
-				rf_init_lora();
+				camaroptera_init_lora();
 				P8OUT &= ~BIT2;
 
 
@@ -271,7 +269,7 @@ int camaroptera_main(void) {
 				sent_packet_count = 0;
 				frame_track = 0;
 
-				camaroptera_state = next_task(4);
+				camaroptera_state = camaroptera_next_task(4);
 				break;
 
 		default:
@@ -283,7 +281,7 @@ int camaroptera_main(void) {
 
 } // End main()
 
-void wait_for_charge(){
+void camaroptera_wait_for_charge(){
 
 	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
 
@@ -320,20 +318,14 @@ void wait_for_charge(){
     ADC12CTL0 = ~(ADC12ON);
 }
 
-void SendPing() {
-   sx1276_send(buffer, 5);
-}
-
 void OnTxDone() {
- // uart_write("$TXS\n");
-  //if(state == 1) sx1276_set_rx(0);
 	P8OUT &= ~BIT2;
 	tx_packet_index ++;
 	sent_packet_count ++;
 	frame_track += 253;
 }
 
-void rf_init_lora() {
+void camaroptera_init_lora() {
   radio_events.TxDone = OnTxDone;
 
   sx1276_init(radio_events);
@@ -345,7 +337,7 @@ void rf_init_lora() {
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
 }
 
-void process(){
+void camaroptera_compression(){
 
 	P8OUT |= BIT3;
 
@@ -367,7 +359,7 @@ void process(){
 	P8OUT &= ~BIT3;
 }
 
-uint8_t next_task( uint8_t current_task ){
+uint8_t camaroptera_next_task( uint8_t current_task ){
 	return current_task + 1;
 	}
 

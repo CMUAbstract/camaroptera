@@ -5,7 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 extern int camaroptera_main();
-extern uint8_t next_task(uint8_t current_task);
+extern uint8_t camaroptera_next_task(uint8_t current_task);
 
 extern TASK_DEC(task_init);
 void task_init();

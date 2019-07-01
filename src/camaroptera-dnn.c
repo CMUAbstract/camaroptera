@@ -490,7 +490,7 @@ void task_finish() {
 }
 
 void task_exit() {
-	camaroptera_state = next_task(2);
+	camaroptera_state = camaroptera_next_task(2);
 	TRANSITION_TO(camaroptera_main);
 }
 
