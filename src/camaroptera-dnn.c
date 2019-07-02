@@ -30,7 +30,7 @@
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
-//#define old_pins
+//#define OLD_PINS
 
 void init();
 
@@ -93,7 +93,7 @@ void init() {
 	P8OUT &= ~BIT3;
 	P8DIR |= BIT1 + BIT2 + BIT3;
 
-#ifdef old_pins
+#ifdef OLD_PINS
 	P4OUT &= ~BIT7;			// Power to Radio
 	P4DIR |= BIT7;
 #else

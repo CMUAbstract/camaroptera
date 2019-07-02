@@ -32,7 +32,8 @@
 #endif
 
 #define __ro_hifram __attribute__((section(".upper.rodata")))
-//#define old_pins
+
+//#define OLD_PINS
 
 #define RF_FREQUENCY   915000000 // Hz
 
@@ -209,7 +210,7 @@ int camaroptera_main(void) {
         PRINTF("Cap ready\n\r");
 #endif  
 
-#ifdef old_pins
+#ifdef OLD_PINS
 				P4OUT |= BIT7;
 #else
 				P4OUT |= BIT4;
@@ -255,7 +256,7 @@ int camaroptera_main(void) {
 				P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 				P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 
-#ifdef old_pins
+#ifdef OLD_PINS
 				P4OUT &= ~BIT7;
 #else
 				P4OUT &= ~BIT4;
@@ -292,7 +293,7 @@ void camaroptera_wait_for_charge(){
     ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
     ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
 
-#ifdef old_pins
+#ifdef OLD_PINS
     ADC12MCTL0 = ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
 #else
     ADC12MCTL0 = ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
