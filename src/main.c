@@ -69,7 +69,7 @@ __ro_hifram uint8_t buffer[BUFFER_SIZE];
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
 
-__ro_hifram pixels = 0;
+__ro_hifram uint16_t pixels = 0;
 
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
@@ -81,7 +81,7 @@ __ro_hifram static radio_events_t radio_events;
 __ro_hifram int state = 0;
 __ro_hifram int i, j;
 __ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
-__ro_hifram	uint16_t len = 0;
+__ro_hifram int len = 0;
 __ro_hifram jpec_enc_t *e;
 
 void camaroptera_compression();
@@ -96,7 +96,7 @@ int main(void) {
 	msp_gpio_unlock();
 	msp_clock_setup();
  
-#ifdef CONFIG_CONSOLE
+#ifdef enable_debug
 	#pragma message "init console"
 	INIT_CONSOLE();
 #endif
@@ -245,11 +245,10 @@ int main(void) {
 #endif
 
 				spi_init();
-
+        
 				P8OUT |= BIT2;
 				camaroptera_init_lora();
 				P8OUT &= ~BIT2;
-
 
 				if( i == packet_count - 1){
 #ifdef enable_debug        	
