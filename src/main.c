@@ -25,7 +25,7 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-#define cont_power
+//#define cont_power
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -136,7 +136,8 @@ int camaroptera_main(void) {
 			PRINTF("STATE 2: Calling DNN.\r\n");
 #endif
 			// dnn();
-			TRANSITION_TO(task_init);
+			//TRANSITION_TO(task_init);
+      camaroptera_state = camaroptera_next_task(2);
 			break;
 
 		case 3: 									// == COMPRESS ==
@@ -144,9 +145,7 @@ int camaroptera_main(void) {
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
 #endif
-			P8OUT |= BIT2;
 			camaroptera_compression();
-			P8OUT &= ~BIT2;
 #ifdef print_image
 			PRINTF("Start JPEG frame\r\n");
 			for( i = 0 ; i < len ; i++ )
@@ -176,13 +175,13 @@ int camaroptera_main(void) {
 				P8OUT |= BIT1; 
 				buffer[0] = DEV_ID;
 				buffer[1] = tx_packet_index;
-#ifdef enable_debug        	
+#ifdef print_image        	
 	      PRINTF("START PACKET\r\n");
 #endif
 				if( i == packet_count - 1){
 					for( j = 2; j < last_packet_size; j++ ){
 						buffer[j] = frame_jpeg[frame_track + j - 2];
-#ifdef enable_debug        	
+#ifdef print_image        	
        			PRINTF("%u ", buffer[j]);
 #endif 
 						}
@@ -190,12 +189,12 @@ int camaroptera_main(void) {
 				else{
 					for( j = 2; j < PACKET_SIZE; j++ ){
 						buffer[j] = frame_jpeg[frame_track + j - 2];
-#ifdef enable_debug        	
+#ifdef print_image        	
     		    PRINTF("%u ", buffer[j]);
 #endif 
 						}
 					}
-#ifdef enable_debug        	
+#ifdef print_image        	
         PRINTF("\r\nEND PACKET\r\n");
 #endif
 				
@@ -246,12 +245,13 @@ int camaroptera_main(void) {
 				P8OUT &= ~BIT2;
 
 				irq_flag = 0;
+        
+				P8OUT &= ~BIT1;
 
 #ifdef enable_debug
 				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
 #endif
 
-				P8OUT &= ~BIT1;
 				P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 				P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
 				P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
@@ -340,29 +340,34 @@ void camaroptera_init_lora() {
 
 void camaroptera_compression(){
 
-	P8OUT |= BIT3;
-
-
 #ifdef enable_debug        	
-	PRINTF("\n\rStarting JPEG compression\n\r");
+	//PRINTF("Starting JPEG compression\n\r");
 #endif
+
+  P8OUT |= BIT2;
 
 	e = jpec_enc_new2(frame, 160, 120, JQ);
 
 	jpec_enc_run(e, &len);
 
 	pixels = len;
+ 
+  P8OUT &= ~BIT2;
 
 #ifdef enable_debug
-	PRINTF("Done. New img size: -- %u -- bytes.\r\n", pixels);
+	//PRINTF("Done. New img size: -- %u -- bytes.\r\n", pixels);
 #endif
 
-	P8OUT &= ~BIT3;
 }
 
 uint8_t camaroptera_next_task( uint8_t current_task ){
-	return current_task + 1;
-	}
+  
+  if (current_task == 4)
+    return 0;
+  else
+    return current_task + 1; 
+    
+}
 
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
 
