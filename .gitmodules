@@ -22,3 +22,10 @@
 [submodule "src/camaroptera-dnn"]
 	path = src/camaroptera-dnn
 	url = git@github.com:CMUAbstract/camaroptera-dnn.git
+[submodule "ext/libjpeg"]
+        path = ext/libjpeg
+        url = git@github.com:CMUAbstract/libjpeg.git
+[submodule "ext/libfixed"]
+        path = ext/libfixed
+        url = git@github.com:CMUAbstract/libfixed.git
+
