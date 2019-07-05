@@ -90,7 +90,39 @@ void OnTxDone();
 void camaroptera_wait_for_charge();
 uint8_t camaroptera_next_task(uint8_t current_task);
 
-int camaroptera_main(void) {
+int main(void) {
+
+  msp_watchdog_disable();
+	msp_gpio_unlock();
+	msp_clock_setup();
+ 
+#ifdef CONFIG_CONSOLE
+	#pragma message "init console"
+	INIT_CONSOLE();
+#endif
+
+  __enable_interrupt();
+
+	P1DIR = 0x00;
+  P2DIR = 0x00;   
+  P3DIR = 0x00;   
+  P4DIR = 0x00;   
+  P5DIR = 0x00;
+  P6DIR = 0x00;
+  P7DIR = 0x00;   
+	
+	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
+	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
+	P8OUT &= ~BIT3;
+	P8DIR |= BIT1 + BIT2 + BIT3;
+
+#ifdef OLD_PINS
+	P4OUT &= ~BIT7;			// Power to Radio
+	P4DIR |= BIT7;
+#else
+	P4OUT &= ~BIT4;			// Power to Radio
+	P4DIR |= BIT4;
+#endif
 	
 	while(1){
 

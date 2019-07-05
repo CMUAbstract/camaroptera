@@ -44,9 +44,6 @@ ifneq ($(FIXED_TEST),)
 export LIBFIXED_TEST = 1
 endif
 
-CFLAGS += -mlarge
-LFLAGS += -mlarge
-
 ifneq ($(INTERMITTENT),)
 override CFLAGS += -DCONFIG_INTERMITTENT=1
 endif
