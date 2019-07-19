@@ -114,42 +114,24 @@ __ro_hifram stack_t *mat_stack = &st;
 ///////////////////////////////Weights Matrices/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 __ro_hifram mat_t mat_conv1_wd = {
-	.dims = {CONV1_WMD_LEN},
-	.len_dims = 1,
+	.dims = {20, 1, 1, 1},
+	.len_dims = 4,
 	.strides = {1},
 	.data = conv1_wmd,
-	.sparse = {
-		.dims = {20, 1, 1, 1},
-		.len_dims = 4,
-		.sizes = conv1_wmd_sizes,
-		.offsets = conv1_wmd_offsets
-	},
 };
 
 __ro_hifram mat_t mat_conv1_wv = {
-	.dims = {CONV1_WMV_LEN},
-	.len_dims = 1,
+	.dims = {1, 20, 5, 1},
+	.len_dims = 4,
 	.strides = {1},
 	.data = conv1_wmv,
-	.sparse = {
-		.dims = {20, 1, 5, 1},
-		.len_dims = 4,
-		.sizes = conv1_wmv_sizes,
-		.offsets = conv1_wmv_offsets
-	},
 };
 
 __ro_hifram mat_t mat_conv1_wh = {
-	.dims = {CONV1_WMH_LEN},
-	.len_dims = 1,
+	.dims = {1, 20, 1, 5},
+	.len_dims = 4,
 	.strides = {1},
 	.data = conv1_wmh,
-	.sparse = {
-		.dims = {20, 1, 1, 5},
-		.len_dims = 4,
-		.sizes = conv1_wmh_sizes,
-		.offsets = conv1_wmh_offsets
-	},
 };
 
 __ro_hifram mat_t mat_conv1_b = {
@@ -179,31 +161,19 @@ __ro_hifram mat_t mat_conv2_b = {
 	.data = conv2_b,
 };
 
-__ro_hifram mat_t mat_fc1_wh = {
-	.dims = {FC1_WMH_LEN},
+__ro_hifram mat_t mat_fc1_w = {
+	.dims = {FC1_WM__LEN},
 	.len_dims = 1,
 	.strides = {1},
-	.data = fc1_wmh,
+	.data = fc1_wm_,
 	.sparse = {
-		.dims = {100, 1600},
+		.dims = {500, 5400},
 		.len_dims = 2,
-		.offsets = fc1_wmh_offsets,
-		.sizes = fc1_wmh_sizes,
+		.offsets = fc1_wm__offsets,
+		.sizes = fc1_wm__sizes,
 	},
 };
 
-__ro_hifram mat_t mat_fc1_wv = {
-	.dims = {FC1_WMV_LEN},
-	.len_dims = 1,
-	.strides = {1},
-	.data = fc1_wmv,
-	.sparse = {
-		.dims = {500, 100},
-		.len_dims = 2,
-		.offsets = fc1_wmv_offsets,
-		.sizes = fc1_wmv_sizes,
-	},
-};
 
 __ro_hifram mat_t mat_fc1_b = {
 	.dims = {500, 1},
@@ -213,24 +183,24 @@ __ro_hifram mat_t mat_fc1_b = {
 };
 
 __ro_hifram mat_t mat_fc2_w = {
-	.dims = {10, 500},
+	.dims = {2, 500},
 	.strides = {500, 1},
 	.len_dims = 2,
 	.data = fc2_w,
 };
 
 __ro_hifram mat_t mat_fc2_b = {
-	.dims = {10, 1},
+	.dims = {2, 1},
 	.strides = {1, 1},
 	.len_dims = 2,
 	.data = fc2_b,
 };
 
 __ro_hifram mat_t mat_input = {
-	.dims = {1, 28, 28},
-	.strides = {784, 28, 1},
+	.dims = {1, 80, 60},
+	.strides = {4800, 60, 1},
 	.len_dims = 3,
-	.data = input,
+	.data = frame,
 };
 
 __ro_hifram mat_t buf1 = {.data = LAYER_BUFFER(1)};
@@ -261,10 +231,10 @@ void task_compute() {
 	PRINTF("\r\nTask Compute");
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {
-		MAT_RESHAPE(b2, 1, 28, 28);
+		MAT_RESHAPE(b2, 1, 80, 60);
 		mat_t *mat_input_ptr = &mat_input;
-		for(uint16_t i = CUR_SCRATCH[1]; i < 28; i = ++CUR_SCRATCH[1]) {
-			for(uint16_t j = CUR_SCRATCH[2]; j < 28; j = ++CUR_SCRATCH[2]) {
+		for(uint16_t i = CUR_SCRATCH[1]; i < 80; i = ++CUR_SCRATCH[1]) {
+			for(uint16_t j = CUR_SCRATCH[2]; j < 60; j = ++CUR_SCRATCH[2]) {
 				fixed w = MAT_GET(mat_input_ptr, 0, i, j);
 				MAT_SET(b2, w, 0, i, j);
 			}
@@ -279,7 +249,7 @@ void task_compute() {
 		MAT_DUMP(b2, 0);
 		PRINTF("\r\n Layer 1");
 
-		MAT_RESHAPE(b1, 20, 28, 28);
+		MAT_RESHAPE(b1, 20, 80, 60);
 		mat_t *w_ptr = &mat_conv1_wd;
 		mat_t *b_ptr = NULL;
 		// Assumes b, w, dest, src in that order
@@ -294,7 +264,7 @@ void task_compute() {
 		MAT_DUMP(b1, 0);
 		PRINTF("\r\n Layer 2");
 
-		MAT_RESHAPE(b2, 20, 28, 24);
+		MAT_RESHAPE(b2, 20, 80, 56);
 		mat_t *w_ptr = &mat_conv1_wh;
 		mat_t *b_ptr = NULL;
 		// Assumes b, w, dest, src in that order
@@ -309,7 +279,7 @@ void task_compute() {
 		MAT_DUMP(b2, 0);
 		PRINTF("\r\n Layer 3");
 
-		MAT_RESHAPE(b1, 20, 24, 24);
+		MAT_RESHAPE(b1, 20, 76, 56);
 		mat_t *w_ptr = &mat_conv1_wv;
 		mat_t *b_ptr = &mat_conv1_b;
 		// Assumes b, w, dest, src in that order
@@ -324,7 +294,7 @@ void task_compute() {
 		MAT_DUMP(b1, 0);
 		PRINTF("\r\n Layer 4");
 
-		MAT_RESHAPE(b2, 20, 24, 24);
+		MAT_RESHAPE(b2, 20, 76, 56);
 		// Assumes dest, src in that order
 		PUSH_STACK(mat_stack, b2, b1);
 
@@ -337,7 +307,7 @@ void task_compute() {
 		MAT_DUMP(b2, 0);
 		PRINTF("\r\n Layer 5");
 
-		MAT_RESHAPE(b1, 20, 12, 12);
+		MAT_RESHAPE(b1, 20, 38, 28);
 		params.stride[1] = 2;
 		params.stride[2] = 2;
 		// Assumes src in that order
@@ -352,7 +322,7 @@ void task_compute() {
 		MAT_DUMP(b1, 0);
 		PRINTF("\r\n Layer 6");
 
-		MAT_RESHAPE(b2, 100, 8, 8);
+		MAT_RESHAPE(b2, 100, 34, 24);
 		params.stride[1] = 1;
 		params.stride[2] = 1;
 		mat_t *w_ptr = &mat_conv2_w;
@@ -369,7 +339,7 @@ void task_compute() {
 		MAT_DUMP(b2, 0);
 		PRINTF("\r\n Layer 7");
 
-		MAT_RESHAPE(b1, 100, 8, 8);
+		MAT_RESHAPE(b1, 100, 34, 24);
 		// Assumes dest, src in that order
 		PUSH_STACK(mat_stack, b1, b2);
 
@@ -382,9 +352,11 @@ void task_compute() {
 		MAT_DUMP(b1, 0);
 		PRINTF("\r\n Layer 8");
 
-		MAT_RESHAPE(b2, 100, 4, 4);
-		params.stride[1] = 2;
-		params.stride[2] = 2;
+		MAT_RESHAPE(b2, 100, 9, 6);
+		params.size[1] = 4;
+		params.size[2] = 4;
+		params.stride[1] = 4;
+		params.stride[2] = 4;
 		// Assumes src in that order
 		PUSH_STACK(mat_stack, b2, b1);
 
@@ -394,14 +366,14 @@ void task_compute() {
 		TASK_REF(task_pool)->info.return_task = TASK_REF(task_compute);
 		TRANSITION_TO(task_pool);
 	} else if(state == 9) {
-		MAT_RESHAPE(b2, 1, 1, 1600);
+		MAT_RESHAPE(b2, 1, 1, 5400);
 		MAT_DUMP(b2, 0);
 		PRINTF("\r\n Layer 9");
 
-		MAT_RESHAPE(b2, 1600, 1);
-		MAT_RESHAPE(b1, 100, 1);
-		mat_t *w_ptr = &mat_fc1_wh;
-		mat_t *b_ptr = NULL;
+		MAT_RESHAPE(b2, 5400, 1);
+		MAT_RESHAPE(b1, 500, 1);
+		mat_t *w_ptr = &mat_fc1_w;
+		mat_t *b_ptr = &mat_fc1_b;
 		// Assumes b, w, dest, src in that order
 		PUSH_STACK(mat_stack, b_ptr, w_ptr, b1, b2);
 
@@ -411,47 +383,33 @@ void task_compute() {
 		TASK_REF(task_s_fc)->info.return_task = TASK_REF(task_compute);
 		TRANSITION_TO(task_s_fc);
 	} else if(state == 10) {
-		PRINTF("\r\n Layer 10");
-
-		MAT_RESHAPE(b2, 500, 1);
-		mat_t *w_ptr = &mat_fc1_wv;
-		mat_t *b_ptr = &mat_fc1_b;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b2, b1);
-
-		scratch_bak[0] = 11;
-		write_to_gbuf((uint8_t *)(scratch_bak), 
-			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_fc)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_fc);
-	} else if(state == 11) {
 		MAT_RESHAPE(b2, 1, 1, 500);
 		MAT_DUMP(b2, 0);
 		MAT_RESHAPE(b2, 500, 1);
-		PRINTF("\r\n Layer 11");
+		PRINTF("\r\n Layer 10");
 
 		MAT_RESHAPE(b1, 500, 1);
 		// Assumes dest, src in that order
 		PUSH_STACK(mat_stack, b1, b2);
 
-		scratch_bak[0] = 12;
+		scratch_bak[0] = 11;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		TASK_REF(task_relu)->info.return_task = TASK_REF(task_compute);
 		TRANSITION_TO(task_relu);
-	} else if(state == 12) {
+	} else if(state == 11) {
 		MAT_RESHAPE(b1, 1, 1, 500);
 		MAT_DUMP(b1, 0);
 		MAT_RESHAPE(b1, 500, 1);
-		PRINTF("\r\n Layer 12");
+		PRINTF("\r\n Layer 11");
 
-		MAT_RESHAPE(b2, 10, 1);
+		MAT_RESHAPE(b2, 2, 1);
 		mat_t *w_ptr = &mat_fc2_w;
 		mat_t *b_ptr = &mat_fc2_b;
 		// Assumes b, w, dest, src in that order
 		PUSH_STACK(mat_stack, b_ptr, w_ptr, b2, b1);
 
-		scratch_bak[0] = 13;
+		scratch_bak[0] = 12;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		TASK_REF(task_d_fc)->info.return_task = TASK_REF(task_compute);
@@ -472,7 +430,7 @@ void task_finish() {
 	fixed max = 0;
 	PRINTF("\r\nTask Finish");
 	PRINTF("\r\n=====================");
-	for(uint16_t i = CUR_SCRATCH[0]; i < 10; i = ++CUR_SCRATCH[0]) {
+	for(uint16_t i = CUR_SCRATCH[0]; i < 2; i = ++CUR_SCRATCH[0]) {
 		fixed v = MAT_GET(b2, i, 0);
 		if(v > max) {
 			predict = i;
