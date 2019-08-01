@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <msp430.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,35 +14,32 @@
 #include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
-#include <libdnn/misc.h>
-#include <libdnn/mem.h>
-#include <libdnn/state.h>
-#include <libdnn/buffer.h>
-#include <libdnn/nn.h>
-#include <libdnn/nonlinear.h>
-#include <libdnn/linalg.h>
 
-#include "headers/conv1.h"
-#include "headers/conv2.h"
-#include "headers/fc1.h"
-#include "headers/fc2.h"
-#include "headers/input.h"
 #include "camaroptera-dnn.h"
+#include "lenet.h"
+#include "headers_30x40/conv1.h"
+#include "headers_30x40/conv2.h"
+#include "headers_30x40/fc1.h"
+#include "headers_30x40/fc2.h"
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
-//#define OLD_PINS
 
 void init();
+//#define PRINT_DEBUG
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Alapaca Shim///////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 #define MEM_SIZE 0x400
-__ro_hifram uint8_t *data_src[MEM_SIZE];
-__ro_hifram uint8_t *data_dest[MEM_SIZE];
-__ro_hifram unsigned int data_size[MEM_SIZE];
+__hifram uint8_t *data_src[MEM_SIZE];
+__hifram uint8_t *data_dest[MEM_SIZE];
+__hifram unsigned int data_size[MEM_SIZE];
 void clear_isDirty() {}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////Tasks///////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 TASK(1, camaroptera_main);
 TASK(2, task_init);
@@ -51,7 +49,6 @@ TASK(5, task_exit);
 
 ENTRY_TASK(camaroptera_main)
 INIT_FUNC(init)
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////Setup///////////////////////////////////////
@@ -87,363 +84,498 @@ void init() {
   P5DIR = 0x00;
   P6DIR = 0x00;
   P7DIR = 0x00;   
-	
-	P8OUT |= BIT1;					// To demarcate start and end of individual runs of the program
-	P8OUT &= ~BIT2; 	  		// To demarcate smaller sections of the program
-	P8OUT &= ~BIT3;
-	P8DIR |= BIT1 + BIT2 + BIT3;
+  P8DIR = 0x00;   
 
-#ifdef OLD_PINS
-	P4OUT &= ~BIT7;			// Power to Radio
-	P4DIR |= BIT7;
-#else
-	P4OUT &= ~BIT4;			// Power to Radio
-	P4DIR |= BIT4;
-#endif
-
+	P8OUT &= ~BIT1;
+	P8DIR |= BIT1;
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////Stacks///////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-__ro_hifram stack_t st;
-__ro_hifram stack_t *mat_stack = &st;
-
-////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////Weights Matrices/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-__ro_hifram mat_t mat_conv1_wd = {
-	.dims = {20, 1, 1, 1},
-	.len_dims = 4,
+__ro_fram mat_t mat_conv1_wd = {
+	.dims = {CONV1_WMD_LEN},
+	.len_dims = 1,
 	.strides = {1},
 	.data = conv1_wmd,
+	.sparse = {
+		.dims = {20, 1, 1, 1},
+		.len_dims = 4,
+		.sizes = conv1_wmd_sizes,
+		.offsets = conv1_wmd_offsets
+	},
 };
 
-__ro_hifram mat_t mat_conv1_wv = {
-	.dims = {1, 20, 5, 1},
-	.len_dims = 4,
+__ro_fram mat_t mat_conv1_wv = {
+	.dims = {CONV1_WMV_LEN},
+	.len_dims = 1,
 	.strides = {1},
 	.data = conv1_wmv,
+	.sparse = {
+		.dims = {20, 1, 5, 1},
+		.len_dims = 4,
+		.sizes = conv1_wmv_sizes,
+		.offsets = conv1_wmv_offsets
+	},
 };
 
-__ro_hifram mat_t mat_conv1_wh = {
-	.dims = {1, 20, 1, 5},
-	.len_dims = 4,
+__ro_fram mat_t mat_conv1_wh = {
+	.dims = {CONV1_WMH_LEN},
+	.len_dims = 1,
 	.strides = {1},
 	.data = conv1_wmh,
+	.sparse = {
+		.dims = {20, 1, 1, 5},
+		.len_dims = 4,
+		.sizes = conv1_wmh_sizes,
+		.offsets = conv1_wmh_offsets
+	},
 };
 
-__ro_hifram mat_t mat_conv1_b = {
+__ro_fram mat_t mat_conv1_b = {
 	.dims = {20},
 	.len_dims = 1,
 	.strides = {1},
 	.data = conv1_b,
 };
 
-__ro_hifram mat_t  mat_conv2_w = {
-	.dims = {CONV2_WM_LEN},
+__ro_fram mat_t mat_conv2_wd = {
+	.dims = {CONV2_WMD_LEN},
 	.len_dims = 1,
 	.strides = {1},
-	.data = conv2_wm,
+	.data = conv2_wmd,
 	.sparse = {
-		.dims = {100, 20, 5, 5},
+		.dims = {100, 20, 1, 1},
 		.len_dims = 4,
-		.sizes = conv2_wm_sizes,
-		.offsets = conv2_wm_offsets,
-	}
-};
-
-__ro_hifram mat_t mat_conv2_b = {
-	.dims = {100},
-	.strides = {1},
-	.len_dims = 1,
-	.data = conv2_b,
-};
-
-__ro_hifram mat_t mat_fc1_w = {
-	.dims = {FC1_WM__LEN},
-	.len_dims = 1,
-	.strides = {1},
-	.data = fc1_wm_,
-	.sparse = {
-		.dims = {500, 5400},
-		.len_dims = 2,
-		.offsets = fc1_wm__offsets,
-		.sizes = fc1_wm__sizes,
+		.sizes = conv2_wmd_sizes,
+		.offsets = conv2_wmd_offsets
 	},
 };
 
+__ro_fram mat_t mat_conv2_wv = {
+	.dims = {CONV2_WMV_LEN},
+	.len_dims = 1,
+	.strides = {1},
+	.data = conv2_wmv,
+	.sparse = {
+		.dims = {100, 1, 5, 1},
+		.len_dims = 4,
+		.sizes = conv2_wmv_sizes,
+		.offsets = conv2_wmv_offsets
+	},
+};
 
-__ro_hifram mat_t mat_fc1_b = {
+__ro_fram mat_t mat_conv2_wh = {
+	.dims = {CONV2_WMH_LEN},
+	.len_dims = 1,
+	.strides = {1},
+	.data = conv2_wmh,
+	.sparse = {
+		.dims = {100, 1, 1, 5},
+		.len_dims = 4,
+		.sizes = conv2_wmh_sizes,
+		.offsets = conv2_wmh_offsets
+	},
+};
+
+__ro_fram mat_t mat_conv2_b = {
+	.dims = {100},
+	.len_dims = 1,
+	.strides = {1},
+	.data = conv2_b,
+};
+
+
+__ro_fram mat_t mat_fc1_wh = {
+	.dims = {FC1_WMH_LEN},
+	.len_dims = 1,
+	.strides = {1},
+	.data = fc1_wmh,
+	.sparse = {
+		.dims = {100, 1, 1, 3500},
+		.len_dims = 4,
+		.offsets = fc1_wmh_offsets,
+		.sizes = fc1_wmh_sizes,
+	},
+};
+
+__ro_fram mat_t mat_fc1_wv = {
+	.dims = {FC1_WMV_LEN},
+	.len_dims = 1,
+	.strides = {1},
+	.data = fc1_wmv,
+	.sparse = {
+		.dims = {500, 1, 1, 100},
+		.len_dims = 4,
+		.offsets = fc1_wmv_offsets,
+		.sizes = fc1_wmv_sizes,
+	},
+};
+
+__ro_fram mat_t mat_fc1_b = {
 	.dims = {500, 1},
 	.strides = {1, 1},
 	.len_dims = 2,
 	.data = fc1_b,
 };
 
-__ro_hifram mat_t mat_fc2_w = {
-	.dims = {2, 500},
-	.strides = {500, 1},
-	.len_dims = 2,
+__ro_fram mat_t mat_fc2_w = {
+	.dims = {2, 1, 1, 500},
+	.strides = {500, 500 ,500, 1},
+	.len_dims = 4,
 	.data = fc2_w,
 };
 
-__ro_hifram mat_t mat_fc2_b = {
+__ro_fram mat_t mat_fc2_b = {
 	.dims = {2, 1},
 	.strides = {1, 1},
 	.len_dims = 2,
 	.data = fc2_b,
 };
 
-__ro_hifram mat_t mat_input = {
-	.dims = {1, 80, 60},
-	.strides = {4800, 60, 1},
+__ro_fram mat_t mat_input = {
+	.dims = {1, 120, 160},
+	.strides = {19200, 160, 1},
 	.len_dims = 3,
 	.data = frame,
 };
 
-__ro_hifram mat_t buf1 = {.data = LAYER_BUFFER(1)};
-__ro_hifram mat_t buf2 = {.data = LAYER_BUFFER(2)};
-__ro_hifram mat_t *b1 = &buf1;
-__ro_hifram mat_t *b2 = &buf2;
+__fram mat_t buf1 = {.data = inference_buffer[0]};
+__fram mat_t buf2 = {.data = inference_buffer[1]};
+__fram mat_t *b1 = &buf1;
+__fram mat_t *b2 = &buf2;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////Tasks///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void task_init() {
 	P8OUT ^= BIT1;
+
+
 	PRINTF("\r\n========================");
 	PRINTF("\r\nInit");
-
-	params.same_padding = false;
-	params.size[0] = 1;
-	params.size[1] = 2;
-	params.size[2] = 2;
-	params.stride[0] = 1;
-	params.stride[1] = 1;
-	params.stride[2] = 1;
 
 	TRANSITION_TO(task_compute);
 }
 
 void task_compute() {
-	PRINTF("\r\nTask Compute");
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {
-		MAT_RESHAPE(b2, 1, 80, 60);
+		PRINTF("====INPUT IMAGE====\r\n");
+		MAT_RESHAPE(b1, 1, 120, 160);
 		mat_t *mat_input_ptr = &mat_input;
-		for(uint16_t i = CUR_SCRATCH[1]; i < 80; i = ++CUR_SCRATCH[1]) {
-			for(uint16_t j = CUR_SCRATCH[2]; j < 60; j = ++CUR_SCRATCH[2]) {
-				fixed w = MAT_GET(mat_input_ptr, 0, i, j);
-				MAT_SET(b2, w, 0, i, j);
-			}
-			CUR_SCRATCH[2] = 0;
-		}
-
+		normalize( mat_input_ptr, b1 );
+		MAT_RESHAPE(b2, 1, 30, 40);
+		pooling( b1, b2, 1, 4, 4 ); 
 		scratch_bak[0] = 1;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+#ifdef PRINT_DEBUG
+		MAT_DUMP(b2, 0);
+#endif
 		transition_to(CUR_TASK);
 	} else if(state == 1) {
-		MAT_DUMP(b2, 0);
-		PRINTF("\r\n Layer 1");
+		PRINTF("\r\n Layer 1 : Depthwise Conv1");
 
-		MAT_RESHAPE(b1, 20, 80, 60);
+		MAT_RESHAPE(b1, 20, 30, 40);
+		zero(b1);
 		mat_t *w_ptr = &mat_conv1_wd;
 		mat_t *b_ptr = NULL;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b1, b2);
-
 		scratch_bak[0] = 2;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_conv)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_conv);
-	} else if(state == 2) {
-		MAT_DUMP(b1, 0);
-		PRINTF("\r\n Layer 2");
+		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, false);
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 20; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
+	}else if(state == 2) {
+		PRINTF("\r\n Layer 2 : Horizontal Conv1");
 
-		MAT_RESHAPE(b2, 20, 80, 56);
+		MAT_RESHAPE(b2, 20, 30, 36);
+		zero(b2);
 		mat_t *w_ptr = &mat_conv1_wh;
 		mat_t *b_ptr = NULL;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b2, b1);
-
 		scratch_bak[0] = 3;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_depthconv)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_depthconv);
-	} else if(state == 3) {
-		MAT_DUMP(b2, 0);
-		PRINTF("\r\n Layer 3");
+		uint16_t running_size=0;
+		for(uint16_t i = 0; i < 20; i++ ){
+			// PRINTF("\r\n Layer 2 : Depth %i", i);
+			mat_t w_slice;
 
-		MAT_RESHAPE(b1, 20, 76, 56);
+			w_slice = MAT_CONSTRAIN(w_ptr, running_size);
+			w_slice.dims[0] = w_ptr->sparse.sizes[i];
+			w_slice.sparse.sizes = (w_ptr->sparse.sizes + i);
+			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
+			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
+			running_size += w_ptr->sparse.sizes[i];
+
+			conv_sparse( &w_slice, b_ptr, b1, b2, 0, true, i, false );
+		}
+#ifdef PRINT_DEBUG
+		 for(uint16_t i = 0; i < 20; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b2, i);
+			}
+#endif
+
+		transition_to(CUR_TASK);
+	} else if(state == 3) {
+		PRINTF("\r\n Layer 3 : Vertical Conv1");
+
+		MAT_RESHAPE(b1, 20, 26, 36);
+		zero(b1);
 		mat_t *w_ptr = &mat_conv1_wv;
 		mat_t *b_ptr = &mat_conv1_b;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b1, b2);
-
 		scratch_bak[0] = 4;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_depthconv)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_depthconv);
+		uint16_t running_size=0;
+		for(uint16_t i = 0; i < 20; i++ ){
+			// PRINTF("\r\n Layer 3 : Depth %i", i);
+			mat_t w_slice;
+
+			w_slice = MAT_CONSTRAIN(w_ptr, running_size);
+			w_slice.dims[0] = w_ptr->sparse.sizes[i];
+			w_slice.sparse.sizes = (w_ptr->sparse.sizes + i);
+			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
+			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
+			running_size += w_ptr->sparse.sizes[i];
+			conv_sparse( &w_slice, b_ptr, b2, b1, 0, true, i, false );
+		}
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 20; i++ ){
+		 		PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 4) {
-		MAT_DUMP(b1, 0);
-		PRINTF("\r\n Layer 4");
+		PRINTF("\r\n Layer 4 : RELU after Conv1");
 
-		MAT_RESHAPE(b2, 20, 76, 56);
-		// Assumes dest, src in that order
-		PUSH_STACK(mat_stack, b2, b1);
-
+		MAT_RESHAPE(b2, 20, 26, 36);
 		scratch_bak[0] = 5;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_relu)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_relu);
+		relu( b1, 0 );
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 20; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 5) {
-		MAT_DUMP(b2, 0);
-		PRINTF("\r\n Layer 5");
+		PRINTF("\r\n Layer 5 : Max Pooling after Conv1");
 
-		MAT_RESHAPE(b1, 20, 38, 28);
-		params.stride[1] = 2;
-		params.stride[2] = 2;
-		// Assumes src in that order
-		PUSH_STACK(mat_stack, b1, b2);
-
+		MAT_RESHAPE(b2, 20, 13, 18);
+		zero(b2);
 		scratch_bak[0] = 6;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_pool)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_pool);
+		pooling( b1, b2, 0, 2, 2 );
+#ifdef PRINT_DEBUG
+		 for(uint16_t i = 0; i < 20; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b2, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 6) {
-		MAT_DUMP(b1, 0);
-		PRINTF("\r\n Layer 6");
+		PRINTF("\r\n Layer 6 : Depthwise Conv2");
 
-		MAT_RESHAPE(b2, 100, 34, 24);
-		params.stride[1] = 1;
-		params.stride[2] = 1;
-		mat_t *w_ptr = &mat_conv2_w;
-		mat_t *b_ptr = &mat_conv2_b;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, NULL, w_ptr, b2, b1);
-
+		MAT_RESHAPE(b1, 100, 13, 18);
+		zero(b1);
+		mat_t *w_ptr = &mat_conv2_wd;
+		mat_t *b_ptr = NULL;
 		scratch_bak[0] = 7;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_conv)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_conv);
-	} else if(state == 7) {
-		MAT_DUMP(b2, 0);
-		PRINTF("\r\n Layer 7");
+		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, false);
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 100; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
+	}else if(state == 7) {
+		PRINTF("\r\n Layer 7 : Horizontal Conv2");
 
-		MAT_RESHAPE(b1, 100, 34, 24);
-		// Assumes dest, src in that order
-		PUSH_STACK(mat_stack, b1, b2);
-
+		MAT_RESHAPE(b2, 100, 13, 14);
+		zero(b2);
+		mat_t *w_ptr = &mat_conv2_wh;
+		mat_t *b_ptr = NULL;
 		scratch_bak[0] = 8;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_relu)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_relu);
+		uint16_t running_size=0;
+		for(uint16_t i = 0; i < 100; i++ ){
+			// PRINTF("\r\n Layer 7 : Depth %i", i);
+			mat_t w_slice;
+
+			w_slice = MAT_CONSTRAIN(w_ptr, running_size);
+			w_slice.dims[0] = w_ptr->sparse.sizes[i];
+			w_slice.sparse.sizes = (w_ptr->sparse.sizes + i);
+			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
+			running_size += w_ptr->sparse.sizes[i];
+			conv_sparse( &w_slice, b_ptr, b1, b2, 0, true, i, false );
+		}
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 100; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b2, i);
+			 }
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 8) {
-		MAT_DUMP(b1, 0);
-		PRINTF("\r\n Layer 8");
+		PRINTF("\r\n Layer 8 : Vertical Conv2");
 
-		MAT_RESHAPE(b2, 100, 9, 6);
-		params.size[1] = 4;
-		params.size[2] = 4;
-		params.stride[1] = 4;
-		params.stride[2] = 4;
-		// Assumes src in that order
-		PUSH_STACK(mat_stack, b2, b1);
-
+		MAT_RESHAPE(b1, 100, 9, 14);
+		zero(b1);
+		mat_t *w_ptr = &mat_conv2_wv;
+		mat_t *b_ptr = &mat_conv2_b;
 		scratch_bak[0] = 9;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_pool)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_pool);
+		uint16_t running_size=0;
+		for(uint16_t i = 0; i < 100; i++ ){
+			// PRINTF("\r\n Layer 8 : Depth %i", i);
+			mat_t w_slice;
+
+			w_slice = MAT_CONSTRAIN(w_ptr, running_size);
+			w_slice.dims[0] = w_ptr->sparse.sizes[i];
+			w_slice.sparse.sizes = (w_ptr->sparse.sizes + i);
+			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
+			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
+			running_size += w_ptr->sparse.sizes[i];
+			conv_sparse( &w_slice, b_ptr, b2, b1, 0, true, i, false );
+		}
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 100; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 9) {
-		MAT_RESHAPE(b2, 1, 1, 5400);
-		MAT_DUMP(b2, 0);
-		PRINTF("\r\n Layer 9");
-
-		MAT_RESHAPE(b2, 5400, 1);
-		MAT_RESHAPE(b1, 500, 1);
-		mat_t *w_ptr = &mat_fc1_w;
-		mat_t *b_ptr = &mat_fc1_b;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b1, b2);
-
+		PRINTF("\r\n Layer 9 : RELU after Conv2");
 		scratch_bak[0] = 10;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_s_fc)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_s_fc);
+		relu( b1, 0 );
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 100; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b1, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 10) {
-		MAT_RESHAPE(b2, 1, 1, 500);
-		MAT_DUMP(b2, 0);
-		MAT_RESHAPE(b2, 500, 1);
-		PRINTF("\r\n Layer 10");
+		PRINTF("\r\n Layer 10 : Max Pooling after Conv2");
 
-		MAT_RESHAPE(b1, 500, 1);
-		// Assumes dest, src in that order
-		PUSH_STACK(mat_stack, b1, b2);
-
+		MAT_RESHAPE(b2, 100, 5, 7);
 		scratch_bak[0] = 11;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_relu)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_relu);
+		pooling( b1, b2, 0, 2, 2 );
+#ifdef PRINT_DEBUG
+			for(uint16_t i = 0; i < 100; i++ ){
+				PRINTF("====FILTER %i====\r\n", i);
+				MAT_DUMP(b2, i);
+			}
+#endif
+		transition_to(CUR_TASK);
 	} else if(state == 11) {
-		MAT_RESHAPE(b1, 1, 1, 500);
-		MAT_DUMP(b1, 0);
-		MAT_RESHAPE(b1, 500, 1);
-		PRINTF("\r\n Layer 11");
+		MAT_RESHAPE(b2, 1, 1, 3500);
+#ifdef PRINT_DEBUG
+			MAT_DUMP(b2, 0);
+#endif
+		PRINTF("\r\n Layer 11 : Horizontal FC1");
 
-		MAT_RESHAPE(b2, 2, 1);
-		mat_t *w_ptr = &mat_fc2_w;
-		mat_t *b_ptr = &mat_fc2_b;
-		// Assumes b, w, dest, src in that order
-		PUSH_STACK(mat_stack, b_ptr, w_ptr, b2, b1);
-
+		MAT_RESHAPE(b1, 100, 1, 1);
+		zero(b1);
+		mat_t *w_ptr = &mat_fc1_wh;
+		mat_t *b_ptr = NULL;
 		scratch_bak[0] = 12;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-		TASK_REF(task_d_fc)->info.return_task = TASK_REF(task_compute);
-		TRANSITION_TO(task_d_fc);
-	}
-	scratch_bak[0] = 0;
-	scratch_bak[1] = 0;
-	scratch_bak[2] = 0;
-	write_to_gbuf((uint8_t *)(scratch_bak), 
-		(uint8_t *)(CUR_SCRATCH), 3*sizeof(uint16_t));
+		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, true );
+		transition_to(CUR_TASK);
+	} else if(state == 12) {
+		PRINTF("\r\n Layer 12 : Vertical FC1");
 
+		MAT_RESHAPE(b1, 1, 1, 100);
+#ifdef PRINT_DEBUG
+			MAT_DUMP(b1,0);
+#endif
+		MAT_RESHAPE(b2, 500, 1, 1);
+		zero(b2);
+		mat_t *w_ptr = &mat_fc1_wv;
+		mat_t *b_ptr = &mat_fc1_b;
+		scratch_bak[0] = 13;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+		conv_sparse( w_ptr, b_ptr, b1, b2, 0, false, 0, true);
+		transition_to(CUR_TASK);
+	} else if(state == 13) {
+		MAT_RESHAPE(b2, 1, 1, 500);
+#ifdef PRINT_DEBUG
+			MAT_DUMP(b2, 0);
+#endif
+
+		PRINTF("\r\n Layer 13 : RELU after FC1");
+
+		MAT_RESHAPE(b1, 500, 1);
+		scratch_bak[0] = 14;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+		relu( b2, 0 );
+		transition_to(CUR_TASK);
+	} else if(state == 14) {
+#ifdef PRINT_DEBUG
+		MAT_DUMP(b2, 0);
+#endif
+		PRINTF("\r\n Layer 14 : FC2");
+
+		MAT_RESHAPE(b1, 2, 1, 1);
+		zero(b1);
+		mat_t *w_ptr = &mat_fc2_w;
+		mat_t *b_ptr = &mat_fc2_b;
+		scratch_bak[0] = 15;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+		conv_dense( w_ptr, b_ptr, b2, b1, 0 );
+		transition_to(CUR_TASK);
+	}
 	TRANSITION_TO(task_finish);
 }
 
-__ro_hifram fixed max = 0;
-__ro_hifram uint16_t predict = 0;
+__fram fixed max = 0;
+extern uint8_t predict;
 void task_finish() {
 	fixed max = 0;
-	PRINTF("\r\nTask Finish");
 	PRINTF("\r\n=====================");
 	for(uint16_t i = CUR_SCRATCH[0]; i < 2; i = ++CUR_SCRATCH[0]) {
-		fixed v = MAT_GET(b2, i, 0);
+		fixed v = MAT_GET(b1, i, 0, 0);
 		if(v > max) {
 			predict = i;
 			max = v;
 		}
 		PRINTF("\r\n%u => %i", i, v);
 	}
+	PRINTF("\r\n");
+	if(predict == 0)
+		PRINTF("PREDICTION => %u [No Person in Image]\r\n", predict);
+	else if(predict == 1)
+		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
-	PRINTF("\r\n=====================\r\n");
-	scratch_bak[0] = 0;
-	write_to_gbuf((uint8_t *)(scratch_bak), 
-		(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
-
+	PRINTF("\r\n=====================");
 	TRANSITION_TO(task_exit);
 }
 

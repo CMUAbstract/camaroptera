@@ -65,7 +65,7 @@
 //Jpeg quality factor
 #define JQ 50
 
-__ro_hifram uint8_t buffer[BUFFER_SIZE];
+__ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
@@ -76,10 +76,11 @@ __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = 0;
-__ro_hifram uint8_t camaroptera_state = 0;
+__ro_hifram uint8_t camaroptera_state = 1;
 __ro_hifram static radio_events_t radio_events;
 
 __ro_hifram int state = 0;
+__ro_hifram uint8_t predict;
 __ro_hifram int i, j;
 __ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
 __ro_hifram	uint16_t len = 0;
@@ -136,7 +137,7 @@ int camaroptera_main(void) {
 			PRINTF("STATE 2: Calling DNN.\r\n");
 #endif
 			// dnn();
-			//TRANSITION_TO(task_init);
+			TRANSITION_TO(task_init);
       camaroptera_state = camaroptera_next_task(2);
 			break;
 
@@ -173,24 +174,24 @@ int camaroptera_main(void) {
 			for( i = sent_history; i < packet_count; i++ ){
 
 				P8OUT |= BIT1; 
-				buffer[0] = DEV_ID;
-				buffer[1] = tx_packet_index;
+				radio_buffer[0] = DEV_ID;
+				radio_buffer[1] = tx_packet_index;
 #ifdef print_image        	
 	      PRINTF("START PACKET\r\n");
 #endif
 				if( i == packet_count - 1){
 					for( j = 2; j < last_packet_size; j++ ){
-						buffer[j] = frame_jpeg[frame_track + j - 2];
+						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef print_image        	
-       			PRINTF("%u ", buffer[j]);
+       			PRINTF("%u ", radio_buffer[j]);
 #endif 
 						}
 					}
 				else{
 					for( j = 2; j < PACKET_SIZE; j++ ){
-						buffer[j] = frame_jpeg[frame_track + j - 2];
+						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef print_image        	
-    		    PRINTF("%u ", buffer[j]);
+    		    PRINTF("%u ", radio_buffer[j]);
 #endif 
 						}
 					}
@@ -227,12 +228,12 @@ int camaroptera_main(void) {
 					PRINTF("Sending packet\n\r");
 #endif  
 					P8OUT |= BIT2;
-					sx1276_send( buffer,  last_packet_size);
+					sx1276_send( radio_buffer,  last_packet_size);
 					P8OUT &= ~BIT2;
 					}
 				else{
 					P8OUT |= BIT2;
-					sx1276_send( buffer, PACKET_SIZE );
+					sx1276_send( radio_buffer, PACKET_SIZE );
 					P8OUT &= ~BIT2;
 					}
 
