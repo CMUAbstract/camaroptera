@@ -24,7 +24,7 @@
 #include <libjpeg/jpec.h> 
 
 #define enable_debug
-//#define cont_power
+#define cont_power
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -64,10 +64,17 @@
 //Jpeg quality factor
 #define JQ 50
 
+// Image differencing parameters
+#define P_THR 35
+#define DP_THR 70u
+#define P_Diff_THR 400
+
 __ro_hifram uint8_t buffer[BUFFER_SIZE];
 
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
+
+__ro_hifram uint8_t old_frame [19200]= {0};
 
 __ro_hifram uint16_t pixels = 0;
 
@@ -88,6 +95,7 @@ void camaroptera_compression();
 void camaroptera_init_lora();
 void OnTxDone();
 void camaroptera_wait_for_charge();
+uint8_t diff();
 uint8_t camaroptera_next_task(uint8_t current_task);
 
 int main(void) {
@@ -132,10 +140,13 @@ int main(void) {
 			
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
+  #ifdef enable_debug        	
+      PRINTF("Cap ready\n\r");
+  #endif  
 #endif
 
 #ifdef enable_debug        	
-			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
+			PRINTF("STATE 0: Capturing a photo.\r\n");
 #endif
 
 			P8OUT |= BIT2;
@@ -148,20 +159,47 @@ int main(void) {
 				PRINTF("%u ", frame[i]);
 			PRINTF("\r\nEnd frame\r\n");
 #endif
-			camaroptera_state = 3;
+			camaroptera_state = camaroptera_next_task(0);
+      
 			break;
 	
 		case 1: 									// == DIFF ==
+   
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+  #ifdef enable_debug        	
+      PRINTF("Cap ready\n\r");
+  #endif  
+#endif
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
 #endif
-			// diff();
-			camaroptera_state = camaroptera_next_task(1);
+			
+      if(diff()){
+#ifdef enable_debug        	
+			PRINTF("Frame is different\r\n");
+#endif
+      
+      } else {
+#ifdef enable_debug        	
+			PRINTF("No change detected\r\n");
+#endif
+      
+      }
+			//camaroptera_state = camaroptera_next_task(1);
+      camaroptera_state = 3;
 			break;
 
 		case 2: 									// == DNN ==
-			
+
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+  #ifdef enable_debug        	
+      PRINTF("Cap ready\n\r");
+  #endif  
+#endif
+
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
 #endif
@@ -171,6 +209,12 @@ int main(void) {
 			break;
 
 		case 3: 									// == COMPRESS ==
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+  #ifdef enable_debug        	
+      PRINTF("Cap ready\n\r");
+  #endif  
+#endif
 
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
@@ -182,7 +226,9 @@ int main(void) {
 				PRINTF("%u ", frame_jpeg[i]);
 			PRINTF("\r\nEnd JPEG frame\r\n");
 #endif
-			camaroptera_state = camaroptera_next_task(3);
+			//camaroptera_state = camaroptera_next_task(3);
+      camaroptera_state = 0;
+      P8OUT &= ~BIT1;
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
@@ -230,13 +276,11 @@ int main(void) {
 #endif
 				
 #ifndef cont_power
-				//Wait to charge up
-				camaroptera_wait_for_charge();
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+  #ifdef enable_debug        	
+      PRINTF("Cap ready\n\r");
+  #endif  
 #endif
-
-#ifdef enable_debug        	
-        PRINTF("Cap ready\n\r");
-#endif  
 
 #ifdef OLD_PINS
 				P4OUT |= BIT7;
@@ -395,6 +439,28 @@ uint8_t camaroptera_next_task( uint8_t current_task ){
   else
     return current_task + 1; 
     
+}
+
+uint8_t diff(){
+
+  P8OUT |= BIT2;
+
+  uint16_t i, j = 0;
+  
+  for(i = 0; i < pixels; i++){
+  
+    if ((uint8_t)(frame[i] - old_frame[i] + P_THR) >= DP_THR)
+      j++;
+  }
+  
+  memcpy(old_frame, frame, sizeof(old_frame));
+  
+  P8OUT &= ~BIT2;
+  
+  if (j >= 400)
+    return 1;
+  else
+    return 0;
 }
 
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
