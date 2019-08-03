@@ -25,7 +25,8 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-//#define cont_power
+#define cont_power
+//#define print_image
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -76,7 +77,7 @@ __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint16_t sent_packet_count = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = 0;
-__ro_hifram uint8_t camaroptera_state = 1;
+__ro_hifram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
 
 __ro_hifram int state = 0;
@@ -109,9 +110,7 @@ int camaroptera_main(void) {
 			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
 #endif
 
-			P8OUT |= BIT2;
 			pixels = capture();
-			P8OUT &= ~BIT2;
 
 #ifdef print_image
 			PRINTF("Start captured frame\r\n");
@@ -138,7 +137,12 @@ int camaroptera_main(void) {
 #endif
 			// dnn();
 			TRANSITION_TO(task_init);
-      camaroptera_state = camaroptera_next_task(2);
+      
+#ifdef enable_debug        	
+					PRINTF("Predicted State: %i\n\r", predict);
+#endif  
+			
+			camaroptera_state = camaroptera_next_task(2);
 			break;
 
 		case 3: 									// == COMPRESS ==
@@ -157,123 +161,134 @@ int camaroptera_main(void) {
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
-
+			predict = 1;
+			if ( predict == 0 ){
 #ifdef enable_debug        	
-			PRINTF("STATE 4: Calling Radio.\r\n");
+			PRINTF("STATE 4: No Person in Image. Skipping Radio.\r\n");
 #endif
-
-			packet_count = pixels  / (PACKET_SIZE - 2);
-
-			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
-
-			if(pixels % (PACKET_SIZE - 2) != 0)
-				packet_count ++;
-
-			sent_history = sent_packet_count;
-
-			for( i = sent_history; i < packet_count; i++ ){
-
-				P8OUT |= BIT1; 
-				radio_buffer[0] = DEV_ID;
-				radio_buffer[1] = tx_packet_index;
-#ifdef print_image        	
-	      PRINTF("START PACKET\r\n");
-#endif
-				if( i == packet_count - 1){
-					for( j = 2; j < last_packet_size; j++ ){
-						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
-#ifdef print_image        	
-       			PRINTF("%u ", radio_buffer[j]);
-#endif 
-						}
-					}
-				else{
-					for( j = 2; j < PACKET_SIZE; j++ ){
-						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
-#ifdef print_image        	
-    		    PRINTF("%u ", radio_buffer[j]);
-#endif 
-						}
-					}
-#ifdef print_image        	
-        PRINTF("\r\nEND PACKET\r\n");
-#endif
-				
-#ifndef cont_power
-				//Wait to charge up
-				camaroptera_wait_for_charge();
-#else
-				__delay_cycles(16000000);
-#endif
-
-#ifdef enable_debug        	
-        PRINTF("Cap ready\n\r");
-#endif  
-
-#ifdef OLD_PINS
-				P4OUT |= BIT7;
-#else
-				P4OUT |= BIT4;
-#endif
-
-				spi_init();
-
-				P8OUT |= BIT2;
-				camaroptera_init_lora();
-				P8OUT &= ~BIT2;
-
-
-				if( i == packet_count - 1){
-#ifdef enable_debug        	
-					PRINTF("Sending packet\n\r");
-#endif  
-					P8OUT |= BIT2;
-					sx1276_send( radio_buffer,  last_packet_size);
-					P8OUT &= ~BIT2;
-					}
-				else{
-					P8OUT |= BIT2;
-					sx1276_send( radio_buffer, PACKET_SIZE );
-					P8OUT &= ~BIT2;
-					}
-
-				__bis_SR_register(LPM4_bits+GIE);
-
-				while(irq_flag != 1);
-
-				P8OUT |= BIT2;
-				sx1276_on_dio0irq();
-				P8OUT &= ~BIT2;
-
-				irq_flag = 0;
-        
-				P8OUT &= ~BIT1;
-
-#ifdef enable_debug
-				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
-#endif
-
-				P5SEL1 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-				P5SEL0 &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-				P5DIR &= ~(BIT0+ BIT1 + BIT2 + BIT3);
-
-#ifdef OLD_PINS
-				P4OUT &= ~BIT7;
-#else
-				P4OUT &= ~BIT4;
-#endif
-				}  // End for i
-
-#ifdef enable_debug
-				PRINTF("Sent full image\r\n");
-#endif
-				tx_packet_index = 0;
-				sent_packet_count = 0;
-				frame_track = 0;
-
 				camaroptera_state = camaroptera_next_task(4);
 				break;
+			}
+			else{
+#ifdef enable_debug        	
+				PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
+#endif
 
+				packet_count = pixels  / (PACKET_SIZE - 2);
+
+				last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
+
+				if(pixels % (PACKET_SIZE - 2) != 0)
+					packet_count ++;
+
+				sent_history = sent_packet_count;
+
+				for( i = sent_history; i < packet_count; i++ ){
+
+					P8OUT |= BIT1; 
+					radio_buffer[0] = DEV_ID;
+					radio_buffer[1] = tx_packet_index;
+#ifdef print_image        	
+					PRINTF("START PACKET\r\n");
+#endif
+					if( i == packet_count - 1){
+						for( j = 2; j < last_packet_size; j++ ){
+							radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+#ifdef print_image        	
+							PRINTF("%u ", radio_buffer[j]);
+#endif 
+							}
+						}
+					else{
+						for( j = 2; j < PACKET_SIZE; j++ ){
+							radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+#ifdef print_image        	
+							PRINTF("%u ", radio_buffer[j]);
+#endif 
+							}
+						}
+#ifdef print_image        	
+					PRINTF("\r\nEND PACKET\r\n");
+#endif
+					
+#ifndef cont_power
+					//Wait to charge up
+					camaroptera_wait_for_charge();
+#else
+					//__delay_cycles(16000000);
+#endif
+
+#ifdef enable_debug        	
+					PRINTF("Cap ready\n\r");
+#endif  
+
+#ifdef OLD_PINS
+					P4DIR |= BIT7;
+					P4OUT |= BIT7;
+#else
+					P4DIR |= BIT4;
+					P4OUT |= BIT4;
+#endif
+
+					spi_init();
+					PRINTF("SPI INIT\r\n");
+					P8OUT |= BIT2;
+					camaroptera_init_lora();
+					P8OUT &= ~BIT2;
+
+
+					if( i == packet_count - 1){
+#ifdef enable_debug        	
+						PRINTF("Sending packet\n\r");
+#endif  
+						P8OUT |= BIT2;
+						sx1276_send( radio_buffer,  last_packet_size);
+						P8OUT &= ~BIT2;
+						}
+					else{
+						P8OUT |= BIT2;
+						sx1276_send( radio_buffer, PACKET_SIZE );
+						P8OUT &= ~BIT2;
+						}
+					
+					PRINTF("Completed Send\r\n");
+					__bis_SR_register(LPM4_bits+GIE);
+
+					//while(irq_flag != 1);
+
+					P8OUT |= BIT2;
+					sx1276_on_dio0irq();
+					P8OUT &= ~BIT2;
+
+					//irq_flag = 0;
+					
+					P8OUT &= ~BIT1;
+
+#ifdef enable_debug
+					PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
+#endif
+
+					P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
+					P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
+					P5DIR &= ~(BIT0+ BIT1 + BIT2);
+
+#ifdef OLD_PINS
+					P4OUT &= ~BIT7;
+#else
+					P4OUT &= ~BIT4;
+#endif
+					}  // End for i
+
+#ifdef enable_debug
+					PRINTF("Sent full image\r\n");
+#endif
+					tx_packet_index = 0;
+					sent_packet_count = 0;
+					frame_track = 0;
+
+					camaroptera_state = camaroptera_next_task(4);
+					break;
+				} // End for else
 		default:
 				camaroptera_state = 0;
 				break;
@@ -329,14 +344,19 @@ void OnTxDone() {
 
 void camaroptera_init_lora() {
   radio_events.TxDone = OnTxDone;
+  //radio_events.RxDone = OnRxDone;
+  //radio_events.TxTimeout = OnTxTimeout;
+  //radio_events.RxTimeout = OnRxTimeout;
+  //radio_events.RxError = OnRxError;
 
   sx1276_init(radio_events);
   sx1276_set_channel(RF_FREQUENCY);
 
-  sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
+	sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
+	PRINTF("Cleared TXConfig\r\n");
 }
 
 void camaroptera_compression(){

@@ -5,10 +5,10 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o camaroptera-dnn.o
+OBJECTS = main.o camaroptera-dnn.o lenet.o
 #OBJECTS = main.o 
 
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn libjpeg
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg
 
 export MAIN_CLOCK_FREQ = 16000000
 
@@ -65,7 +65,7 @@ export LIBDNN_BACKEND = $(BACKEND)
 export LIBDNN_TILE_SIZE = 128
 export LIBDNN_MAT_BUF_SIZE = $(MAT_BUF_SIZE)
 export LIBDNN_LAYER_BUF_SIZE = $(LAYER_BUF_SIZE)
-override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS
+override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY
 
 export CC_LD_FLAGS
 

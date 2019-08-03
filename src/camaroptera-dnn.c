@@ -76,7 +76,7 @@ void init() {
 	__enable_interrupt();
 
 	PRINTF(".%u.\r\n", curctx->task->idx);
-
+	/*
 	P1DIR = 0x00;
   P2DIR = 0x00;   
   P3DIR = 0x00;   
@@ -85,10 +85,7 @@ void init() {
   P6DIR = 0x00;
   P7DIR = 0x00;   
   P8DIR = 0x00;   
-
-	P8OUT &= ~BIT1;
-	P8DIR |= BIT1;
-
+	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -250,8 +247,6 @@ __fram mat_t *b2 = &buf2;
 ////////////////////////////////////Tasks///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void task_init() {
-	P8OUT ^= BIT1;
-
 
 	PRINTF("\r\n========================");
 	PRINTF("\r\nInit");
@@ -547,13 +542,12 @@ void task_compute() {
 		zero(b1);
 		mat_t *w_ptr = &mat_fc2_w;
 		mat_t *b_ptr = &mat_fc2_b;
-		scratch_bak[0] = 15;
+		scratch_bak[0] = 0;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		conv_dense( w_ptr, b_ptr, b2, b1, 0 );
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_finish);
 	}
-	TRANSITION_TO(task_finish);
 }
 
 __fram fixed max = 0;
