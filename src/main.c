@@ -87,10 +87,19 @@ __ro_hifram uint16_t packet_count, sent_history, last_packet_size;
 __ro_hifram	uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
+// Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
+__ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;
+__ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;
+__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
+__ro_hifram uint8_t threshold_1, threshold_2;
+
+
 void camaroptera_compression();
 void camaroptera_init_lora();
 void OnTxDone();
 void camaroptera_wait_for_charge();
+void camaroptera_mode_select(uint8_t charge_rate);
 uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
 
@@ -118,6 +127,7 @@ int camaroptera_main(void) {
 				PRINTF("%u ", frame[i]);
 			PRINTF("\r\nEnd frame\r\n");
 #endif
+			PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
 			break;
 	
@@ -381,13 +391,22 @@ void camaroptera_compression(){
 
 }
 
-uint8_t camaroptera_next_task( uint8_t current_task ){
+void camaroptera_mode_select( uint8_t charge_rate ){
   
-  if (current_task == 4)
-    return 0;
-  else
-    return current_task + 1; 
-    
+  if ( charge_rate < threshold_1 )
+    camaroptera_current_mode = camaroptera_mode_1;
+  else if ( charge_rate >= threshold_1 && charge_rate < threshold_2 )
+    camaroptera_current_mode = camaroptera_mode_2;
+	else if ( charge_rate >= threshold_2 )
+		camaroptera_current_mode = camaroptera_mode_3;
+}
+
+uint8_t camaroptera_next_task( uint8_t current_task ){
+	
+	if ( *(camaroptera_current_mode + current_task) == -1 )
+		return 0;
+	else
+		return *(camaroptera_current_mode + current_task);
 }
 
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
