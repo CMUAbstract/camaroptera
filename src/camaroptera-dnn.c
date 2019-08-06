@@ -569,7 +569,7 @@ void task_finish() {
 	else if(predict == 1)
 		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
-	PRINTF("\r\n=====================");
+	PRINTF("\r\n=====================\r\n");
 	TRANSITION_TO(task_exit);
 }
 
