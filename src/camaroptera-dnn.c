@@ -76,6 +76,10 @@ void init() {
 	__enable_interrupt();
 
 	PRINTF(".%u.\r\n", curctx->task->idx);
+	
+	P8OUT &= ~(BIT1+BIT2+BIT3);
+	P8DIR |= (BIT1+BIT2+BIT3);
+	
 	/*
 	P1DIR = 0x00;
   P2DIR = 0x00;   
@@ -570,11 +574,21 @@ void task_finish() {
 		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
 	PRINTF("\r\n=====================\r\n");
+	predict = array_for_dummy_dnn[index_for_dummy_dnn];
 	TRANSITION_TO(task_exit);
 }
 
 void task_exit() {
-	camaroptera_state = camaroptera_next_task(2);
+	if ( predict == 0 ){
+#ifdef enable_debug        	
+		PRINTF("STATE 4: No Person in Image. Skipping the rest.\r\n");
+#endif
+		camaroptera_state = 0;
+	}
+	else
+		camaroptera_state = camaroptera_next_task(2);
+	
+	P8OUT ^= BIT1; 
 	TRANSITION_TO(camaroptera_main);
 }
 

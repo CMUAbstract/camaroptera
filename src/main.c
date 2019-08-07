@@ -92,6 +92,9 @@ __ro_hifram uint16_t packet_count, sent_history, last_packet_size;
 __ro_hifram	uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
+__ro_hifram uint8_t index_for_dummy_dnn = 0;
+extern uint8_t array_for_dummy_dnn[10];
+
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;
@@ -106,6 +109,7 @@ void camaroptera_compression();
 void camaroptera_init_lora();
 void OnTxDone();
 float camaroptera_wait_for_charge();
+void camaroptera_wait_for_interrupt();
 void camaroptera_mode_select(float charge_rate);
 uint8_t diff();
 uint8_t camaroptera_next_task(uint8_t current_task);
@@ -118,9 +122,12 @@ int camaroptera_main(void) {
 
 		case 0: 									// == CAPTURE IMAGE ==
 		
+			P8OUT |= BIT3; 
+		
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+			P8OUT ^= BIT1; 
 
 #ifdef enable_debug        	
 			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
@@ -136,9 +143,12 @@ int camaroptera_main(void) {
 #endif
 			PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
+			P8OUT ^= BIT1; 
 			break;
 	
 		case 1: 									// == DIFF ==
+			
+			P8OUT ^= BIT1; 
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
@@ -156,27 +166,27 @@ int camaroptera_main(void) {
 				camaroptera_state = 0;
 			}
 			
+			P8OUT ^= BIT1; 
+			
 			break;
 
 		case 2: 									// == DNN ==
+
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
 #endif
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+			P8OUT ^= BIT1; 
+
 			
 			TRANSITION_TO(task_init);
-      
-#ifdef enable_debug        	
-					PRINTF("Predicted State: %i\n\r", predict);
-#endif  
-			
-			camaroptera_state = camaroptera_next_task(2);
+      	
 			break;
 
 		case 3: 									// == COMPRESS ==
-
+			
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
 #endif
@@ -184,6 +194,8 @@ int camaroptera_main(void) {
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+			P8OUT ^= BIT1; 
+
 			camaroptera_compression();
 
 #ifdef print_image
@@ -193,147 +205,134 @@ int camaroptera_main(void) {
 			PRINTF("\r\nEnd JPEG frame\r\n");
 #endif
 			camaroptera_state = camaroptera_next_task(3);
+			
+			P8OUT ^= BIT1; 
+			
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
+			
+			P8OUT ^= BIT1; 
+			
 			charge_rate_sum = 0; 
-			if ( predict == 0 ){
 #ifdef enable_debug        	
-			PRINTF("STATE 4: No Person in Image. Skipping Radio.\r\n");
-#endif
-				camaroptera_state = camaroptera_next_task(4);
-				break;
-			}
-			else{
-#ifdef enable_debug        	
-				PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
+			PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
 #endif
 
-				packet_count = pixels  / (PACKET_SIZE - 2);
+			packet_count = pixels  / (PACKET_SIZE - 2);
 
-				last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
+			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
 
-				if(pixels % (PACKET_SIZE - 2) != 0)
-					packet_count ++;
+			if(pixels % (PACKET_SIZE - 2) != 0)
+				packet_count ++;
 
-				sent_history = sent_packet_count;
+			sent_history = sent_packet_count;
 
-				for( i = sent_history; i < packet_count; i++ ){
+			for( i = sent_history; i < packet_count; i++ ){
 
-					P8OUT |= BIT1; 
-					radio_buffer[0] = DEV_ID;
-					radio_buffer[1] = tx_packet_index;
+				P8OUT ^= BIT2;
+
+				radio_buffer[0] = DEV_ID;
+				radio_buffer[1] = tx_packet_index;
 #ifdef print_image        	
-					PRINTF("START PACKET\r\n");
+				PRINTF("START PACKET\r\n");
 #endif
-					if( i == packet_count - 1){
-						for( j = 2; j < last_packet_size; j++ ){
-							radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+				if( i == packet_count - 1){
+					for( j = 2; j < last_packet_size; j++ ){
+						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef print_image        	
-							PRINTF("%u ", radio_buffer[j]);
+						PRINTF("%u ", radio_buffer[j]);
 #endif 
-							}
 						}
-					else{
-						for( j = 2; j < PACKET_SIZE; j++ ){
-							radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+					}
+				else{
+					for( j = 2; j < PACKET_SIZE; j++ ){
+						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
 #ifdef print_image        	
-							PRINTF("%u ", radio_buffer[j]);
+						PRINTF("%u ", radio_buffer[j]);
 #endif 
-							}
 						}
+					}
 #ifdef print_image        	
-					PRINTF("\r\nEND PACKET\r\n");
+				PRINTF("\r\nEND PACKET\r\n");
 #endif
-					
+				
 #ifndef cont_power
-					//Wait to charge up
-					charge_rate_sum += camaroptera_wait_for_charge();
+				//Wait to charge up
+				charge_rate_sum += camaroptera_wait_for_charge();
 #else
-					//__delay_cycles(16000000);
+				//__delay_cycles(16000000);
 #endif
 
 #ifdef enable_debug        	
-					PRINTF("Cap ready\n\r");
+				PRINTF("Cap ready\n\r");
 #endif  
 
 #ifdef OLD_PINS
-					P4DIR |= BIT7;
-					P4OUT |= BIT7;
+				P4DIR |= BIT7;
+				P4OUT |= BIT7;
 #else
-					P4DIR |= BIT4;
-					P4OUT |= BIT4;
+				P4DIR |= BIT4;
+				P4OUT |= BIT4;
 #endif
 
-					spi_init();
-					P8OUT |= BIT2;
-					camaroptera_init_lora();
-					P8OUT &= ~BIT2;
+				spi_init();
+				camaroptera_init_lora();
 
-
-					if( i == packet_count - 1){
+				if( i == packet_count - 1){
 #ifdef enable_debug        	
-						PRINTF("Sending packet\n\r");
+					PRINTF("Sending packet\n\r");
 #endif  
-						P8OUT |= BIT2;
-						sx1276_send( radio_buffer,  last_packet_size);
-						P8OUT &= ~BIT2;
-						}
-					else{
-						P8OUT |= BIT2;
-						sx1276_send( radio_buffer, PACKET_SIZE );
-						P8OUT &= ~BIT2;
-						}
-					
-					__bis_SR_register(LPM4_bits+GIE);
+					sx1276_send( radio_buffer,  last_packet_size);
+					}
+				else{
+					sx1276_send( radio_buffer, PACKET_SIZE );
+					}
+				
+				__bis_SR_register(LPM4_bits+GIE);
 
-					//while(irq_flag != 1);
+				//while(irq_flag != 1);
 
-					P8OUT |= BIT2;
-					sx1276_on_dio0irq();
-					P8OUT &= ~BIT2;
-
-					//irq_flag = 0;
-					
-					P8OUT &= ~BIT1;
+				sx1276_on_dio0irq();
 
 #ifdef enable_debug
-					PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
+				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
 #endif
 
-					P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
-					P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
-					P5DIR &= ~(BIT0+ BIT1 + BIT2);
+				P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
+				P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
+				P5DIR &= ~(BIT0+ BIT1 + BIT2);
 
 #ifdef OLD_PINS
-					P5OUT &= ~BIT3;
-					P1OUT &= ~BIT4;
-					P4OUT &= ~BIT7;
+				P5OUT &= ~BIT3;
+				P1OUT &= ~BIT4;
+				P4OUT &= ~BIT7;
 #else
-					P4OUT &= ~BIT1;
-					P4OUT &= ~BIT2;
-					P4OUT &= ~BIT4;
+				P4OUT &= ~BIT1;
+				P4OUT &= ~BIT2;
+				P4OUT &= ~BIT4;
 #endif
-					}  // End for i
+				P8OUT ^= BIT2;
+				}  // End for i
 
 #ifdef enable_debug
-					PRINTF("Sent full image\r\n");
+			PRINTF("Sent full image\r\n");
 #endif
-					tx_packet_index = 0;
-					sent_packet_count = 0;
-					frame_track = 0;
+			tx_packet_index = 0;
+			sent_packet_count = 0;
+			frame_track = 0;
 
-					charge_rate_sum = charge_rate_sum / packet_count;
-					
-					camaroptera_mode_select( charge_rate_sum );
+			charge_rate_sum = charge_rate_sum / packet_count;
+			
+			camaroptera_mode_select( charge_rate_sum );
 
-					camaroptera_state = camaroptera_next_task(4);
-					PMMCTL0 |= PMMSWBOR;
-					break;
-				} // End for else
+			camaroptera_state = camaroptera_next_task(4);
+			P8OUT ^= BIT1; 
+			P8OUT &= ~BIT3; 
+			break;
 		default:
-				camaroptera_state = 0;
-				break;
+			camaroptera_state = 0;
+			break;
 		} // End switch
 
 	} // End while(1)
@@ -405,7 +404,6 @@ float camaroptera_wait_for_charge(){
 }
 
 void OnTxDone() {
-	P8OUT &= ~BIT2;
 	tx_packet_index ++;
 	sent_packet_count ++;
 	frame_track += 253;
@@ -433,16 +431,12 @@ void camaroptera_compression(){
 	PRINTF("Starting JPEG compression\n\r");
 #endif
 
-  P8OUT |= BIT2;
-
 	e = jpec_enc_new2(frame, 160, 120, JQ);
 
 	jpec_enc_run(e, &len);
 
 	pixels = len;
  
-  P8OUT &= ~BIT2;
-
 #ifdef enable_debug
 	PRINTF("Done. New img size: -- %u -- bytes.\r\n", pixels);
 #endif
@@ -504,6 +498,19 @@ uint8_t diff(){
 		return 0;
 }
 
+void camaroptera_wait_for_interrupt(){
+	
+	P8DIR &= ~BIT0; 				// Set as Input
+	P8REN |= BIT0; 					// Enable Pullups/downs
+	P8OUT &= ~BIT0; 				// Set as Input Pulldown
+
+	P8IES &= ~BIT0; 				// Interrupt on Low->High
+	P8IE |= BIT0; 					// Enable Interrupt
+
+	__bis_SR_register( LPM4_bits | GIE );
+
+	}
+
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
 
     switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
@@ -539,4 +546,9 @@ void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
 	}
 }
 
+void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
+		P8IE &= ~BIT0;
+		P8IFG &= ~BIT0;
+		__bic_SR_register_on_exit(LPM4_bits+GIE);
+}
 
