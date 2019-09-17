@@ -6,12 +6,12 @@ import os
 TRIAL_SIZE = 100
 
 # Ratio of True Positives:True Negatives where they total to 100%
-TP_RATE = 20
-TN_RATE = 80
+TP_RATE = 50
+TN_RATE = 50
 
 # Rates of False Positves and False Negatives
 FP_RATE = 10
-FN_RATE = 5
+FN_RATE = 30
 
 def main(args):
 
@@ -20,13 +20,13 @@ def main(args):
 	input_images = np.append(true_positives, true_negatives)
 	np.random.shuffle(input_images)
 
-	fp_zeros = np.zeros(FP_RATE*len(true_negatives)/100).astype(dtype="int")
-	fp_ones = np.ones( len(true_negatives) - len(fp_zeros) ).astype(dtype="int")	
+	fp_ones = np.ones(FP_RATE*len(true_negatives)/100).astype(dtype="int")
+	fp_zeros = np.zeros( len(true_negatives) - len(fp_ones) ).astype(dtype="int")	
 	false_positives = np.append(fp_zeros, fp_ones)
 	np.random.shuffle(false_positives)
 
-	fn_zeros = np.zeros(FN_RATE*len(true_positives)/100).astype(dtype="int")
-	fn_ones = np.ones( len(true_positives) - len(fn_zeros) ).astype(dtype="int")
+	fn_ones = np.ones(FN_RATE*len(true_positives)/100).astype(dtype="int")
+	fn_zeros = np.zeros( len(true_positives) - len(fn_ones) ).astype(dtype="int")
 	false_negatives = np.append(fn_zeros, fn_ones)
 	np.random.shuffle(false_negatives)
 
@@ -38,7 +38,7 @@ def main(args):
 	fp = open(path, 'w')
 
 	file_data = '#include <stdbool.h>\n\n'
-	file_data += '#include "lenet.c"\n\n'
+	file_data += '#include "lenet.h"\n\n'
  
 	file_data += '__ro_hifram uint8_t image_sequence[' + str(len(input_images)) + '] = {'
 

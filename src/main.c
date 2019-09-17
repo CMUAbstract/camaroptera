@@ -84,6 +84,11 @@ __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = 0;
 __ro_hifram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
+__ro_hifram int8_t last_state = 0;
+__ro_hifram uint8_t read_status;
+
+extern uint8_t index_img_seq;
+extern uint8_t image_sequence[];
 
 __ro_hifram int state = 0;
 __ro_hifram uint8_t predict;
@@ -92,18 +97,17 @@ __ro_hifram uint16_t packet_count, sent_history, last_packet_size;
 __ro_hifram	uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
-__ro_hifram uint8_t index_for_dummy_dnn = 0;
-extern uint8_t array_for_dummy_dnn[10];
-
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
-__ro_hifram float threshold_1 = 20.0;
+__ro_hifram float threshold_1 = 40.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
 __ro_hifram volatile uint8_t charge_timer_count;
+__ro_hifram uint16_t person_count = 0;
+__ro_hifram uint16_t not_sent_count = 0;
 
 void camaroptera_compression();
 void camaroptera_init_lora();
@@ -121,29 +125,51 @@ int camaroptera_main(void) {
 	switch( camaroptera_state ){
 
 		case 0: 									// == CAPTURE IMAGE ==
-		
-			P8OUT |= BIT3; 
-		
+	
+			//P8OUT &= ~BIT3; 
+			//__delay_cycles(10);
+			//P8OUT |= BIT3; 
+			//P1OUT &= ~(BIT6+BIT7);
+			P1OUT |= BIT6;
+
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+			
 			P8OUT ^= BIT1; 
 
 #ifdef enable_debug        	
 			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
 #endif
 
-			pixels = capture();
-
+			//pixels = capture();
+			__delay_cycles(26352000);
 #ifdef print_image
 			PRINTF("Start captured frame\r\n");
 			for( i = 0 ; i < pixels ; i++ )
 				PRINTF("%u ", frame[i]);
 			PRINTF("\r\nEnd frame\r\n");
 #endif
+			
+			
+			read_status = (P8IN	& BIT3);
+
+			if(read_status){
+				PRINTF("-->IMAGE HAS PERSON\r\n");
+				person_count++;
+			}
+			else
+				PRINTF("-->IMAGE DOES NOT HAVE PERSON\r\n");
+			
+			PRINTF("====\r\n");
+			PRINTF("Person Till Now: %i\r\n", person_count);
+			PRINTF("Not Sent Count: %i\r\n", not_sent_count);
+			PRINTF("====\r\n");
+		
 			PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
 			P8OUT ^= BIT1; 
+			
 			break;
 	
 		case 1: 									// == DIFF ==
@@ -152,20 +178,31 @@ int camaroptera_main(void) {
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
+			PRINTF("LAST STATE: %i\r\n", last_state);
+			PRINTF("CURRENT IMAGE: %i\r\n", image_sequence[index_img_seq]);
 #endif
-			// diff();
-			if(diff()){
+			diff();
+			PRINTF("IMG_SEQ INDEX: %u\r\n", index_img_seq);
+			//if( image_sequence[index_img_seq] != last_state ){ // EXP1
+			//if( diff() ){ 															// Mode 3.5
+			if( read_status != last_state ){ 							// EXP 2
 #ifdef enable_debug        	
 				PRINTF("Frame is different\r\n");
 #endif
-				camaroptera_state = camaroptera_next_task(1);
+				//last_state = image_sequence[index_img_seq]; // Modes 2,3 EXP1
+				last_state = read_status; 										// EXP2
+				// index_img_seq++;  											// Only in mode 2
+				camaroptera_state = camaroptera_next_task(1); // All Modes
 			} else {
 #ifdef enable_debug        	
 				PRINTF("No change detected\r\n");
 #endif
-				camaroptera_state = 0;
+				//camaroptera_state = camaroptera_next_task(1); // Mode 3.5
+				//last_state = image_sequence[index_img_seq]; 	// Modes 2,3 EXP1
+				//index_img_seq++; 															// Modes 2,3 EXP1
+				camaroptera_state = 0; 												// Modes 2,3
 			}
-			
+		
 			P8OUT ^= BIT1; 
 			
 			break;
@@ -179,7 +216,6 @@ int camaroptera_main(void) {
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
 			P8OUT ^= BIT1; 
-
 			
 			TRANSITION_TO(task_init);
       	
@@ -218,7 +254,7 @@ int camaroptera_main(void) {
 #ifdef enable_debug        	
 			PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
 #endif
-
+			pixels = 1850;
 			packet_count = pixels  / (PACKET_SIZE - 2);
 
 			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
@@ -324,11 +360,11 @@ int camaroptera_main(void) {
 
 			charge_rate_sum = charge_rate_sum / packet_count;
 			
-			camaroptera_mode_select( charge_rate_sum );
+			//camaroptera_mode_select( charge_rate_sum );
 
 			camaroptera_state = camaroptera_next_task(4);
 			P8OUT ^= BIT1; 
-			P8OUT &= ~BIT3; 
+			P1OUT &= ~BIT6;
 			break;
 		default:
 			camaroptera_state = 0;
@@ -390,7 +426,7 @@ float camaroptera_wait_for_charge(){
 		//PRINTF("RAW: %u\r\n", TA3R);
 		
 		voltage_temp = ADC12MEM0 - voltage_temp;
-		PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
+		PRINTF("Capacitor Charge Value Changed: %i\r\n", ADC12MEM0);
     TA3CTL |= TACLR + MC__STOP;
     TA0CTL |= TACLR + MC__STOP;
     ADC12CTL0 = ~(ADC12ON);
@@ -499,6 +535,7 @@ uint8_t diff(){
 }
 
 void camaroptera_wait_for_interrupt(){
+	PRINTF("Waiting for Interrupt\r\n");
 	
 	P8DIR &= ~BIT0; 				// Set as Input
 	P8REN |= BIT0; 					// Enable Pullups/downs
@@ -506,6 +543,7 @@ void camaroptera_wait_for_interrupt(){
 
 	P8IES &= ~BIT0; 				// Interrupt on Low->High
 	P8IE |= BIT0; 					// Enable Interrupt
+	P8IE &= ~(BIT1+BIT2+BIT3); 					// Enable Interrupt
 
 	__bis_SR_register( LPM4_bits | GIE );
 
@@ -540,6 +578,8 @@ void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
 		case TAIV__TAIFG:                   // overflow
 				charge_timer_count ++;
 				TA3CTL &= ~TAIFG;
+				if(ADC12MEM0 >= High_Threshold)
+       		__bic_SR_register_on_exit(LPM3_bits | GIE);
 				break;
 		default: 
 				break;
@@ -549,6 +589,8 @@ void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
 void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
 		P8IE &= ~BIT0;
 		P8IFG &= ~BIT0;
+		P8DIR |= BIT0;
+		PRINTF("Port 8 ISR\r\n");
 		__bic_SR_register_on_exit(LPM4_bits+GIE);
 }
 

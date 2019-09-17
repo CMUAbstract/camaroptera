@@ -21,9 +21,20 @@
 #include "headers_30x40/conv2.h"
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
+#include "experiment_array.h"
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
+extern uint8_t read_status;
+extern uint16_t person_count;
+extern uint16_t not_sent_count;
+extern uint16_t sent_packet_count;
+extern int8_t last_state;
+
+
+__ro_hifram uint8_t index_img_seq = 0;
+__ro_hifram uint8_t index_fp = 0;
+__ro_hifram uint8_t index_fn = 0;
 
 void init();
 //#define PRINT_DEBUG
@@ -77,9 +88,29 @@ void init() {
 
 	PRINTF(".%u.\r\n", curctx->task->idx);
 	
+	camaroptera_state = 0;
+	person_count = 0;
+	not_sent_count = 0;
+	sent_packet_count = 0;
+	index_fn = 0;
+	index_fp = 0;
+	last_state = 0; // EXP2
+	
+	/*
+	// EXP1
+	if(index_img_seq == 0)
+		last_state = -1;
+	else
+		last_state = image_sequence[index_img_seq-1];
+	*/
+
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
-	
+
+	P1OUT &= ~(BIT6+BIT7);
+	P1DIR |= (BIT6+BIT7);
+
+	P8DIR &= ~BIT3; 
 	/*
 	P1DIR = 0x00;
   P2DIR = 0x00;   
@@ -574,11 +605,11 @@ void task_finish() {
 		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
 	PRINTF("\r\n=====================\r\n");
-	predict = array_for_dummy_dnn[index_for_dummy_dnn];
 	TRANSITION_TO(task_exit);
 }
 
 void task_exit() {
+	/*
 	if ( predict == 0 ){
 #ifdef enable_debug        	
 		PRINTF("STATE 4: No Person in Image. Skipping the rest.\r\n");
@@ -587,7 +618,41 @@ void task_exit() {
 	}
 	else
 		camaroptera_state = camaroptera_next_task(2);
+	*/
 	
+	PRINTF("IMG_SEQ INDEX: %u\r\n", index_img_seq);
+	PRINTF("FP INDEX: %u\r\n", index_fp);
+	PRINTF("FN INDEX: %u\r\n", index_fn);
+
+	//if ( image_sequence[index_img_seq] == 0 ){ 			// EXP1
+	if ( read_status == 0 ){ 													// EXP2
+		if( false_positives[index_fp] == 0 ){
+			camaroptera_state = 0;
+			PRINTF("INPUT: NEG | DETECTED: NEG\r\n");
+		}
+		else{
+			camaroptera_state = camaroptera_next_task(2);
+			PRINTF("INPUT: NEG | DETECTED: POS\r\n");
+			P1OUT |= BIT7;
+		}
+		index_fp++;
+	}
+	else{
+		P1OUT |= BIT6;
+		if ( false_negatives[index_fn] == 0 ){
+			camaroptera_state = camaroptera_next_task(2);
+			PRINTF("INPUT: POS | DETECTED: POS\r\n");
+		}
+		else{
+			camaroptera_state = 0;
+			PRINTF("INPUT: POS | DETECTED: NEG\r\n");
+			P1OUT |= BIT7;
+			not_sent_count++;
+		}
+		index_fn ++;
+	}
+	index_img_seq++;
+
 	P8OUT ^= BIT1; 
 	TRANSITION_TO(camaroptera_main);
 }
