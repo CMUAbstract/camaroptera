@@ -574,7 +574,7 @@ void task_finish() {
 		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
 	PRINTF("\r\n=====================\r\n");
-	predict = array_for_dummy_dnn[index_for_dummy_dnn];
+	//predict = array_for_dummy_dnn[index_for_dummy_dnn];
 	TRANSITION_TO(task_exit);
 }
 
