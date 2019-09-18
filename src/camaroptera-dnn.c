@@ -258,6 +258,7 @@ void task_init() {
 	TRANSITION_TO(task_compute);
 }
 
+// Does this activate any accelerators?
 void task_compute() {
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {

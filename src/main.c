@@ -93,7 +93,8 @@ __ro_hifram	uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
-extern uint8_t array_for_dummy_dnn[10];
+uint8_t array_for_dummy_dnn[10];
+//extern uint8_t array_for_dummy_dnn[10];
 
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;
@@ -418,11 +419,15 @@ void camaroptera_init_lora() {
 
   sx1276_init(radio_events);
   sx1276_set_channel(RF_FREQUENCY);
+  STATE_CHANGE(freq, RF_FREQUENCY); 
 
 	sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
+  STATE_CHANGE(pa,TX_OUTPUT_POWER);
+  STATE_CHANGE(bw,LORA_BANDWIDTH);
+  STATE_CHANGE(sf,LORA_SPREADING_FACTOR);
 }
 
 void camaroptera_compression(){
@@ -430,7 +435,7 @@ void camaroptera_compression(){
 #ifdef enable_debug        	
 	PRINTF("Starting JPEG compression\n\r");
 #endif
-
+  // Are we sure that e will always point to NVM?
 	e = jpec_enc_new2(frame, 160, 120, JQ);
 
 	jpec_enc_run(e, &len);
