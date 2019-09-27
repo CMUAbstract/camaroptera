@@ -37,3 +37,6 @@
 [submodule "ext/libjpeg"]
 	path = ext/libjpeg
 	url = git@github.com:CMUAbstract/libjpeg.git
+[submodule "ext/libmspdriver"]
+	path = ext/libmspdriver
+	url = git@github.com:CMUAbstract/libmspdriver.git
