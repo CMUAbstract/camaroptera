@@ -6,9 +6,9 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o camaroptera-dnn.o lenet.o
-#OBJECTS = main.o 
+#OBJECTS = test.o 
 
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
 
