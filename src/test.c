@@ -1,5 +1,6 @@
 #include <msp430.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #include <libio/console.h>
@@ -40,33 +41,109 @@
 
 void camaroptera_init_lora();
 void OnTxDone();
+bool LoRaMac_EncryptPayload( uint8_t *data_buffer, uint16_t size, uint8_t *encoded_data_buffer, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter);
 
 uint16_t AES_baseAddr = 0x09C0;
 const uint8_t encryptionKey[16] = { 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04 };
 const uint8_t input_data[16] = { 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04 };
 uint8_t output_data[16];
 
+// LoRaMac Definitions
+uint8_t ablock[16] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+												0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+uint8_t sblock[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+												0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+const uint8_t LoRaMacAppSKey[16] = { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C };
+
+const uint32_t LoRaMacDeviceAddress = (uint32_t) 0x12345678; 
+
+uint16_t upLinkCounter = 0;
+
 __ro_hifram static radio_events_t radio_events;
 
-void main(){
+int main(){
 	msp_watchdog_disable();
 	msp_gpio_unlock();
 	msp_clock_setup();
 	INIT_CONSOLE();
 
+	P8OUT &= ~BIT1;
+	P8DIR |= BIT1;
+
+	/*
 	if( AES256_setCipherKey( AES_baseAddr, encryptionKey, 128 ) )
 		PRINTF("Successfully Set AES encryption key\r\n");
-
-	AES256_encryptData( AES_baseAddr, input_data, output_data );
 	
-	for( int i = 0; i < 16; i++ )
-		PRINTF("Byte %i: %x\r\n", i, output_data[i]);
+	P8OUT ^= BIT1;
+	AES256_encryptData( AES_baseAddr, input_data, output_data );
+	P8OUT ^= BIT1;
+	*/
+
+	uint8_t input_data = 0xAB;
+	uint8_t result;
+	LoRaMac_EncryptPayload( &input_data, 1, &result, 0x00, LoRaMacDeviceAddress, upLinkCounter );
+
+	PRINTF("Encryption Result: %x\r\n", result);
+
+	//for( int i = 0; i < 16; i++ )
+		//PRINTF("Byte %i: %x\r\n", i, output_data[i]);
 				
-	spi_init();
-	camaroptera_init_lora();
+	//spi_init();
+	//camaroptera_init_lora();
 	//sx1276_send( radio_buffer,  last_packet_size);
 	
+	return 0;
 }
+
+bool LoRaMac_EncryptPayload( uint8_t *data_buffer, uint16_t size, uint8_t *encoded_data_buffer, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter){
+	
+	uint16_t i;
+	uint8_t bufferIndex = 0;
+	uint16_t count = 1;
+
+	if( AES256_setCipherKey( AES_baseAddr, LoRaMacAppSKey, 128 ) )
+		PRINTF("Successfully set AES encryption key\r\n");
+	else{
+		PRINTF("Could not set AES encryption key. Exiting. . .\r\n");
+		return false;
+		}
+	
+	ablock[5] = dir;
+
+	ablock[6] = ( deviceAddress ) & 0xFF;
+	ablock[7] = ( deviceAddress >> 8 ) & 0xFF;
+	ablock[8] = ( deviceAddress >> 16 ) & 0xFF;
+	ablock[9] = ( deviceAddress >> 24 ) & 0xFF;
+	
+	ablock[10] = ( sequenceCounter ) & 0xFF;
+	ablock[11] = ( sequenceCounter >> 8 ) & 0xFF;
+	ablock[12] = ( sequenceCounter >> 16 ) & 0xFF;
+	ablock[13] = ( sequenceCounter >> 24 ) & 0xFF;
+	
+	while( size >= 16 ){
+		ablock[15] = ( ( count ) & 0xFF );
+		count++; 
+		AES256_encryptData( AES_baseAddr, ablock, sblock );
+		
+		for( i = 0; i < 16; i++ )
+			encoded_data_buffer[bufferIndex+i] = data_buffer[bufferIndex+i] ^ sblock[i];
+
+		size -= 16;
+		bufferIndex += 16;
+		}
+	
+	if( size > 0 ){
+		ablock[15] = ( ( count ) & 0xFF );
+		AES256_encryptData( AES_baseAddr, ablock, sblock );
+		
+		for( i = 0; i < size; i++ )
+			encoded_data_buffer[bufferIndex+i] = data_buffer[bufferIndex+i] ^ sblock[i];
+		}
+	
+	return true;
+	}
 
 void OnTxDone() {
 	//tx_packet_index ++;
