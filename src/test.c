@@ -72,7 +72,7 @@ typedef struct aes_cmac_ctx{
 	uint32_t M_n;
 }aes_cmac_ctx;
 
-aes_cmac_ctx * AesCmacCtx;
+aes_cmac_ctx AesCmacCtx;
 
 uint8_t aBlock[16] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 												0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -91,11 +91,11 @@ const uint32_t LoRaMacDeviceAddress = (uint32_t) 0x12345678;
 uint16_t upLinkCounter = 0;
 
 // LoRaMac Function Declarations
-void LoRaMac_PrepareFrameHeader( uint8_t *data_buffer, uint32_t deviceAddress, uint32_t sequenceCounter, uint8_t fport, uint8_t *encoded_payload, uint8_t *mic );
+bool LoRaMac_PrepareFrame( uint8_t *data_buffer, uint32_t deviceAddress, uint32_t sequenceCounter, uint8_t fport, uint8_t *encoded_payload, uint16_t payload_size );
 
 bool LoRaMac_EncryptPayload( uint8_t *data_buffer, uint16_t size, uint8_t *encoded_data_buffer, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter);
 
-bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint8_t *mic, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter );
+bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint32_t *mic, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter );
 
 void AES_CMAC_Init( aes_cmac_ctx *ctx );
 void AES_CMAC_Update( aes_cmac_ctx *ctx, uint8_t *data_buffer, uint32_t len );
@@ -114,31 +114,61 @@ int main(){
 	P8OUT &= ~BIT1;
 	P8DIR |= BIT1;
 
-	uint8_t input_data = 0xAB;
-	uint8_t result;
+	uint8_t input_payload[242];
+	uint8_t encoded_payload[242];
+	uint32_t mic;
+	uint8_t final_frame[255];
+
+	uint16_t i, payload_size, frame_size;
+	
+	payload_size = 5;
+	frame_size = payload_size + 9;
+
+	for( i = 0; i < payload_size; i++ )
+		input_payload[i] = i % 255;
+
 	P8OUT ^= BIT1;
-	LoRaMac_EncryptPayload( &input_data, 1, &result, 0x00, LoRaMacDeviceAddress, upLinkCounter );
+	LoRaMac_EncryptPayload( input_payload, payload_size, encoded_payload, 0x00, LoRaMacDeviceAddress, upLinkCounter );
 	P8OUT ^= BIT1;
 
-	PRINTF("Encryption Result: %x\r\n", result);
+	PRINTF("Encryption Result: \r\n");
+	for( i = 0; i < payload_size; i++ )
+		PRINTF("%x | ", encoded_payload[i]);
+	PRINTF("\r\n");
+
+	LoRaMac_PrepareFrame( final_frame, LoRaMacDeviceAddress, upLinkCounter, 0x0F, encoded_payload, payload_size );
+	
+	PRINTF("Final Frame: \r\n");
+	for( i = 0; i < frame_size; i++ )
+		PRINTF("%x | ", final_frame[i]);
+	PRINTF("\r\n");
 	
 	P8OUT ^= BIT1;
-	LoRaMac_ComputeMIC( &input_data, 1, &result, 0x00, LoRaMacDeviceAddress, upLinkCounter );
+	LoRaMac_ComputeMIC( final_frame, frame_size, &mic, 0x00, LoRaMacDeviceAddress, upLinkCounter );
 	P8OUT ^= BIT1;
 
-	PRINTF("MIC Computation Result: %x\r\n", result);
+	PRINTF("MIC Computation Result:\r\n");
 	
-	//for( int i = 0; i < 16; i++ )
-		//PRINTF("Byte %i: %x\r\n", i, output_data[i]);
-				
-	//spi_init();
-	//camaroptera_init_lora();
-	//sx1276_send( radio_buffer,  last_packet_size);
+	for( i = 0; i < 4; i++ ){
+		PRINTF("%x | ", (mic >> (i*8) ) & 0xFF);
+		final_frame[frame_size + i] = (mic >> (i*8) ) & 0xFF;
+	}
+	PRINTF("\r\n");
 	
+	frame_size += 4;
+
+	spi_init();
+	camaroptera_init_lora();
+	sx1276_send( final_frame, frame_size );
+	__bis_SR_register(LPM4_bits+GIE);
+	sx1276_on_dio0irq();
+	
+	PRINTF("Completed Transmission\r\n");
+
 	return 0;
 }
 
-bool LoRaMac_PrepareFrame( uint8_t *data_buffer, uint32_t deviceAddress, uint32_t sequenceCounter, uint8_t fport, uint8_t *encoded_payload, uint16_t payload_size, uint8_t *mic ){
+bool LoRaMac_PrepareFrame( uint8_t *data_buffer, uint32_t deviceAddress, uint32_t sequenceCounter, uint8_t fport, uint8_t *encoded_payload, uint16_t payload_size ){
 
 	uint16_t i;
 
@@ -163,12 +193,10 @@ bool LoRaMac_PrepareFrame( uint8_t *data_buffer, uint32_t deviceAddress, uint32_
 
 	data_buffer[8] = fport & 0xFF; // FPort: 0-Use NwkSKey for payload encr, 1..255-Use AppSKey for payload encr
 
-	for( i = 9; i < (payload_size + 9) ; i++ )
-		data_buffer[i] = encoded_payload[i];
+	for( i = 0; i < payload_size ; i++ )
+		data_buffer[i+9] = encoded_payload[i];
 	
-	for( i = 0; i < 4 ; i++ )
-		data_buffer[payload_size + 9 + i] = mic[i];
-	
+
 	return true;
 
 	}
@@ -221,7 +249,7 @@ bool LoRaMac_EncryptPayload( uint8_t *data_buffer, uint16_t size, uint8_t *encod
 	return true;
 	}
 
-bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint8_t *mic, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter ){
+bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint32_t *mic, uint8_t dir, uint32_t deviceAddress, uint32_t sequenceCounter ){
 	
 	uint8_t Mic[16];
 	
@@ -239,7 +267,7 @@ bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint8_t *mic, uint
 
 	MICBlock[15] = ( size ) & 0xFF;
 
-	AES_CMAC_Init( AesCmacCtx );
+	AES_CMAC_Init( &AesCmacCtx );
 
 	if( AES256_setCipherKey( AES_baseAddr, LoRaMacNwkSKey, 128 ) )
 		PRINTF("Successfully set AES encryption key - LoRaMacNwkSKey\r\n");
@@ -248,12 +276,17 @@ bool LoRaMac_ComputeMIC( uint8_t *data_buffer, uint16_t size, uint8_t *mic, uint
 		return false;
 		}
 	
-	AES_CMAC_Update( AesCmacCtx, MICBlock, LORAMAC_MIC_BLOCK_SIZE );
+	AES_CMAC_Update( &AesCmacCtx, MICBlock, LORAMAC_MIC_BLOCK_SIZE );
 
-	AES_CMAC_Update( AesCmacCtx, data_buffer, size & 0xFF );
+	AES_CMAC_Update( &AesCmacCtx, data_buffer, size & 0xFF );
 
-	AES_CMAC_Final( Mic, AesCmacCtx );
+	AES_CMAC_Final( Mic, &AesCmacCtx );
 	
+	PRINTF("MICBlock: ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", MICBlock[i]);
+	PRINTF("\r\n");
+
 	*mic = ( uint32_t )( ( uint32_t )Mic[3] << 24 | ( uint32_t )Mic[2] << 16 | ( uint32_t )Mic[1] << 8 | ( uint32_t )Mic[0] );
 
 	return true;
@@ -270,6 +303,17 @@ void AES_CMAC_Update( aes_cmac_ctx *ctx, uint8_t *data_buffer, uint32_t len ){
 	
 	uint32_t mlen;
 	uint8_t in[16];
+	uint8_t temp[16];
+
+	PRINTF("M_n: %i\r\n", ctx->M_n);
+	PRINTF("M_last: ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", ctx->M_last[i]);
+	PRINTF("\r\n");
+	PRINTF("X: ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", ctx->X[i]);
+	PRINTF("\r\n");
 
 	if( ctx->M_n > 0 ){
 		mlen = COMPUTE_MIN( 16-ctx->M_n, len );
@@ -302,10 +346,21 @@ void AES_CMAC_Final( uint8_t *encoded_data_buffer, aes_cmac_ctx *ctx ){
 	
 	uint8_t K[16];
 	uint8_t in[16];
+	
+	PRINTF("==================\r\n");
+	PRINTF("X: ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", ctx->X[i]);
+	PRINTF("\r\n");
 
 	// Generate subkey K1
 	memset( K, '\0', 16 );
 	AES256_encryptData( AES_baseAddr, K, K );
+	
+	PRINTF("K1: ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", K[i]);
+	PRINTF("\r\n");
 	
 	if( K[0] & 0x80 ){
 		LSHIFT( K, K );
@@ -324,6 +379,11 @@ void AES_CMAC_Final( uint8_t *encoded_data_buffer, aes_cmac_ctx *ctx ){
 			}
 		else
 			LSHIFT( K, K );
+			
+			PRINTF("K2: ");
+			for(int i=0; i<16; i++)
+				PRINTF("%x | ", K[i]);
+			PRINTF("\r\n");
 		
 		// Padding(M_last)
 		ctx->M_last[ctx->M_n] = 0x80;
@@ -335,8 +395,18 @@ void AES_CMAC_Final( uint8_t *encoded_data_buffer, aes_cmac_ctx *ctx ){
 	XOR( ctx->M_last, ctx->X );
 	memcpy( in, &ctx->X[0], 16 );
 	AES256_encryptData( AES_baseAddr, in, encoded_data_buffer );
+	PRINTF("in(final): ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", in[i]);
+	PRINTF("\r\n");
+	PRINTF("encoded_data_buffer(final): ");
+	for(int i=0; i<16; i++)
+		PRINTF("%x | ", encoded_data_buffer[i]);
+	PRINTF("\r\n");
+	
 	memset( K, 0, sizeof(K) );
 
+	PRINTF("==================\r\n");
 	}
 
 void OnTxDone() {
