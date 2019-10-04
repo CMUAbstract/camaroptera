@@ -17,7 +17,7 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
-#define RF_FREQUENCY   915000000 // Hz
+#define RF_FREQUENCY   903000000 // Hz
 
 #define FSK_FDEV                          25e3      // Hz
 #define FSK_DATARATE                      50e3      // bps
@@ -27,7 +27,7 @@
 #define FSK_FIX_LENGTH_PAYLOAD_ON         false
 
 #define LORA_BANDWIDTH                              2        // [0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved]
-#define LORA_SPREADING_FACTOR                       7        // [SF7..SF12]
+#define LORA_SPREADING_FACTOR                       8        // [SF7..SF12]
 #define LORA_CODINGRATE                             1         // [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
 #define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
 #define LORA_SYMBOL_TIMEOUT                         5         // Symbols
@@ -156,10 +156,16 @@ int main(){
 	PRINTF("\r\n");
 	
 	frame_size += 4;
-
+	// Lorawan kept intact till here
+	
+	// Remove for loop for lorawan
+	for( i = 0; i < 255; i++ ){
+		final_frame[i] = i;
+	}
 	spi_init();
 	camaroptera_init_lora();
-	sx1276_send( final_frame, frame_size );
+	//sx1276_send( final_frame, frame_size ); // For lorawan
+	sx1276_send( final_frame, 255 );
 	__bis_SR_register(LPM4_bits+GIE);
 	sx1276_on_dio0irq();
 	
@@ -423,8 +429,22 @@ void camaroptera_init_lora() {
   //radio_events.RxError = OnRxError;
 
   sx1276_init(radio_events);
-  sx1276_set_channel(RF_FREQUENCY);
+ 
+ 	uint64_t freq = RF_FREQUENCY;
+	if( freq == 915000000 )
+		PRINTF("TX FREQ = 915 MHz\r\n");
+	else if( freq == 903000000 )
+		PRINTF("TX FREQ = 903 MHz\r\n");
 
+	PRINTF("LORA BANDWIDTH = %u\r\n", LORA_BANDWIDTH);
+	PRINTF("LORA SPREADING FACTOR = %u\r\n", LORA_SPREADING_FACTOR);
+
+	sx1276_set_channel(RF_FREQUENCY);
+	
+	uint8_t temp = sx1276_read(REG_FRFMSB);
+
+	PRINTF("Value Read for frmsb= %x\r\n", temp);
+	
 	sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
