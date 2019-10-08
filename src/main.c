@@ -25,8 +25,9 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-//#define cont_power
+#define cont_power
 //#define print_image
+//#define print_jpeg
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -57,9 +58,11 @@
 #define TX_OUTPUT_POWER										17        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
 
-#define DEV_ID														0x01
+#define MAC_HDR 													0xDF		
+#define DEV_ID														0x09
 
 #define PACKET_SIZE												255
+#define HEADER_SIZE												5
 
 #define High_Threshold 0xFF0         	    // ~2.95V
 
@@ -79,7 +82,7 @@ __ro_hifram uint8_t old_frame [19200]= {0};
 __ro_hifram pixels = 0;
 
 __ro_hifram uint8_t tx_packet_index = 0;
-__ro_hifram uint16_t sent_packet_count = 0;
+__ro_hifram uint8_t frame_index = 0;
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = 0;
 __ro_hifram uint8_t camaroptera_state = 0;
@@ -96,10 +99,11 @@ __ro_hifram uint8_t index_for_dummy_dnn = 0;
 extern uint8_t array_for_dummy_dnn[10];
 
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
-__ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;
-__ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;
-__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
+__ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
+__ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
+__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
+//__ro_hifram int8_t camaroptera_mode_3[5] = {3, 0, 0, 0, 0} ; 		// For testing only capture+jpeg
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
@@ -136,6 +140,7 @@ int camaroptera_main(void) {
 			pixels = capture();
 
 #ifdef print_image
+			PRINTF("Captured ---%i--- pixels\r\n", pixels);
 			PRINTF("Start captured frame\r\n");
 			for( i = 0 ; i < pixels ; i++ )
 				PRINTF("%u ", frame[i]);
@@ -198,7 +203,7 @@ int camaroptera_main(void) {
 
 			camaroptera_compression();
 
-#ifdef print_image
+#ifdef print_jpeg
 			PRINTF("Start JPEG frame\r\n");
 			for( i = 0 ; i < len ; i++ )
 				PRINTF("%u ", frame_jpeg[i]);
@@ -219,35 +224,38 @@ int camaroptera_main(void) {
 			PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
 #endif
 
-			packet_count = pixels  / (PACKET_SIZE - 2);
+			packet_count = pixels  / (PACKET_SIZE - HEADER_SIZE);
 
-			last_packet_size = pixels - packet_count * (PACKET_SIZE - 2) + 2;
+			last_packet_size = pixels - packet_count * (PACKET_SIZE - HEADER_SIZE) + HEADER_SIZE;
 
-			if(pixels % (PACKET_SIZE - 2) != 0)
+			if(pixels % (PACKET_SIZE - HEADER_SIZE) != 0)
 				packet_count ++;
 
-			sent_history = sent_packet_count;
+			sent_history = tx_packet_index;
 
 			for( i = sent_history; i < packet_count; i++ ){
 
 				P8OUT ^= BIT2;
-
-				radio_buffer[0] = DEV_ID;
-				radio_buffer[1] = tx_packet_index;
+				
+				radio_buffer[0] = MAC_HDR;
+				radio_buffer[1] = DEV_ID;
+				radio_buffer[2] = frame_index;
+				radio_buffer[3] = packet_count;
+				radio_buffer[4] = tx_packet_index;
 #ifdef print_image        	
 				PRINTF("START PACKET\r\n");
 #endif
 				if( i == packet_count - 1){
-					for( j = 2; j < last_packet_size; j++ ){
-						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+					for( j = HEADER_SIZE; j < last_packet_size; j++ ){
+						radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
 #ifdef print_image        	
 						PRINTF("%u ", radio_buffer[j]);
 #endif 
 						}
 					}
 				else{
-					for( j = 2; j < PACKET_SIZE; j++ ){
-						radio_buffer[j] = frame_jpeg[frame_track + j - 2];
+					for( j = HEADER_SIZE; j < PACKET_SIZE; j++ ){
+						radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
 #ifdef print_image        	
 						PRINTF("%u ", radio_buffer[j]);
 #endif 
@@ -261,7 +269,7 @@ int camaroptera_main(void) {
 				//Wait to charge up
 				charge_rate_sum += camaroptera_wait_for_charge();
 #else
-				//__delay_cycles(16000000);
+				__delay_cycles(80000000);
 #endif
 
 #ifdef enable_debug        	
@@ -296,7 +304,7 @@ int camaroptera_main(void) {
 				sx1276_on_dio0irq();
 
 #ifdef enable_debug
-				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
+				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, tx_packet_index, (packet_count - tx_packet_index));
 #endif
 
 				P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
@@ -319,12 +327,11 @@ int camaroptera_main(void) {
 			PRINTF("Sent full image\r\n");
 #endif
 			tx_packet_index = 0;
-			sent_packet_count = 0;
 			frame_track = 0;
-
+			frame_index++;
 			charge_rate_sum = charge_rate_sum / packet_count;
 			
-			camaroptera_mode_select( charge_rate_sum );
+			//camaroptera_mode_select( charge_rate_sum );
 
 			camaroptera_state = camaroptera_next_task(4);
 			P8OUT ^= BIT1; 
@@ -405,8 +412,7 @@ float camaroptera_wait_for_charge(){
 
 void OnTxDone() {
 	tx_packet_index ++;
-	sent_packet_count ++;
-	frame_track += 253;
+	frame_track += (PACKET_SIZE - HEADER_SIZE);
 }
 
 void camaroptera_init_lora() {

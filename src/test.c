@@ -35,7 +35,7 @@
 #define LORA_IQ_INVERSION_ON                        false
 
 #define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER										17        // dBm
+#define TX_OUTPUT_POWER										14        // dBm
 #define BUFFER_SIZE                       256 // Define the payload size here
 
 #define __ro_hifram __attribute__((section(".upper.rodata")))
@@ -159,9 +159,25 @@ int main(){
 	// Lorawan kept intact till here
 	
 	// Remove for loop for lorawan
-	for( i = 0; i < 255; i++ ){
+	final_frame[0] = 0xDF;
+	final_frame[1] = 0x09;
+	final_frame[2] = 0x01;
+	final_frame[3] = 0x05;
+	final_frame[4] = 0x01;
+	for( i = 5; i < 255; i++ ){
 		final_frame[i] = i;
 	}
+
+#ifdef OLD_PINS
+	PRINTF("OLD PINS!!\r\n");
+	P4DIR |= BIT7;
+	P4OUT |= BIT7;
+#else
+	PRINTF("NEW PINS!!\r\n");
+	P4DIR |= BIT4;
+	P4OUT |= BIT4;
+#endif
+
 	spi_init();
 	camaroptera_init_lora();
 	//sx1276_send( final_frame, frame_size ); // For lorawan
@@ -169,6 +185,16 @@ int main(){
 	__bis_SR_register(LPM4_bits+GIE);
 	sx1276_on_dio0irq();
 	
+#ifdef OLD_PINS
+	P5OUT &= ~BIT3;
+	P1OUT &= ~BIT4;
+	P4OUT &= ~BIT7;
+#else
+	P4OUT &= ~BIT1;
+	P4OUT &= ~BIT2;
+	P4OUT &= ~BIT4;
+#endif
+
 	PRINTF("Completed Transmission\r\n");
 
 	return 0;
