@@ -27,6 +27,7 @@
 #define enable_debug
 #define cont_power
 //#define print_image
+//#define print_packet
 //#define print_jpeg
 
 #ifdef enable_debug
@@ -242,13 +243,13 @@ int camaroptera_main(void) {
 				radio_buffer[2] = frame_index;
 				radio_buffer[3] = packet_count;
 				radio_buffer[4] = tx_packet_index;
-#ifdef print_image        	
+#ifdef print_packet        	
 				PRINTF("START PACKET\r\n");
 #endif
 				if( i == packet_count - 1){
 					for( j = HEADER_SIZE; j < last_packet_size; j++ ){
 						radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
-#ifdef print_image        	
+#ifdef print_packet       	
 						PRINTF("%u ", radio_buffer[j]);
 #endif 
 						}
@@ -256,12 +257,12 @@ int camaroptera_main(void) {
 				else{
 					for( j = HEADER_SIZE; j < PACKET_SIZE; j++ ){
 						radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
-#ifdef print_image        	
+#ifdef print_packet        	
 						PRINTF("%u ", radio_buffer[j]);
 #endif 
 						}
 					}
-#ifdef print_image        	
+#ifdef print_packet       	
 				PRINTF("\r\nEND PACKET\r\n");
 #endif
 				
