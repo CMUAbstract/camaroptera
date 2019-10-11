@@ -113,6 +113,12 @@ int main(){
 
 	P8OUT &= ~BIT1;
 	P8DIR |= BIT1;
+	
+	while(1){
+		P8OUT ^= BIT1;
+		__delay_cycles(16000000);
+	}
+
 
 	uint8_t input_payload[242];
 	uint8_t encoded_payload[242];

@@ -25,7 +25,7 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-#define cont_power
+//#define cont_power
 //#define print_image
 //#define print_packet
 //#define print_jpeg
