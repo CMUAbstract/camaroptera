@@ -5,10 +5,10 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o camaroptera-dnn.o lenet.o
-#OBJECTS = test.o 
+OBJECTS = main.o camaroptera-dnn.o
+#OBJECTS = main.o 
 
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libdnn libjpeg
 
 export MAIN_CLOCK_FREQ = 16000000
 
@@ -23,14 +23,14 @@ export LIBFIXED_PRECISE = 1
 export LIBFIXED_BITWIDTH = 16
 export LIBFIXED_FRAC_BITWIDTH = 5
 
-CONSOLE ?=
+CONSOLE ?= 1
 INTERMITTENT ?= 
 BACKEND ?= sonic
 CONT ?= 1
 FIXED_TEST ?=
 
 MAT_BUF_SIZE ?= 0x310
-LAYER_BUF_SIZE ?= 0x486A
+LAYER_BUF_SIZE ?= 0x3000
 
 ifneq ($(CONSOLE),)
 export VERBOSE = 1
@@ -65,7 +65,6 @@ export LIBDNN_BACKEND = $(BACKEND)
 export LIBDNN_TILE_SIZE = 128
 export LIBDNN_MAT_BUF_SIZE = $(MAT_BUF_SIZE)
 export LIBDNN_LAYER_BUF_SIZE = $(LAYER_BUF_SIZE)
-#override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY
 override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS
 
 export CC_LD_FLAGS
