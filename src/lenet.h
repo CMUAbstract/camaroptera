@@ -1,5 +1,11 @@
-#define BUFFER_NUM 2
+#ifndef _LENET_H_
+#define _LENET_H_
+
+//#define BUFFER_NUM 2
+#define BUFFER_NUM 1
+
 #define BUFFER_SIZE 0x6200
+//#define BUFFER_SIZE 100
 
 #define __fram __attribute__((section(".persistent")))
 #define __ro_fram __attribute__((section(".rodata")))
@@ -7,7 +13,7 @@
 #define __ro_hifram __attribute__((section(".upper.rodata")))
 #define __known __attribute__((section(".known")))
 
-extern fixed inference_buffer[BUFFER_NUM][BUFFER_SIZE];
+extern fixed __hifram inference_buffer[BUFFER_NUM][BUFFER_SIZE];
 
 void zero( mat_t *buffer );
 void normalize( mat_t *input_buffer, mat_t *dest_buffer );
@@ -17,3 +23,5 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
 void conv_dense(mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buffer, uint16_t stride);
 
 void conv_sparse(mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buffer, uint16_t stride, bool depthwise, uint16_t depth_id, bool fc);
+
+#endif

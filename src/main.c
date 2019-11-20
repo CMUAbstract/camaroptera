@@ -23,7 +23,9 @@
 
 #include <libjpeg/jpec.h> 
 #include "camaroptera-dnn.h"
+#include <libpacarana/pacarana.h>
 
+#include <libmspbuiltins/builtins.h>
 #define enable_debug
 //#define cont_power
 //#define print_image
@@ -35,6 +37,13 @@
 #define __ro_hifram __attribute__((section(".upper.rodata")))
 
 //#define OLD_PINS
+#ifndef PACARANA
+#define STATE_CHANGE(...)
+#define REGISTER(...)
+#endif
+
+REGISTER(adc);
+REGISTER(timer);
 
 #define RF_FREQUENCY   915000000 // Hz
 
@@ -116,7 +125,9 @@ uint8_t diff();
 uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
 
-int camaroptera_main(void) {
+void task_camaroptera_main(void) {
+  printf("size_t size: %i",sizeof(size_t));
+
 	while(1){
 
 	switch( camaroptera_state ){
@@ -124,7 +135,8 @@ int camaroptera_main(void) {
 		case 0: 									// == CAPTURE IMAGE ==
 		
 			P8OUT |= BIT3; 
-		
+	    POSSIBLE_STATES("lora",0x0);
+      POSSIBLE_STATES("himax",0x0);
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
@@ -133,8 +145,10 @@ int camaroptera_main(void) {
 #ifdef enable_debug        	
 			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
 #endif
-
+      // All himax state changes happen here
 			pixels = capture();
+      // Is there a standard number of pixels that we should output? Can I
+      // define that as a constant somewhere?
 
 #ifdef print_image
 			PRINTF("Start captured frame\r\n");
@@ -228,7 +242,8 @@ int camaroptera_main(void) {
 				packet_count ++;
 
 			sent_history = sent_packet_count;
-
+      // Same question here, will packet count fall out as a constant depending
+      // on what the correct packet size is?
 			for( i = sent_history; i < packet_count; i++ ){
 
 				P8OUT ^= BIT2;
@@ -275,11 +290,13 @@ int camaroptera_main(void) {
 #else
 				P4DIR |= BIT4;
 				P4OUT |= BIT4;
+        STATE_CHANGE(lora,0x1);
 #endif
-
+        // Init spi
 				spi_init();
+        STATE_CHANGE(spi,0x1);
 				camaroptera_init_lora();
-
+        STATE_CHANGE(lora,0x2);
 				if( i == packet_count - 1){
 #ifdef enable_debug        	
 					PRINTF("Sending packet\n\r");
@@ -289,32 +306,38 @@ int camaroptera_main(void) {
 				else{
 					sx1276_send( radio_buffer, PACKET_SIZE );
 					}
-				
+			  	
 				__bis_SR_register(LPM4_bits+GIE);
 
 				//while(irq_flag != 1);
 
 				sx1276_on_dio0irq();
+        STATE_CHANGE(lora, 0x1);
 
 #ifdef enable_debug
 				PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, sent_packet_count, (packet_count - sent_packet_count));
 #endif
-
+        // Radio spi pins MSI/O stuff
 				P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
 				P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
 				P5DIR &= ~(BIT0+ BIT1 + BIT2);
+        STATE_CHANGE(spi,0x0);
 
 #ifdef OLD_PINS
 				P5OUT &= ~BIT3;
 				P1OUT &= ~BIT4;
 				P4OUT &= ~BIT7;
 #else
+        // Chipselect, interrupt, enable
 				P4OUT &= ~BIT1;
 				P4OUT &= ~BIT2;
 				P4OUT &= ~BIT4;
 #endif
 				P8OUT ^= BIT2;
+        STATE_CHANGE(lora,0x0);
 				}  // End for i
+        // Sends one packet and then sleeps
+        // some variation in packet:image ratio
 
 #ifdef enable_debug
 			PRINTF("Sent full image\r\n");
@@ -324,7 +347,7 @@ int camaroptera_main(void) {
 			frame_track = 0;
 
 			charge_rate_sum = charge_rate_sum / packet_count;
-			
+		  // Software mode change
 			camaroptera_mode_select( charge_rate_sum );
 
 			camaroptera_state = camaroptera_next_task(4);
@@ -340,13 +363,13 @@ int camaroptera_main(void) {
 
 } // End main()
 
-float camaroptera_wait_for_charge(){
+DRIVER float camaroptera_wait_for_charge(){
 
 	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
 
     P1SEL0 |= BIT5;                                 //P1.0 ADC mode
     P1SEL1 |= BIT5;                                 //
-
+    STATE_CHANGE(adc,0x1);
     //Configure ADC
     ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
     ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
@@ -360,12 +383,14 @@ float camaroptera_wait_for_charge(){
     ADC12HI = High_Threshold;                               // Enable ADC interrupt
     ADC12IER2 = ADC12HIIE;                                  // Enable ADC threshold interrupt
     ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
+    STATE_CHANGE(adc,0x2);
 
     // Configure Timer0_A3 to periodically trigger the ADC12
 		TA0CCR0 = 2048-1;                                       // PWM Period
     TA0CCTL1 = OUTMOD_3;                                    // TACCR1 set/reset
     TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
     TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
+    STATE_CHANGE(timer,0x1);
 
 		__delay_cycles(10);
 		int16_t voltage_temp = ADC12MEM0;
@@ -395,6 +420,8 @@ float camaroptera_wait_for_charge(){
     TA3CTL |= TACLR + MC__STOP;
     TA0CTL |= TACLR + MC__STOP;
     ADC12CTL0 = ~(ADC12ON);
+    STATE_CHANGE(timer,0x0);
+    STATE_CHANGE(adc,0x0);
 
 		int32_t temp = voltage_temp * 10;
 		timer_temp = timer_temp / 1000;
@@ -410,7 +437,7 @@ void OnTxDone() {
 	frame_track += 253;
 }
 
-void camaroptera_init_lora() {
+void DRIVER camaroptera_init_lora() {
   radio_events.TxDone = OnTxDone;
   //radio_events.RxDone = OnRxDone;
   //radio_events.TxTimeout = OnTxTimeout;
@@ -419,15 +446,11 @@ void camaroptera_init_lora() {
 
   sx1276_init(radio_events);
   sx1276_set_channel(RF_FREQUENCY);
-  STATE_CHANGE(freq, RF_FREQUENCY); 
 
 	sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
-  STATE_CHANGE(pa,TX_OUTPUT_POWER);
-  STATE_CHANGE(bw,LORA_BANDWIDTH);
-  STATE_CHANGE(sf,LORA_SPREADING_FACTOR);
 }
 
 void camaroptera_compression(){
@@ -516,7 +539,8 @@ void camaroptera_wait_for_interrupt(){
 
 	}
 
-void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
+//void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
+void __attribute__ ((interrupt(24))) ADC12ISR (void){
 
     switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
     {
@@ -533,7 +557,8 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
     }
 }
 
-void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
+//void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
+void __attribute__ ((interrupt(24))) Timer3_A1_ISR (void){
 	switch(__even_in_range(TA3IV, TAIV__TAIFG)){
 		case TAIV__NONE:   break;           // No interrupt
 		case TAIV__TACCR1: break;           // CCR1 not used
@@ -551,7 +576,9 @@ void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
 	}
 }
 
-void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
+// it doesn't look like P8.0 is hooked up to anything, what does this do?
+//void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
+void __attribute__ ((interrupt(26))) port_8 (void) {
 		P8IE &= ~BIT0;
 		P8IFG &= ~BIT0;
 		__bic_SR_register_on_exit(LPM4_bits+GIE);

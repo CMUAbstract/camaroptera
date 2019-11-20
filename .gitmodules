@@ -37,3 +37,9 @@
 [submodule "ext/libjpeg"]
 	path = ext/libjpeg
 	url = git@github.com:CMUAbstract/libjpeg.git
+[submodule "tools/pacarana-pass"]
+	path = tools/pacarana-pass
+	url = git@github.com:CMUAbstract/pacarana-pass.git
+[submodule "ext/libpacarana"]
+	path = ext/libpacarana
+	url = git@github.com:CMUAbstract/libpacarana.git

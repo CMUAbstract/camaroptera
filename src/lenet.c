@@ -8,9 +8,11 @@
 #include <libmat/mat.h>
 
 #include "lenet.h"
-
+#include <libpacarana/pacarana.h>
 extern uint8_t input[];
 
+#define LOOP_MIN
+//#define LOOP_DEBUG
 //__ro_hifram uint8_t frame[19200];
 
 __ro_hifram fixed inference_buffer[BUFFER_NUM][BUFFER_SIZE];
@@ -27,13 +29,36 @@ void zero( mat_t *buffer ){
 	depth = buffer->dims[0];
 	height = buffer->dims[1];
 	width = buffer->dims[2];
-	
-	for( i = 0; i < depth; i++ )
-		for( j = 0; j < height; j++ )
-			for( k = 0; k < width; k++ )
+  // Note: the minimum iteration counts for when zero was called are listed
+  // below, only one call to zero actually had numbers this low, it was usually
+ // much larger
+#ifdef LOOP_DEBUG
+ PRINTF("\r\nZERO DIMS: %i %i %i\r\n",depth,height,width);
+#endif
+	for( i = 0; i < depth; i++ ) {
+#ifdef LOOP_MIN
+    LOOP_ITER(2)
+#else
+    LOOP_ITER(98)
+#endif
+		for( j = 0; j < height; j++ ) {
+#ifdef LOOP_MIN
+      LOOP_ITER(1)
+#else
+      LOOP_ITER(14)
+#endif
+			for( k = 0; k < width; k++ ) {
+#ifdef LOOP_MIN
+        LOOP_ITER(1)
+#else
+        LOOP_ITER(18)
+#endif
 				MAT_SET( buffer, 0, i, j, k );
-	
-	}
+      }
+    }
+  }
+
+}
 
 
 
@@ -58,19 +83,23 @@ void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
 
 	// PRINTF("NORMALIZING IMAGE\r\n");
 	// PRINTF("IMAGE DIMS: (%i, %i, %i)", o_depth, o_height, o_width);
-	
+#ifdef LOOP_DEBUG
+  PRINTF("\r\nNORMALIZE DIMS: %i %i %i\r\n", o_depth, o_height, o_width);
+#endif
 	for( depth = 0; depth < o_depth; depth++ ){
+    LOOP_ITER(1)
 		d_idx = depth * o_height;
 		for( height = 0; height < o_height; height++ ){
+      LOOP_ITER(120)
 			h_idx = height * o_width;
 			for( width = 0; width < o_width; width++ ){
+        LOOP_ITER(160)
 				temp = MAT_GET( input_buffer, depth, height, width );
 				temp = F_DIV(temp, threshold);
 				MAT_SET( dest_buffer, temp, depth, height, width);
 			}
 		}
 	}
-	
 }
 
 void relu( mat_t *src_buffer, uint16_t threshold ){
@@ -90,14 +119,33 @@ void relu( mat_t *src_buffer, uint16_t threshold ){
 	uint16_t depth, height, width;
 
 	fixed f_threshold = F_LIT(threshold);
-	
-	// PRINTF("RELU LAYER\r\n");
-	// PRINTF("INPUT LAYER DIMS: (%i, %i, %i)", i_depth, i_height, i_width);
-	for( depth = 0; depth < i_depth; depth++ )
-		for( height = 0; height < i_height; height++ )
-			for( width = 0; width < i_width; width++ )
+#ifdef LOOP_DEBUG
+	PRINTF("RELU LAYER\r\n");
+	PRINTF("INPUT LAYER DIMS: (%i, %i, %i)", i_depth, i_height, i_width);
+#endif
+	for( depth = 0; depth < i_depth; depth++ ) {
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(40)
+#endif
+		for( height = 0; height < i_height; height++ ) {
+#ifdef LOOP_MIN
+      LOOP_ITER(1)
+#else
+      LOOP_ITER(12)
+#endif
+			for( width = 0; width < i_width; width++ ) {
+#ifdef LOOP_MIN
+        LOOP_ITER(14)
+#else
+        LOOP_ITER(183)
+#endif
 				if( MAT_GET(src_buffer, depth, height, width) < f_threshold )
 					MAT_SET(src_buffer, 0, depth, height, width);	
+      }
+    }
+  }
 }
 
 void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kernel_size, uint8_t stride  ){
@@ -130,11 +178,32 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
 	fixed temp, pool_result, avg_denom;
 
 	avg_denom = kernel_size*kernel_size;
-
+  // We grabbed the minimum dimension for each of the three calls to pooling for
+  // each dimension.
+  // TODO figure out if this is a reaonsble metric for a lower bound -- should
+  // we do minium iteration count instead?
+#ifdef LOOP_DEBUG
+  PRINTF("POOLING DIMS: %i %i %i %i %i\r\n",o_depth, o_height, o_width,
+  kernel_size, kernel_size);
+#endif
 	for( depth = 0; depth < o_depth; depth++ ){
+#ifdef LOOP_MIN
+      LOOP_ITER(1)
+#else
+      LOOP_ITER(40)
+#endif
 		for( height = 0; height < o_height; height++ ){
+#ifdef LOOP_MIN
+      LOOP_ITER(5)
+#else
+      LOOP_ITER(16)
+#endif
 			for( width = 0; width < o_width; width++ ){
-				
+#ifdef LOOP_MIN
+        LOOP_ITER(7)
+#else
+        LOOP_ITER(22)
+#endif
 				if (type == 0)
 					pool_result = F_MIN;
 				else if (type == 1)
@@ -143,7 +212,17 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
 				h_idx = (height) * stride;
 				w_idx = (width) * stride;
 				for( filter_ht = 0; filter_ht < kernel_size; filter_ht++ ){
+#ifdef LOOP_MIN
+          LOOP_ITER(2)
+#else
+          LOOP_ITER(3)
+#endif
 					for( filter_wd = 0; filter_wd < kernel_size; filter_wd++ ){
+#ifdef LOOP_MIN
+            LOOP_ITER(3)
+#else
+            LOOP_ITER(3)
+#endif
 						if( (h_idx+filter_ht) < i_height && (w_idx+filter_wd) < i_width )
 							temp = MAT_GET(src_buffer, depth, h_idx+filter_ht, w_idx+filter_wd);
 						else
@@ -193,23 +272,26 @@ void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buff
 
 	// PRINTF("DENSE CONV\r\n");
 	// PRINTF("\r\nINPUT DIMS:(%i, %i, %i)\r\n", i_depth, i_height, i_width);
-	
+
 	// PRINTF("FILTER DIMS:(%i, %i, %i, %i)\r\n", filters, f_depth, f_height, f_width);
 
 	uint16_t o_depth = dest_buffer->dims[0];
 	uint16_t o_height = dest_buffer->dims[1];
 	uint16_t o_width = dest_buffer->dims[2];
-	
-	// PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
-	
+	//PRINTF("DENSE CONV DIMS:(%i, %i, %i, %i, %i)\r\n", f_depth, o_height, o_width,f_height, f_width);
 	for( filter_id = 0; filter_id < filters; filter_id++ ){
-		
+
 		//PRINTF("Convolving %i\r\n", filter_id);
 		for( depth = 0; depth < f_depth; depth++ ){
+      LOOP_ITER(1);
 			for( height = 0; height < o_height; height++ ){
+      LOOP_ITER(1);
 				for( width = 0; width < o_width; width++ ){
+      LOOP_ITER(1);
 					for( filter_ht = 0; filter_ht < f_height; filter_ht++ ){
+      LOOP_ITER(1);
 						for( filter_wd = 0; filter_wd < f_width; filter_wd++ ){
+      LOOP_ITER(500);
 								sum_temp += F_MUL( MAT_GET(src_buffer, depth, height+filter_ht, width+filter_wd), MAT_GET(weight, filter_id, depth, filter_ht, filter_wd) );
 						}
 					}
@@ -285,7 +367,16 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 	f_offset = 0;
 
 	for( filter_id = 0; filter_id < filters; filter_id++ ){
-		
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(4)
+#endif
+#ifdef LOOP_DEBUG
+  		if(filter_id == 0) {
+        PRINTF("Line 303 loop iter: %i\r\n",filters);
+      }
+#endif
 		if(fc)
 			total_elements = weight->sparse.sizes[filter_id+1] - f_offset;
 		else
@@ -298,7 +389,16 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 		// PRINTF("FILTER %i: %i elements", filter_id, total_elements);
 
 		for( element_id = 0; element_id < total_elements; element_id++ ){
-
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(7)
+#endif
+#ifdef LOOP_DEBUG
+  		if(!(element_id) && !(filter_id)) {
+        PRINTF("Line 318 loop iter: %i\r\n",total_elements);
+      }
+#endif
 			weight_temp = MAT_GET( weight, f_offset+element_id);
 			if(fc)
 				weight_idx = weight->sparse.offsets[f_offset+element_id];	
@@ -308,9 +408,28 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 			filter_ht = (weight_idx % (f_height*f_width)) / f_width;
 			filter_wd = (weight_idx % (f_height*f_width)) % f_width;
 			//PRINTF("%i(%i,%i,%i) | ", weight_temp, f_depth, filter_ht, filter_wd);
-		
 			for( height = 0; height < o_height; height++ ){
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(14)
+#endif
+#ifdef LOOP_DEBUG
+  		if(!(element_id) && !(filter_id) && !(height)) {
+        PRINTF("Line 331 loop iter: %i\r\n",o_height);
+        }
+#endif
 				for( width = 0; width < o_width; width++ ){
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(18)
+#endif
+#ifdef LOOP_DEBUG
+  		    if(!(element_id) && !(filter_id) && !(height) && !(width)) {
+            PRINTF("Line 334 loop iter: %i\r\n",o_width);
+            }
+#endif
 						if(depthwise){
 							fixed w = MAT_GET( src_buffer, depth_id, height+filter_ht, width+filter_wd);
 							sum_temp = F_MUL( weight_temp, MAT_GET( src_buffer, depth_id, height+filter_ht, width+filter_wd ) );
@@ -339,7 +458,27 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 		if(bias != NULL){
 			//PRINTF("BIASES:\r\n");
 			for( height = 0; height < o_height; height++ ){
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(3)
+#endif
+#ifdef LOOP_DEBUG
+        if (height == 0) {
+        PRINTF("Line 362 loop iter: %i\r\n",o_height);
+        }
+#endif
 				for( width = 0; width < o_width; width++ ){
+#ifdef LOOP_MIN
+    LOOP_ITER(1)
+#else
+    LOOP_ITER(4)
+#endif
+#ifdef LOOP_DEBUG
+          if (width == 0 && height == 0) {
+          PRINTF("Line 364 loop iter: %i\r\n",o_width);
+          }
+#endif
 					if(depthwise){
 						sum_temp = MAT_GET( dest_buffer, depth_id, height, width );
 						sum_temp += MAT_GET( bias, depth_id );

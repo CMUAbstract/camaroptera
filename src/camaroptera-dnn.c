@@ -21,6 +21,7 @@
 #include "headers_30x40/conv2.h"
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
+#include <libpacarana/pacarana.h>
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
@@ -41,13 +42,18 @@ void clear_isDirty() {}
 ////////////////////////////////////Tasks///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-TASK(1, camaroptera_main);
+TASK(1, task_camaroptera_main);
+
 TASK(2, task_init);
 TASK(3, task_compute);
 TASK(4, task_finish);
 TASK(5, task_exit);
 
-ENTRY_TASK(camaroptera_main)
+#ifndef CAPY
+  ENTRY_TASK(task_camaroptera_main)
+#else
+  ENTRY_TASK(task_compute)
+#endif
 INIT_FUNC(init)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,20 +82,10 @@ void init() {
 	__enable_interrupt();
 
 	PRINTF(".%u.\r\n", curctx->task->idx);
-	
+#ifndef CAPY
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
-	
-	/*
-	P1DIR = 0x00;
-  P2DIR = 0x00;   
-  P3DIR = 0x00;   
-  P4DIR = 0x00;   
-  P5DIR = 0x00;
-  P6DIR = 0x00;
-  P7DIR = 0x00;   
-  P8DIR = 0x00;   
-	*/
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -260,21 +256,25 @@ void task_init() {
 
 // Does this activate any accelerators?
 void task_compute() {
+  for(int i = 0; i < 200; i++) {
+    __delay_cycles(40000);
+  }
 	uint16_t state = CUR_SCRATCH[0];
+  printf("State :%i\r\n",state);
 	if(state == 0) {
 		PRINTF("====INPUT IMAGE====\r\n");
 		MAT_RESHAPE(b1, 1, 120, 160);
 		mat_t *mat_input_ptr = &mat_input;
 		normalize( mat_input_ptr, b1 );
-		MAT_RESHAPE(b2, 1, 30, 40);
-		pooling( b1, b2, 1, 4, 4 ); 
+    MAT_RESHAPE(b2, 1, 30, 40);
+    pooling( b1, b2, 1, 4, 4 ); 
 		scratch_bak[0] = 1;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 #ifdef PRINT_DEBUG
 		MAT_DUMP(b2, 0);
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 1) {
 		PRINTF("\r\n Layer 1 : Depthwise Conv1");
 
@@ -285,6 +285,7 @@ void task_compute() {
 		scratch_bak[0] = 2;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+    PRINTF("Running conv on line 284\r\n");
 		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, false);
 #ifdef PRINT_DEBUG
 			for(uint16_t i = 0; i < 20; i++ ){
@@ -292,7 +293,7 @@ void task_compute() {
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	}else if(state == 2) {
 		PRINTF("\r\n Layer 2 : Horizontal Conv1");
 
@@ -300,12 +301,9 @@ void task_compute() {
 		zero(b2);
 		mat_t *w_ptr = &mat_conv1_wh;
 		mat_t *b_ptr = NULL;
-		scratch_bak[0] = 3;
-		write_to_gbuf((uint8_t *)(scratch_bak), 
-			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		uint16_t running_size=0;
 		for(uint16_t i = 0; i < 20; i++ ){
-			// PRINTF("\r\n Layer 2 : Depth %i", i);
+      LOOP_ITER(20); // PRINTF("\r\n Layer 2 : Depth %i", i);
 			mat_t w_slice;
 
 			w_slice = MAT_CONSTRAIN(w_ptr, running_size);
@@ -315,8 +313,13 @@ void task_compute() {
 			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
 			running_size += w_ptr->sparse.sizes[i];
 
+      PRINTF("Running conv on line 315\r\n");
 			conv_sparse( &w_slice, b_ptr, b1, b2, 0, true, i, false );
 		}
+		scratch_bak[0] = 3;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+    PRINTF("Done layer 2\r\n");
 #ifdef PRINT_DEBUG
 		 for(uint16_t i = 0; i < 20; i++ ){
 				PRINTF("====FILTER %i====\r\n", i);
@@ -324,7 +327,7 @@ void task_compute() {
 			}
 #endif
 
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 3) {
 		PRINTF("\r\n Layer 3 : Vertical Conv1");
 
@@ -337,6 +340,7 @@ void task_compute() {
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		uint16_t running_size=0;
 		for(uint16_t i = 0; i < 20; i++ ){
+      LOOP_ITER(20);
 			// PRINTF("\r\n Layer 3 : Depth %i", i);
 			mat_t w_slice;
 
@@ -346,6 +350,7 @@ void task_compute() {
 			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
 			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
 			running_size += w_ptr->sparse.sizes[i];
+      PRINTF("Running conv on line 348\r\n");
 			conv_sparse( &w_slice, b_ptr, b2, b1, 0, true, i, false );
 		}
 #ifdef PRINT_DEBUG
@@ -354,7 +359,7 @@ void task_compute() {
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 4) {
 		PRINTF("\r\n Layer 4 : RELU after Conv1");
 
@@ -369,7 +374,7 @@ void task_compute() {
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 5) {
 		PRINTF("\r\n Layer 5 : Max Pooling after Conv1");
 
@@ -385,7 +390,7 @@ void task_compute() {
 				MAT_DUMP(b2, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 6) {
 		PRINTF("\r\n Layer 6 : Depthwise Conv2");
 
@@ -396,6 +401,7 @@ void task_compute() {
 		scratch_bak[0] = 7;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+    PRINTF("Running conv on line 399\r\n");
 		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, false);
 #ifdef PRINT_DEBUG
 			for(uint16_t i = 0; i < 100; i++ ){
@@ -403,7 +409,7 @@ void task_compute() {
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	}else if(state == 7) {
 		PRINTF("\r\n Layer 7 : Horizontal Conv2");
 
@@ -411,11 +417,9 @@ void task_compute() {
 		zero(b2);
 		mat_t *w_ptr = &mat_conv2_wh;
 		mat_t *b_ptr = NULL;
-		scratch_bak[0] = 8;
-		write_to_gbuf((uint8_t *)(scratch_bak), 
-			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		uint16_t running_size=0;
 		for(uint16_t i = 0; i < 100; i++ ){
+      LOOP_ITER(100)
 			// PRINTF("\r\n Layer 7 : Depth %i", i);
 			mat_t w_slice;
 
@@ -424,15 +428,19 @@ void task_compute() {
 			w_slice.sparse.sizes = (w_ptr->sparse.sizes + i);
 			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
 			running_size += w_ptr->sparse.sizes[i];
+      PRINTF("Running conv on line 429\r\n");
 			conv_sparse( &w_slice, b_ptr, b1, b2, 0, true, i, false );
 		}
+		scratch_bak[0] = 8;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 #ifdef PRINT_DEBUG
 			for(uint16_t i = 0; i < 100; i++ ){
 				PRINTF("====FILTER %i====\r\n", i);
 				MAT_DUMP(b2, i);
 			 }
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 8) {
 		PRINTF("\r\n Layer 8 : Vertical Conv2");
 
@@ -440,11 +448,9 @@ void task_compute() {
 		zero(b1);
 		mat_t *w_ptr = &mat_conv2_wv;
 		mat_t *b_ptr = &mat_conv2_b;
-		scratch_bak[0] = 9;
-		write_to_gbuf((uint8_t *)(scratch_bak), 
-			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		uint16_t running_size=0;
 		for(uint16_t i = 0; i < 100; i++ ){
+      LOOP_ITER(100)
 			// PRINTF("\r\n Layer 8 : Depth %i", i);
 			mat_t w_slice;
 
@@ -454,15 +460,19 @@ void task_compute() {
 			w_slice.sparse.len_dims = w_ptr->sparse.len_dims - 1;
 			// PRINTF("(%i,%i,%i)\r\n", w_slice.dims[0], w_slice.len_dims, w_slice.sparse.len_dims);
 			running_size += w_ptr->sparse.sizes[i];
+      PRINTF("Running conv on line 461\r\n");
 			conv_sparse( &w_slice, b_ptr, b2, b1, 0, true, i, false );
 		}
+		scratch_bak[0] = 9;
+		write_to_gbuf((uint8_t *)(scratch_bak), 
+			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 #ifdef PRINT_DEBUG
 			for(uint16_t i = 0; i < 100; i++ ){
 				PRINTF("====FILTER %i====\r\n", i);
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 9) {
 		PRINTF("\r\n Layer 9 : RELU after Conv2");
 		scratch_bak[0] = 10;
@@ -475,7 +485,7 @@ void task_compute() {
 				MAT_DUMP(b1, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 10) {
 		PRINTF("\r\n Layer 10 : Max Pooling after Conv2");
 
@@ -490,7 +500,7 @@ void task_compute() {
 				MAT_DUMP(b2, i);
 			}
 #endif
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 11) {
 		MAT_RESHAPE(b2, 1, 1, 3500);
 #ifdef PRINT_DEBUG
@@ -505,8 +515,9 @@ void task_compute() {
 		scratch_bak[0] = 12;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+    PRINTF("Running conv on line 512\r\n");
 		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, true );
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 12) {
 		PRINTF("\r\n Layer 12 : Vertical FC1");
 
@@ -521,8 +532,9 @@ void task_compute() {
 		scratch_bak[0] = 13;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
+    PRINTF("Running conv on line 529\r\n");
 		conv_sparse( w_ptr, b_ptr, b1, b2, 0, false, 0, true);
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 13) {
 		MAT_RESHAPE(b2, 1, 1, 500);
 #ifdef PRINT_DEBUG
@@ -536,7 +548,7 @@ void task_compute() {
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
 		relu( b2, 0 );
-		transition_to(CUR_TASK);
+		TRANSITION_TO(task_compute);
 	} else if(state == 14) {
 #ifdef PRINT_DEBUG
 		MAT_DUMP(b2, 0);
@@ -553,6 +565,12 @@ void task_compute() {
 		conv_dense( w_ptr, b_ptr, b2, b1, 0 );
 		TRANSITION_TO(task_finish);
 	}
+#ifdef CAPY
+  while(1) {
+    PRINTF("Done!\r\n");
+    __delay_cycles(10000);
+  }
+#endif
 }
 
 __fram fixed max = 0;
@@ -561,6 +579,7 @@ void task_finish() {
 	fixed max = 0;
 	PRINTF("\r\n=====================");
 	for(uint16_t i = CUR_SCRATCH[0]; i < 2; i = ++CUR_SCRATCH[0]) {
+    LOOP_ITER(2);
 		fixed v = MAT_GET(b1, i, 0, 0);
 		if(v > max) {
 			predict = i;
@@ -581,15 +600,15 @@ void task_finish() {
 
 void task_exit() {
 	if ( predict == 0 ){
-#ifdef enable_debug        	
+#ifdef enable_debug
 		PRINTF("STATE 4: No Person in Image. Skipping the rest.\r\n");
 #endif
 		camaroptera_state = 0;
 	}
-	else
+	else {
 		camaroptera_state = camaroptera_next_task(2);
-	
-	P8OUT ^= BIT1; 
-	TRANSITION_TO(camaroptera_main);
+  }
+	P8OUT ^= BIT1;
+	TRANSITION_TO(task_camaroptera_main);
 }
 
