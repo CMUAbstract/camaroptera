@@ -21,9 +21,14 @@
 #include "headers_30x40/conv2.h"
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
+#include "event_headers_for_experiments/measure_fraction.h"
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
+extern uint8_t frame_interesting_status;
+
+uint16_t fp_track = 0;
+uint16_t fn_track = 0;
 
 void init();
 //#define PRINT_DEBUG
@@ -80,6 +85,21 @@ void init() {
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
 	
+	// Set as input
+	P4DIR &= ~BIT0;
+	P7DIR &= ~BIT4;
+	// Disable Pullup/downs
+	P4REN &= ~BIT0;
+	P7REN &= ~BIT4;
+	
+	P2OUT &= ~BIT3;
+	P2DIR |= BIT3;
+	
+	P5OUT &= ~(BIT5+BIT6);
+	P5DIR |= (BIT5+BIT6);
+	P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
+	P6DIR |= (BIT4+BIT5+BIT6+BIT7);
+
 	/*
 	P1DIR = 0x00;
   P2DIR = 0x00;   
@@ -252,8 +272,10 @@ __fram mat_t *b2 = &buf2;
 ////////////////////////////////////////////////////////////////////////////////
 void task_init() {
 
+#ifdef enable_debug        	
 	PRINTF("\r\n========================");
 	PRINTF("\r\nInit");
+#endif
 
 	TRANSITION_TO(task_compute);
 }
@@ -261,7 +283,9 @@ void task_init() {
 void task_compute() {
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {
+#ifdef enable_debug        	
 		PRINTF("====INPUT IMAGE====\r\n");
+#endif
 		MAT_RESHAPE(b1, 1, 120, 160);
 		mat_t *mat_input_ptr = &mat_input;
 		normalize( mat_input_ptr, b1 );
@@ -275,7 +299,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 1) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 1 : Depthwise Conv1");
+#endif
 
 		MAT_RESHAPE(b1, 20, 30, 40);
 		zero(b1);
@@ -293,7 +319,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	}else if(state == 2) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 2 : Horizontal Conv1");
+#endif
 
 		MAT_RESHAPE(b2, 20, 30, 36);
 		zero(b2);
@@ -325,7 +353,9 @@ void task_compute() {
 
 		transition_to(CUR_TASK);
 	} else if(state == 3) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 3 : Vertical Conv1");
+#endif
 
 		MAT_RESHAPE(b1, 20, 26, 36);
 		zero(b1);
@@ -355,7 +385,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 4) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 4 : RELU after Conv1");
+#endif
 
 		MAT_RESHAPE(b2, 20, 26, 36);
 		scratch_bak[0] = 5;
@@ -370,7 +402,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 5) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 5 : Max Pooling after Conv1");
+#endif
 
 		MAT_RESHAPE(b2, 20, 13, 18);
 		zero(b2);
@@ -386,7 +420,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 6) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 6 : Depthwise Conv2");
+#endif
 
 		MAT_RESHAPE(b1, 100, 13, 18);
 		zero(b1);
@@ -404,7 +440,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	}else if(state == 7) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 7 : Horizontal Conv2");
+#endif
 
 		MAT_RESHAPE(b2, 100, 13, 14);
 		zero(b2);
@@ -433,7 +471,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 8) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 8 : Vertical Conv2");
+#endif
 
 		MAT_RESHAPE(b1, 100, 9, 14);
 		zero(b1);
@@ -463,7 +503,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 9) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 9 : RELU after Conv2");
+#endif
 		scratch_bak[0] = 10;
 		write_to_gbuf((uint8_t *)(scratch_bak), 
 			(uint8_t *)(CUR_SCRATCH), sizeof(uint16_t));
@@ -476,7 +518,9 @@ void task_compute() {
 #endif
 		transition_to(CUR_TASK);
 	} else if(state == 10) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 10 : Max Pooling after Conv2");
+#endif
 
 		MAT_RESHAPE(b2, 100, 5, 7);
 		scratch_bak[0] = 11;
@@ -495,7 +539,9 @@ void task_compute() {
 #ifdef PRINT_DEBUG
 			MAT_DUMP(b2, 0);
 #endif
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 11 : Horizontal FC1");
+#endif
 
 		MAT_RESHAPE(b1, 100, 1, 1);
 		zero(b1);
@@ -507,7 +553,9 @@ void task_compute() {
 		conv_sparse( w_ptr, b_ptr, b2, b1, 0, false, 0, true );
 		transition_to(CUR_TASK);
 	} else if(state == 12) {
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 12 : Vertical FC1");
+#endif
 
 		MAT_RESHAPE(b1, 1, 1, 100);
 #ifdef PRINT_DEBUG
@@ -528,7 +576,9 @@ void task_compute() {
 			MAT_DUMP(b2, 0);
 #endif
 
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 13 : RELU after FC1");
+#endif
 
 		MAT_RESHAPE(b1, 500, 1);
 		scratch_bak[0] = 14;
@@ -540,7 +590,9 @@ void task_compute() {
 #ifdef PRINT_DEBUG
 		MAT_DUMP(b2, 0);
 #endif
+#ifdef enable_debug        	
 		PRINTF("\r\n Layer 14 : FC2");
+#endif
 
 		MAT_RESHAPE(b1, 2, 1, 1);
 		zero(b1);
@@ -565,8 +617,11 @@ void task_finish() {
 			predict = i;
 			max = v;
 		}
+#ifdef enable_debug        	
 		PRINTF("\r\n%u => %i", i, v);
+#endif
 	}
+#ifdef enable_debug        	
 	PRINTF("\r\n");
 	if(predict == 0)
 		PRINTF("PREDICTION => %u [No Person in Image]\r\n", predict);
@@ -574,11 +629,38 @@ void task_finish() {
 		PRINTF("PREDICTION => %u [Person in Image]\r\n", predict);
 	PRINTF("\r\n=====================");
 	PRINTF("\r\n=====================\r\n");
+#endif
 	//predict = array_for_dummy_dnn[index_for_dummy_dnn];
 	TRANSITION_TO(task_exit);
 }
 
 void task_exit() {
+
+#ifdef EXPERIMENT_MODE
+	if (frame_interesting_status){
+		if(false_negatives[fn_track]){
+			predict = 0;
+			PRINTF("--->>False Negative.\r\n");
+		}
+		else{
+			predict = 1;
+			PRINTF("--->>True Positive.\r\n");
+		}
+	}
+	else{
+		if(false_positives[fp_track]){
+			predict = 1;
+			PRINTF("--->>False Positive.\r\n");
+		}
+		else{
+			predict = 0;
+			PRINTF("--->>True Negative.\r\n");
+		}
+	}
+		
+#endif 
+
+
 	if ( predict == 0 ){
 #ifdef enable_debug        	
 		PRINTF("STATE 4: No Person in Image. Skipping the rest.\r\n");
@@ -587,8 +669,9 @@ void task_exit() {
 	}
 	else
 		camaroptera_state = camaroptera_next_task(2);
-	
-	P8OUT ^= BIT1; 
+
+	P5OUT &= ~BIT5; 		// Signal end 
+	P6OUT &= ~BIT5; 		// Running: Infer
 	TRANSITION_TO(camaroptera_main);
 }
 

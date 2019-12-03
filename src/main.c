@@ -27,7 +27,9 @@
 
 #define enable_debug
 //#define cont_power
+//#define print_diff
 //#define print_image
+//#define print_charging
 //#define print_packet
 //#define print_jpeg
 
@@ -85,7 +87,6 @@ __ro_hifram pixels = 0;
 
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint8_t frame_index = 0;
-__ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint16_t frame_track = 0;
 __ro_hifram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
@@ -100,12 +101,17 @@ __ro_hifram jpec_enc_t *e;
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
 extern uint8_t array_for_dummy_dnn[10];
 
+#ifdef EXPERIMENT_MODE
+__ro_hifram uint8_t image_capt_not_sent = 0;
+__ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
+#endif
+
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
 //__ro_hifram int8_t camaroptera_mode_3[5] = {3, 0, 0, 0, 0} ; 		// For testing only capture+jpeg
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
@@ -128,18 +134,24 @@ int camaroptera_main(void) {
 
 		case 0: 									// == CAPTURE IMAGE ==
 		
-			P8OUT |= BIT3; 
-		
+			P5OUT |= BIT6; 		// Running: capture
+			P5OUT |= BIT5; 		// Signal start
+
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			P8OUT ^= BIT1; 
 
 #ifdef enable_debug        	
-			PRINTF("Cap ready\n\rSTATE 0: Capturing a photo.\r\n");
+			PRINTF("STATE 0: Capturing a photo.\r\n");
 #endif
 
 			pixels = capture();
+
+#ifdef EXPERIMENT_MODE
+			frame_not_empty_status = P4IN & BIT0;
+			frame_interesting_status = P7IN & BIT4;
+#endif
+
 
 #ifdef print_image
 			PRINTF("Captured ---%i--- pixels\r\n", pixels);
@@ -150,17 +162,32 @@ int camaroptera_main(void) {
 #endif
 			PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
-			P8OUT ^= BIT1; 
+			
+			P5OUT &= ~BIT5; 		// Signal end 
+			P5OUT &= ~BIT6; 		// Running: capture
+			
 			break;
 	
 		case 1: 									// == DIFF ==
-			
-			P8OUT ^= BIT1; 
-			
+			P6OUT |= BIT4; 		// Running: Diff
+			P5OUT |= BIT5; 		// Signal start
+				
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
 #endif
-			// diff();
+
+#ifdef EXPERIMENT_MODE
+			diff();
+			if(frame_not_empty_status){ 	// Denotes an interesting scene
+				PRINTF("===>>Scene is interesting.\r\n");
+				camaroptera_state = camaroptera_next_task(1);
+				}
+			else{
+				PRINTF("===>>Scene is empty.\r\n");
+				camaroptera_state = 0;
+				}
+#else //EXPERIMENT_MODE
+
 			if(diff()){
 #ifdef enable_debug        	
 				PRINTF("Frame is different\r\n");
@@ -172,12 +199,16 @@ int camaroptera_main(void) {
 #endif
 				camaroptera_state = 0;
 			}
+#endif //EXPERIMENT_MODE
 			
-			P8OUT ^= BIT1; 
+			P5OUT &= ~BIT5; 		// Signal end 
+			P6OUT &= ~BIT4; 		// Running: Diff
 			
 			break;
 
 		case 2: 									// == DNN ==
+			P6OUT |= BIT5; 		// Running: Infer
+			P5OUT |= BIT5; 		// Signal start
 
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
@@ -193,6 +224,8 @@ int camaroptera_main(void) {
 			break;
 
 		case 3: 									// == COMPRESS ==
+			P6OUT |= BIT6; 		// Running: Compression
+			P5OUT |= BIT5; 		// Signal start
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
@@ -201,7 +234,6 @@ int camaroptera_main(void) {
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			P8OUT ^= BIT1; 
 
 			camaroptera_compression();
 
@@ -213,14 +245,22 @@ int camaroptera_main(void) {
 #endif
 			camaroptera_state = camaroptera_next_task(3);
 			
-			P8OUT ^= BIT1; 
+			P5OUT &= ~BIT5; 		// Signal end 
+			P6OUT &= ~BIT6; 		// Running: Compression
 			
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
 			
-			P8OUT ^= BIT1; 
+			P6OUT |= BIT7; 		// Running: Transmission
+#ifdef EXPERIMENT_MODE
+			if(frame_interesting_status) // tp_status
+				P2OUT |= BIT3;
+#endif // EXPERIMENT_MODE			
+			P5OUT |= BIT5; 		// Signal start
 			
+
+
 			charge_rate_sum = 0; 
 #ifdef enable_debug        	
 			PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
@@ -336,7 +376,11 @@ int camaroptera_main(void) {
 			//camaroptera_mode_select( charge_rate_sum );
 
 			camaroptera_state = camaroptera_next_task(4);
-			P8OUT ^= BIT1; 
+			
+			P5OUT &= ~BIT5; 		// Signal end 
+			P2OUT &= ~BIT3; 		// tp_status
+			P6OUT &= ~BIT7; 		// Running: Transmission
+			
 			P8OUT &= ~BIT3; 
 			break;
 		default:
@@ -370,46 +414,48 @@ float camaroptera_wait_for_charge(){
     ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
 
     // Configure Timer0_A3 to periodically trigger the ADC12
-		TA0CCR0 = 2048-1;                                       // PWM Period
+	TA0CCR0 = 2048-1;                                       // PWM Period
     TA0CCTL1 = OUTMOD_3;                                    // TACCR1 set/reset
     TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
     TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
 
-		__delay_cycles(10);
-		int16_t voltage_temp = ADC12MEM0;
-		//PRINTF("Capacitor Charge Value Before: %i\r\n", voltage_temp);
-  	
-		TA3CTL |= TACLR;
-		TA3CTL = TAIE | TASSEL__ACLK | MC__CONTINUOUS;
-		charge_timer_count = 0;
-		uint32_t timer_temp = 0;
-		//PRINTF("Timer Value Before: (HI)%u", timer_temp>>16);
-		//PRINTF("(LO)%u\r\n", timer_temp & 0xFFFF);
+	__delay_cycles(10);
+	int16_t voltage_temp = ADC12MEM0;
+	
+	TA3CTL |= TACLR;
+	TA3CTL = TAIE | TASSEL__ACLK | MC__CONTINUOUS;
+	charge_timer_count = 0;
+	uint32_t timer_temp = 0;
 
 #ifdef enable_debug
-    PRINTF("W8ing for cap to be charged. Going To Sleep\n\r");
+	PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
 #endif
 
-    __bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
+	__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
 
-		timer_temp = (charge_timer_count*65536) + TA3R;
-		//PRINTF("CHARGE_TIMER_COUNT: %u\r\n", charge_timer_count);		
-		PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
-		PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
-		//PRINTF("RAW: %u\r\n", TA3R);
-		
-		voltage_temp = ADC12MEM0 - voltage_temp;
-		PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
+	timer_temp = (charge_timer_count*65536) + TA3R;
+
+#ifdef print_charging
+	PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
+	PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
+#endif
+	
+	voltage_temp = ADC12MEM0 - voltage_temp;
+#ifdef print_charging
+	PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
+#endif
     TA3CTL |= TACLR + MC__STOP;
     TA0CTL |= TACLR + MC__STOP;
     ADC12CTL0 = ~(ADC12ON);
 
-		int32_t temp = voltage_temp * 10;
-		timer_temp = timer_temp / 1000;
-		float charge_rate = temp / timer_temp;
-		PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
-		__delay_cycles(10);
-		return charge_rate;
+	int32_t temp = voltage_temp * 10;
+	timer_temp = timer_temp / 1000;
+	float charge_rate = temp / timer_temp;
+#ifdef print_charging
+	PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
+#endif
+	__delay_cycles(10);
+	return charge_rate;
 }
 
 void OnTxDone() {
@@ -435,7 +481,7 @@ void camaroptera_init_lora() {
 
 void camaroptera_compression(){
 
-#ifdef enable_debug        	
+#ifdef print_jpeg	
 	PRINTF("Starting JPEG compression\n\r");
 #endif
 
@@ -446,7 +492,7 @@ void camaroptera_compression(){
 	pixels = len;
  
 #ifdef enable_debug
-	PRINTF("Done. New img size: -- %u -- bytes.\r\n", pixels);
+	PRINTF("Done Compression. New img size: -- %u -- bytes.\r\n", pixels);
 #endif
 
 }
@@ -495,7 +541,7 @@ uint8_t diff(){
 														  
 	memcpy(old_frame, frame, sizeof(old_frame));
 																  
-#ifdef enable_debug
+#ifdef print_diff
 	PRINTF("DIFFERENT PIXELS: %u\r\n", j);
 #endif
 
