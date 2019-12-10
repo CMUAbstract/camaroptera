@@ -68,7 +68,7 @@
 #define PACKET_SIZE												255
 #define HEADER_SIZE												5
 
-#define High_Threshold 0xFF0         	    // ~2.95V
+// #define High_Threshold 0xFF0         	    // ~2.95V
 
 //Jpeg quality factor
 #define JQ 50
@@ -79,8 +79,13 @@
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
+__ro_hifram uint16_t High_Threshold = 0x0FF0; 	// ~2.95V
+
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
+extern uint16_t fp_track;
+extern uint16_t fn_track;
+
 __ro_hifram uint8_t old_frame [19200]= {0};
 
 __ro_hifram pixels = 0;
@@ -256,6 +261,7 @@ int camaroptera_main(void) {
 #ifdef EXPERIMENT_MODE
 			if(frame_interesting_status) // tp_status
 				P2OUT |= BIT3;
+			pixels = 1800;
 #endif // EXPERIMENT_MODE			
 			P5OUT |= BIT5; 		// Signal start
 			
@@ -393,43 +399,46 @@ int camaroptera_main(void) {
 } // End main()
 
 float camaroptera_wait_for_charge(){
-
-	ADC12IFGR2 &= ~ADC12HIIFG;      // Clear interrupt flag
-
-    P1SEL0 |= BIT5;                                 //P1.0 ADC mode
-    P1SEL1 |= BIT5;                                 //
-
-    //Configure ADC
-    ADC12CTL0 = ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
-    ADC12CTL1 = ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2;      // Use TA0.1 to trigger, and repeated-single-channel
-
-#ifdef OLD_PINS
-    ADC12MCTL0 = ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
-#else
-    ADC12MCTL0 = ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
-#endif
-
-    ADC12HI = High_Threshold;                               // Enable ADC interrupt
-    ADC12IER2 = ADC12HIIE;                                  // Enable ADC threshold interrupt
-    ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
-
-    // Configure Timer0_A3 to periodically trigger the ADC12
-	TA0CCR0 = 2048-1;                                       // PWM Period
-    TA0CCTL1 = OUTMOD_3;                                    // TACCR1 set/reset
-    TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
-    TA0CTL = TASSEL__ACLK | MC__UP;                         // ACLK, up mode
-
-	__delay_cycles(10);
-	int16_t voltage_temp = ADC12MEM0;
-	
-	TA3CTL |= TACLR;
-	TA3CTL = TAIE | TASSEL__ACLK | MC__CONTINUOUS;
-	charge_timer_count = 0;
-	uint32_t timer_temp = 0;
-
 #ifdef enable_debug
 	PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
 #endif
+	
+#ifdef OLD_PINS
+    P2SEL0 |= BIT4;                                 //P1.0 ADC mode
+    P2SEL1 |= BIT4;                                 //
+#else
+    P1SEL0 |= BIT5;                                 //P1.0 ADC mode
+    P1SEL1 |= BIT5;                                 //
+#endif
+
+    //Configure ADC
+    ADC12CTL0 |= ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
+    ADC12CTL1 |= ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2 | ADC12SSEL_1;      // Use TA0.1 to trigger, and repeated-single-channel
+
+#ifdef OLD_PINS
+    ADC12MCTL0 |= ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
+#else
+    ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
+#endif
+
+    ADC12HI = High_Threshold;                               // Enable ADC interrupt
+    ADC12IER2 |= ADC12HIIE;                                  // Enable ADC threshold interrupt
+	ADC12IER0 |= ADC12IE0;
+    ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
+	
+    // Configure Timer0_A3 to periodically trigger the ADC12
+	TA0CCR0 = 2048;                                       // PWM Period
+    TA0CCTL1 |= OUTMOD_3;                                    // TACCR1 set/reset
+    TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
+    TA0CTL |= TASSEL__ACLK | MC__UP;                         // ACLK, up mode
+
+	__delay_cycles(10);
+	int16_t voltage_temp = ADC12MEM0;
+		
+	TA3CTL |= TACLR;
+	TA3CTL |= TAIE | TASSEL__ACLK | MC__CONTINUOUS;
+	charge_timer_count = 0;
+	uint32_t timer_temp = 0;
 
 	__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
 
@@ -444,10 +453,16 @@ float camaroptera_wait_for_charge(){
 #ifdef print_charging
 	PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
 #endif
+	
+	TA3CTL &= ~TAIE;
     TA3CTL |= TACLR + MC__STOP;
+	
+	TA0CTL &= ~TAIE;
     TA0CTL |= TACLR + MC__STOP;
-    ADC12CTL0 = ~(ADC12ON);
-
+    
+	ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
+	ADC12IER2 &= ~ADC12HIIE;
+	ADC12IER0 &= ~ADC12IE0;
 	int32_t temp = voltage_temp * 10;
 	timer_temp = timer_temp / 1000;
 	float charge_rate = temp / timer_temp;
@@ -570,13 +585,13 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
     switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
     {
         case ADC12IV__ADC12HIIFG:  		    // Vector  6:  ADC12BHI
-        ADC12IER2 = ~(ADC12HIIE);
-       	__bic_SR_register_on_exit(LPM3_bits | GIE);
+	        ADC12IER2 &= ~(ADC12HIIE);
+			PRINTF("HIIFG\n\r", ADC12MEM0);
+    		__bic_SR_register_on_exit(LPM3_bits | GIE);
         	break;
         case ADC12IV__ADC12LOIFG:  break;   // Vector  8:  ADC12BLO
         case ADC12IV__ADC12INIFG:  break;   // Vector 10:  ADC12BIN
         case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0 Interrupt
-			//PRINTF("ADC: %i\n\r", ADC12MEM0);
             break;
         default: break;
     }
@@ -604,5 +619,31 @@ void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
 		P8IE &= ~BIT0;
 		P8IFG &= ~BIT0;
 		__bic_SR_register_on_exit(LPM4_bits+GIE);
+}
+
+
+void __attribute__ ((interrupt(PORT5_VECTOR))) port_5 (void) {
+    switch(__even_in_range(P5IV, P5IV__P5IFG7))
+    {
+        case P5IV__NONE:    break;          // Vector  0:  No interrupt
+        case P5IV__P5IFG0:  break;          // Vector  2:  P7.0 interrupt flag
+        case P5IV__P5IFG1:                  // Vector  4:  P7.1 interrupt flag
+            break;
+        case P5IV__P5IFG2:  		    // Vector  6:  P7.2 interrupt flag
+            break;
+        case P5IV__P5IFG3:  		    // Vector  8:  P7.3 interrupt flag
+            break;
+        case P5IV__P5IFG4:  	            // Vector  10:  P7.4 interrupt flag
+			break;
+        case P5IV__P5IFG5:  break;          // Vector  12:  P7.5 interrupt flag
+        case P5IV__P5IFG6:  break;          // Vector  14:  P7.6 interrupt flag
+        case P5IV__P5IFG7:  // Vector  16:  P7.7 interrupt flag
+			P5IFG &= ~BIT7; 
+			fp_track = 0;
+			fn_track = 0;
+			PRINTF("==== Reset fp/fn tracks\r\n");
+			break;
+        default: break;
+    }
 }
 

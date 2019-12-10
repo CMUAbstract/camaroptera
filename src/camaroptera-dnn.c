@@ -27,8 +27,8 @@ extern uint8_t frame[];
 extern uint8_t camaroptera_state;
 extern uint8_t frame_interesting_status;
 
-uint16_t fp_track = 0;
-uint16_t fn_track = 0;
+__ro_hifram uint16_t fp_track = 0;
+__ro_hifram uint16_t fn_track = 0;
 
 void init();
 //#define PRINT_DEBUG
@@ -87,11 +87,18 @@ void init() {
 	
 	// Set as input
 	P4DIR &= ~BIT0;
-	P7DIR &= ~BIT4;
+	P7DIR &= ~(BIT4);
+
 	// Disable Pullup/downs
 	P4REN &= ~BIT0;
 	P7REN &= ~BIT4;
 	
+	P5DIR &= ~BIT7;
+	P5REN |= BIT7;
+	P5OUT &= ~BIT7;
+	P5IES &= ~BIT7;
+	P5IE |= BIT7;
+
 	P2OUT &= ~BIT3;
 	P2DIR |= BIT3;
 	
@@ -637,6 +644,7 @@ void task_finish() {
 void task_exit() {
 
 #ifdef EXPERIMENT_MODE
+	PRINTF("fp_track:%u  | fn_track:%u\r\n", fp_track, fn_track);
 	if (frame_interesting_status){
 		if(false_negatives[fn_track]){
 			predict = 0;
@@ -646,6 +654,7 @@ void task_exit() {
 			predict = 1;
 			PRINTF("--->>True Positive.\r\n");
 		}
+		fn_track ++;
 	}
 	else{
 		if(false_positives[fp_track]){
@@ -656,6 +665,7 @@ void task_exit() {
 			predict = 0;
 			PRINTF("--->>True Negative.\r\n");
 		}
+		fp_track ++;
 	}
 		
 #endif 
