@@ -26,7 +26,7 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-//#define cont_power
+#define cont_power
 //#define print_diff
 //#define print_image
 //#define print_charging
@@ -68,7 +68,6 @@
 #define PACKET_SIZE												255
 #define HEADER_SIZE												5
 
-// #define High_Threshold 0xFF0         	    // ~2.95V
 
 //Jpeg quality factor
 #define JQ 50
@@ -79,7 +78,7 @@
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
-__ro_hifram uint16_t High_Threshold = 0x0FF0; 	// ~2.95V
+__ro_hifram uint16_t High_Threshold = 0x0FF0; 	// ~3.004V
 
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
@@ -121,6 +120,8 @@ __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
 __ro_hifram volatile uint8_t charge_timer_count;
+__ro_hifram volatile uint16_t adc_reading;
+__ro_hifram uint8_t adc_flag;
 
 void camaroptera_compression();
 void camaroptera_init_lora();
@@ -165,7 +166,7 @@ int camaroptera_main(void) {
 				PRINTF("%u ", frame[i]);
 			PRINTF("\r\nEnd frame\r\n");
 #endif
-			PRINTF("Done Capturing\r\n");
+			//PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
 			
 			P5OUT &= ~BIT5; 		// Signal end 
@@ -410,10 +411,14 @@ float camaroptera_wait_for_charge(){
     P1SEL0 |= BIT5;                                 //P1.0 ADC mode
     P1SEL1 |= BIT5;                                 //
 #endif
+	adc_flag = 0;
+		
+	// ======== Configure ADC ========
+	// Take single sample when timer triggers and compare with threshold
 
-    //Configure ADC
-    ADC12CTL0 |= ADC12SHT0_2 | ADC12ON;                      // Sampling time, S&H=4, ADC12 on
-    ADC12CTL1 |= ADC12SHP | ADC12SHS_1 | ADC12CONSEQ_2 | ADC12SSEL_1;      // Use TA0.1 to trigger, and repeated-single-channel
+    ADC12CTL0 &= ~ADC12ENC;  				// Disable conversion before configuring
+	ADC12CTL0 |= ADC12SHT0_2 | ADC12ON; 	// Sampling time, S&H=16, ADC12 ON
+    ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0 ;      // Use ADC12SC to trigger and single-channel
 
 #ifdef OLD_PINS
     ADC12MCTL0 |= ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
@@ -421,56 +426,75 @@ float camaroptera_wait_for_charge(){
     ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
 #endif
 
-    ADC12HI = High_Threshold;                               // Enable ADC interrupt
-    ADC12IER2 |= ADC12HIIE;                                  // Enable ADC threshold interrupt
-	ADC12IER0 |= ADC12IE0;
-    ADC12CTL0 |= ADC12ENC | ADC12SC;                        // Start sampling/conversion
+   	ADC12IER0 |= ADC12IE0;
+	ADC12CTL0 |= (ADC12ENC + ADC12SC);                        // Start sampling/conversion
 	
-    // Configure Timer0_A3 to periodically trigger the ADC12
-	TA0CCR0 = 2048;                                       // PWM Period
-    TA0CCTL1 |= OUTMOD_3;                                    // TACCR1 set/reset
-    TA0CCR1 = 2047;                                         // TACCR1 PWM Duty Cycle
-    TA0CTL |= TASSEL__ACLK | MC__UP;                         // ACLK, up mode
-
-	__delay_cycles(10);
-	int16_t voltage_temp = ADC12MEM0;
-		
-	TA3CTL |= TACLR;
-	TA3CTL |= TAIE | TASSEL__ACLK | MC__CONTINUOUS;
-	charge_timer_count = 0;
-	uint32_t timer_temp = 0;
-
+	// Do a single conversion before starting
 	__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
+	ADC12CTL0 &= ~ADC12ENC;
+	PRINTF("Done first adc read\r\n");
+	
+	if( adc_reading >= High_Threshold ){ 		// Cap fully charged already
+		ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
+		ADC12IER0 &= ~ADC12IE0;
+		return 0;
+	}
+	else{ 										// Cap not fully charged
+		PRINTF("Timing charging\r\n");
+	    
+   		uint16_t initial_voltage = adc_reading;
+		uint16_t voltage_temp;	
 
-	timer_temp = (charge_timer_count*65536) + TA3R;
+		ADC12IER0 &= ~ADC12IE0;
+		ADC12HI = High_Threshold;                               // Enable ADC interrupt
+    	ADC12IER2 &= ~ADC12HIIE;                                  // Enable ADC threshold interrupt
+	
+		// ========= Configure Timer =======
+		// Timer = 205 = ~50ms
+		
+		TA0CCTL0 |= TACLR;
+		TA0CCR0 = 205; 
+		TA0CCTL0 |= CCIE;
+		TA0CTL |= TASSEL__ACLK + ID__8 + MC__UP; 	// ACLK = 32768kHz, ID=8 => 1 tick = 244.14us
+
+		charge_timer_count = 0;
+		
+		P5OUT &= ~BIT0;
+		// Wake from this only on ADC12HIIFG
+		__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
+		
+		PRINTF("Done charging\r\n");
+
+		uint32_t timer_temp = 0;
+		timer_temp = (charge_timer_count*TA0CCR0) + TA0R;
+		
+		TA0CCTL0 &= ~CCIE;
+		TA0CTL &= ~TAIE;
+		TA0CTL |= TACLR;
+		TA0CTL |= MC__STOP;
+		ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
+		ADC12IER2 &= ~ADC12HIIE;
+		ADC12IER0 &= ~ADC12IE0;
 
 #ifdef print_charging
-	PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
-	PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
+		PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
+		PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
 #endif
-	
-	voltage_temp = ADC12MEM0 - voltage_temp;
+		
+		voltage_temp = adc_reading - initial_voltage;
+
 #ifdef print_charging
-	PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
+		PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
 #endif
 	
-	TA3CTL &= ~TAIE;
-    TA3CTL |= TACLR + MC__STOP;
-	
-	TA0CTL &= ~TAIE;
-    TA0CTL |= TACLR + MC__STOP;
-    
-	ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
-	ADC12IER2 &= ~ADC12HIIE;
-	ADC12IER0 &= ~ADC12IE0;
-	int32_t temp = voltage_temp * 10;
-	timer_temp = timer_temp / 1000;
-	float charge_rate = temp / timer_temp;
+		int32_t temp = voltage_temp * 10;
+		timer_temp = timer_temp / 1000;
+		float charge_rate = temp / timer_temp;
 #ifdef print_charging
-	PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
+		PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
 #endif
-	__delay_cycles(10);
-	return charge_rate;
+		return charge_rate;
+	}
 }
 
 void OnTxDone() {
@@ -580,45 +604,55 @@ void camaroptera_wait_for_interrupt(){
 
 	}
 
+// ============= ISR Routines
+
+void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
+	// Triggered every 50ms
+	
+	TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag
+	charge_timer_count++; 			// Increment total charging time counter
+		
+	ADC12IFGR0 &= ~ADC12IFG0;
+	ADC12CTL0 |= (ADC12ENC + ADC12SC); 			// Trigger ADC conversion
+	//P5OUT |= BIT0;
+	while(!(ADC12IFGR0 & ADC12IFG0)); 			// Wait till conversion over	
+	//P5OUT &= ~BIT0;
+	adc_reading = ADC12MEM0; 					// Read ADC value
+	ADC12CTL0 &= ~ADC12ENC; 					// Disable ADC
+	if(adc_reading >= High_Threshold) 			// Check if charged
+		__bic_SR_register_on_exit(LPM3_bits | GIE);
+		
+}
+
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
 
     switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
     {
         case ADC12IV__ADC12HIIFG:  		    // Vector  6:  ADC12BHI
-	        ADC12IER2 &= ~(ADC12HIIE);
-			PRINTF("HIIFG\n\r", ADC12MEM0);
-    		__bic_SR_register_on_exit(LPM3_bits | GIE);
+			ADC12IFGR2 &= ~ADC12HIIFG;
+			adc_reading = ADC12MEM0;
+			__bic_SR_register_on_exit(LPM3_bits | GIE);
         	break;
         case ADC12IV__ADC12LOIFG:  break;   // Vector  8:  ADC12BLO
         case ADC12IV__ADC12INIFG:  break;   // Vector 10:  ADC12BIN
         case ADC12IV__ADC12IFG0:            // Vector 12:  ADC12MEM0 Interrupt
+	        ADC12IFGR0 &= ~(ADC12IFG0);
+			adc_reading = ADC12MEM0;
+			PRINTF("===%u\r\n", adc_flag);
+			if(!adc_flag){
+				adc_flag = 1;
+				__bic_SR_register_on_exit(LPM3_bits | GIE);
+				}
             break;
         default: break;
     }
 }
 
-void __attribute__ ((interrupt(TIMER3_A1_VECTOR))) Timer3_A1_ISR (void){
-	switch(__even_in_range(TA3IV, TAIV__TAIFG)){
-		case TAIV__NONE:   break;           // No interrupt
-		case TAIV__TACCR1: break;           // CCR1 not used
-		case TAIV__TACCR2: break; 				  // CCR2 not used
-		case TAIV__TACCR3: break;           // reserved
-		case TAIV__TACCR4: break;           // reserved
-		case TAIV__TACCR5: break;           // reserved
-		case TAIV__TACCR6: break;           // reserved
-		case TAIV__TAIFG:                   // overflow
-				charge_timer_count ++;
-				TA3CTL &= ~TAIFG;
-				break;
-		default: 
-				break;
-	}
-}
 
 void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
 		P8IE &= ~BIT0;
 		P8IFG &= ~BIT0;
-		__bic_SR_register_on_exit(LPM4_bits+GIE);
+		//__bic_SR_register_on_exit(LPM4_bits+GIE);
 }
 
 

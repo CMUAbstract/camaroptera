@@ -107,6 +107,8 @@ void init() {
 	P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
 	P6DIR |= (BIT4+BIT5+BIT6+BIT7);
 
+	P5OUT &= ~(BIT1+BIT0);
+	P5DIR |= BIT1 + BIT0;
 	/*
 	P1DIR = 0x00;
   P2DIR = 0x00;   
