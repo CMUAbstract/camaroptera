@@ -26,7 +26,7 @@
 #include "camaroptera-dnn.h"
 
 #define enable_debug
-#define cont_power
+//#define cont_power
 //#define print_diff
 //#define print_image
 //#define print_charging
@@ -78,7 +78,7 @@
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
-__ro_hifram uint16_t High_Threshold = 0x0FF0; 	// ~3.004V
+__ro_hifram uint16_t High_Threshold = 0x0FFA; 	// ~3.004V
 
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
@@ -111,16 +111,23 @@ __ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
 #endif
 
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
+// [0] - Capture Image
+// [1] - Diff
+// [2] - Infer
+// [3] - Compress
+// [4] - Send Packet
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
-//__ro_hifram int8_t camaroptera_mode_3[5] = {3, 0, 0, 0, 0} ; 		// For testing only capture+jpeg
+//__ro_hifram int8_t camaroptera_mode_3[5] = {1, 0, 0, 0, 0} ; 		// For testing only capture+diff
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
 __ro_hifram volatile uint8_t charge_timer_count;
 __ro_hifram volatile uint16_t adc_reading;
+__ro_hifram volatile uint8_t crash_check_flag;
+__ro_hifram volatile uint8_t crash_flag;
 __ro_hifram uint8_t adc_flag;
 
 void camaroptera_compression();
@@ -143,15 +150,14 @@ int camaroptera_main(void) {
 			P5OUT |= BIT6; 		// Running: capture
 			P5OUT |= BIT5; 		// Signal start
 
-#ifndef cont_power
-			camaroptera_wait_for_charge(); 			//Wait to charge up 
-#endif
 
 #ifdef enable_debug        	
 			PRINTF("STATE 0: Capturing a photo.\r\n");
 #endif
 
-			pixels = capture();
+			pixels = 0;
+			while(pixels == 0)
+				pixels = capture();
 
 #ifdef EXPERIMENT_MODE
 			frame_not_empty_status = P4IN & BIT0;
@@ -169,6 +175,9 @@ int camaroptera_main(void) {
 			//PRINTF("Done Capturing\r\n");
 			camaroptera_state = camaroptera_next_task(0);
 			
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+#endif
 			P5OUT &= ~BIT5; 		// Signal end 
 			P5OUT &= ~BIT6; 		// Running: capture
 			
@@ -206,6 +215,10 @@ int camaroptera_main(void) {
 				camaroptera_state = 0;
 			}
 #endif //EXPERIMENT_MODE
+
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+#endif
 			
 			P5OUT &= ~BIT5; 		// Signal end 
 			P6OUT &= ~BIT4; 		// Running: Diff
@@ -219,9 +232,6 @@ int camaroptera_main(void) {
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
 #endif
-#ifndef cont_power
-			camaroptera_wait_for_charge(); 			//Wait to charge up 
-#endif
 			P8OUT ^= BIT1; 
 
 			
@@ -230,6 +240,7 @@ int camaroptera_main(void) {
 			break;
 
 		case 3: 									// == COMPRESS ==
+			
 			P6OUT |= BIT6; 		// Running: Compression
 			P5OUT |= BIT5; 		// Signal start
 			
@@ -237,9 +248,6 @@ int camaroptera_main(void) {
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
 #endif
 
-#ifndef cont_power
-			camaroptera_wait_for_charge(); 			//Wait to charge up 
-#endif
 
 			camaroptera_compression();
 
@@ -251,6 +259,9 @@ int camaroptera_main(void) {
 #endif
 			camaroptera_state = camaroptera_next_task(3);
 			
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+#endif
 			P5OUT &= ~BIT5; 		// Signal end 
 			P6OUT &= ~BIT6; 		// Running: Compression
 			
@@ -262,7 +273,7 @@ int camaroptera_main(void) {
 #ifdef EXPERIMENT_MODE
 			if(frame_interesting_status) // tp_status
 				P2OUT |= BIT3;
-			pixels = 1800;
+			//pixels = 1800;
 #endif // EXPERIMENT_MODE			
 			P5OUT |= BIT5; 		// Signal start
 			
@@ -314,16 +325,12 @@ int camaroptera_main(void) {
 				PRINTF("\r\nEND PACKET\r\n");
 #endif
 				
-#ifndef cont_power
-				//Wait to charge up
-				charge_rate_sum += camaroptera_wait_for_charge();
-#else
-				__delay_cycles(80000000);
-#endif
 
 #ifdef enable_debug        	
 				PRINTF("Cap ready\n\r");
 #endif  
+				
+				spi_init();
 
 #ifdef OLD_PINS
 				P4DIR |= BIT7;
@@ -333,7 +340,6 @@ int camaroptera_main(void) {
 				P4OUT |= BIT4;
 #endif
 
-				spi_init();
 				camaroptera_init_lora();
 
 				if( i == packet_count - 1){
@@ -368,6 +374,13 @@ int camaroptera_main(void) {
 				P4OUT &= ~BIT1;
 				P4OUT &= ~BIT2;
 				P4OUT &= ~BIT4;
+#endif
+
+#ifndef cont_power
+				//Wait to charge up
+				charge_rate_sum += camaroptera_wait_for_charge();
+#else
+				__delay_cycles(80000000);
 #endif
 				P8OUT ^= BIT2;
 				}  // End for i
@@ -411,7 +424,6 @@ float camaroptera_wait_for_charge(){
     P1SEL0 |= BIT5;                                 //P1.0 ADC mode
     P1SEL1 |= BIT5;                                 //
 #endif
-	adc_flag = 0;
 		
 	// ======== Configure ADC ========
 	// Take single sample when timer triggers and compare with threshold
@@ -425,22 +437,25 @@ float camaroptera_wait_for_charge(){
 #else
     ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
 #endif
-
+	
+	/*
    	ADC12IER0 |= ADC12IE0;
 	ADC12CTL0 |= (ADC12ENC + ADC12SC);                        // Start sampling/conversion
 	
 	// Do a single conversion before starting
 	__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
 	ADC12CTL0 &= ~ADC12ENC;
-	PRINTF("Done first adc read\r\n");
+	//PRINTF("Done first adc read\r\n");
 	
+
 	if( adc_reading >= High_Threshold ){ 		// Cap fully charged already
+		
 		ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
 		ADC12IER0 &= ~ADC12IE0;
 		return 0;
 	}
 	else{ 										// Cap not fully charged
-		PRINTF("Timing charging\r\n");
+	*/ //PRINTF("Timing charging\r\n");
 	    
    		uint16_t initial_voltage = adc_reading;
 		uint16_t voltage_temp;	
@@ -452,18 +467,18 @@ float camaroptera_wait_for_charge(){
 		// ========= Configure Timer =======
 		// Timer = 205 = ~50ms
 		
-		TA0CCTL0 |= TACLR;
-		TA0CCR0 = 205; 
+		TA0CTL |= TACLR;
+		TA0CCR0 = 307; 
 		TA0CCTL0 |= CCIE;
 		TA0CTL |= TASSEL__ACLK + ID__8 + MC__UP; 	// ACLK = 32768kHz, ID=8 => 1 tick = 244.14us
 
 		charge_timer_count = 0;
 		
-		P5OUT &= ~BIT0;
+		adc_flag = 1;
 		// Wake from this only on ADC12HIIFG
 		__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
 		
-		PRINTF("Done charging\r\n");
+		//PRINTF("Done charging\r\n");
 
 		uint32_t timer_temp = 0;
 		timer_temp = (charge_timer_count*TA0CCR0) + TA0R;
@@ -494,7 +509,7 @@ float camaroptera_wait_for_charge(){
 		PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
 #endif
 		return charge_rate;
-	}
+	// }
 }
 
 void OnTxDone() {
@@ -607,23 +622,43 @@ void camaroptera_wait_for_interrupt(){
 // ============= ISR Routines
 
 void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
-	// Triggered every 50ms
+	// Triggered every 75ms
+	P7OUT |= BIT2;
+	P7OUT &= ~BIT2;
 	
 	TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag
 	charge_timer_count++; 			// Increment total charging time counter
 		
-	ADC12IFGR0 &= ~ADC12IFG0;
-	ADC12CTL0 |= (ADC12ENC + ADC12SC); 			// Trigger ADC conversion
-	//P5OUT |= BIT0;
-	while(!(ADC12IFGR0 & ADC12IFG0)); 			// Wait till conversion over	
-	//P5OUT &= ~BIT0;
-	adc_reading = ADC12MEM0; 					// Read ADC value
-	ADC12CTL0 &= ~ADC12ENC; 					// Disable ADC
-	if(adc_reading >= High_Threshold) 			// Check if charged
-		__bic_SR_register_on_exit(LPM3_bits | GIE);
-		
-}
+	// If called from cap charging routine
+	if(adc_flag){
+		ADC12IFGR0 &= ~ADC12IFG0;
+		ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0 ;      // Use ADC12SC to trigger and single-channel
+		ADC12CTL0 |= (ADC12ON + ADC12ENC + ADC12SC); 			// Trigger ADC conversion
+		while(!(ADC12IFGR0 & ADC12IFG0)); 			// Wait till conversion over	
+		adc_reading = ADC12MEM0; 					// Read ADC value
+		ADC12CTL0 &= ~ADC12ENC; 					// Disable ADC
 
+		
+		if(adc_reading >= High_Threshold){ 			// Check if charged
+			TA0CCTL0 &= ~CCIE;
+			TA0CTL &= ~TAIE;	
+			__bic_SR_register_on_exit(LPM3_bits | GIE);
+		}
+	}	
+	else if(crash_check_flag){
+		// Triggered every 700ms
+		
+		P2OUT |= BIT5;
+		P2OUT &= ~BIT5;
+		
+		TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag		
+		crash_flag = 1;
+		TA0CCTL0 &= ~CCIE;
+		TA0CTL &= ~TAIE;	
+		__bic_SR_register_on_exit(LPM0_bits | GIE);
+	}	
+}
+/*
 void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
 
     switch(__even_in_range(ADC12IV, ADC12IV__ADC12RDYIFG))
@@ -647,7 +682,7 @@ void __attribute__ ((interrupt(ADC12_B_VECTOR))) ADC12ISR (void){
         default: break;
     }
 }
-
+*/
 
 void __attribute__ ((interrupt(PORT8_VECTOR))) port_8 (void) {
 		P8IE &= ~BIT0;
@@ -673,6 +708,7 @@ void __attribute__ ((interrupt(PORT5_VECTOR))) port_5 (void) {
         case P5IV__P5IFG6:  break;          // Vector  14:  P7.6 interrupt flag
         case P5IV__P5IFG7:  // Vector  16:  P7.7 interrupt flag
 			P5IFG &= ~BIT7; 
+				
 			fp_track = 0;
 			fn_track = 0;
 			PRINTF("==== Reset fp/fn tracks\r\n");

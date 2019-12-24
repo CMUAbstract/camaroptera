@@ -14,7 +14,6 @@
 #include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
-
 #include "camaroptera-dnn.h"
 #include "lenet.h"
 #include "headers_30x40/conv1.h"
@@ -26,12 +25,15 @@
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
 extern uint8_t frame_interesting_status;
+extern float camaroptera_wait_for_charge(); 
+extern void hm01b0_deinit();
 
 __ro_hifram uint16_t fp_track = 0;
 __ro_hifram uint16_t fn_track = 0;
 
 void init();
 //#define PRINT_DEBUG
+//#define cont_power
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Alapaca Shim///////////////////////////////////
@@ -82,6 +84,10 @@ void init() {
 
 	PRINTF(".%u.\r\n", curctx->task->idx);
 	
+	P2SEL0 |= BIT0;
+	P2SEL1 |= BIT0;
+	P2DIR |= BIT0;
+	
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
 	
@@ -107,18 +113,12 @@ void init() {
 	P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
 	P6DIR |= (BIT4+BIT5+BIT6+BIT7);
 
-	P5OUT &= ~(BIT1+BIT0);
-	P5DIR |= BIT1 + BIT0;
-	/*
-	P1DIR = 0x00;
-  P2DIR = 0x00;   
-  P3DIR = 0x00;   
-  P4DIR = 0x00;   
-  P5DIR = 0x00;
-  P6DIR = 0x00;
-  P7DIR = 0x00;   
-  P8DIR = 0x00;   
-	*/
+	P2OUT &= ~(BIT5+BIT6);
+	P2DIR |= BIT5 + BIT6;
+
+	P7OUT &= ~(BIT2+BIT7);
+	P7DIR |= (BIT2+BIT7);
+	hm01b0_deinit();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -682,6 +682,9 @@ void task_exit() {
 	else
 		camaroptera_state = camaroptera_next_task(2);
 
+#ifndef cont_power
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
+#endif
 	P5OUT &= ~BIT5; 		// Signal end 
 	P6OUT &= ~BIT5; 		// Running: Infer
 	TRANSITION_TO(camaroptera_main);
