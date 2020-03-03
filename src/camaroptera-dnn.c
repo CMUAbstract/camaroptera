@@ -20,7 +20,7 @@
 #include "headers_30x40/conv2.h"
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
-#include "event_headers_for_experiments/measure_fraction.h"
+//#include "event_headers_for_experiments/measure_fraction.h"
 
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
@@ -33,7 +33,7 @@ __ro_hifram uint16_t fn_track = 0;
 
 void init();
 //#define PRINT_DEBUG
-//#define cont_power
+#define cont_power
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Alapaca Shim///////////////////////////////////
@@ -82,15 +82,19 @@ void init() {
 
 	__enable_interrupt();
 
+	PRINTF("Starting up\r\n");
 	PRINTF(".%u.\r\n", curctx->task->idx);
 	
+	/*
 	P2SEL0 |= BIT0;
 	P2SEL1 |= BIT0;
 	P2DIR |= BIT0;
-	
+	*/
+
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
 	
+	/*
 	// Set as input
 	P4DIR &= ~BIT0;
 	P7DIR &= ~(BIT4);
@@ -98,12 +102,14 @@ void init() {
 	// Disable Pullup/downs
 	P4REN &= ~BIT0;
 	P7REN &= ~BIT4;
-	
+
+
 	P5DIR &= ~BIT7;
 	P5REN |= BIT7;
 	P5OUT &= ~BIT7;
 	P5IES &= ~BIT7;
 	P5IE |= BIT7;
+	
 
 	P2OUT &= ~BIT3;
 	P2DIR |= BIT3;
@@ -115,10 +121,12 @@ void init() {
 
 	P2OUT &= ~(BIT5+BIT6);
 	P2DIR |= BIT5 + BIT6;
+	
 
 	P7OUT &= ~(BIT2+BIT7);
 	P7DIR |= (BIT2+BIT7);
 	hm01b0_deinit();
+	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -118,9 +118,9 @@ __ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
 // [4] - Send Packet
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
-__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
-//__ro_hifram int8_t camaroptera_mode_3[5] = {1, 0, 0, 0, 0} ; 		// For testing only capture+diff
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
+//__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
+__ro_hifram int8_t camaroptera_mode_3[5] = {1, 0, 0, 0, 0} ; 		// For testing only capture+diff
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_2;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
@@ -141,14 +141,15 @@ uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
 
 int camaroptera_main(void) {
+	PRINTF("Entering main: %u\r\n", camaroptera_state);
 	while(1){
 
 	switch( camaroptera_state ){
 
 		case 0: 									// == CAPTURE IMAGE ==
 		
-			P5OUT |= BIT6; 		// Running: capture
-			P5OUT |= BIT5; 		// Signal start
+			//P5OUT |= BIT6; 		// Running: capture
+			//P5OUT |= BIT5; 		// Signal start
 
 
 #ifdef enable_debug        	
@@ -178,14 +179,14 @@ int camaroptera_main(void) {
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			P5OUT &= ~BIT5; 		// Signal end 
-			P5OUT &= ~BIT6; 		// Running: capture
+			//P5OUT &= ~BIT5; 		// Signal end 
+			//P5OUT &= ~BIT6; 		// Running: capture
 			
 			break;
 	
 		case 1: 									// == DIFF ==
-			P6OUT |= BIT4; 		// Running: Diff
-			P5OUT |= BIT5; 		// Signal start
+			//P6OUT |= BIT4; 		// Running: Diff
+			//P5OUT |= BIT5; 		// Signal start
 				
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
@@ -220,14 +221,14 @@ int camaroptera_main(void) {
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
 			
-			P5OUT &= ~BIT5; 		// Signal end 
-			P6OUT &= ~BIT4; 		// Running: Diff
+			//P5OUT &= ~BIT5; 		// Signal end 
+			//P6OUT &= ~BIT4; 		// Running: Diff
 			
 			break;
 
 		case 2: 									// == DNN ==
-			P6OUT |= BIT5; 		// Running: Infer
-			P5OUT |= BIT5; 		// Signal start
+			//P6OUT |= BIT5; 		// Running: Infer
+			//P5OUT |= BIT5; 		// Signal start
 
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
@@ -241,8 +242,8 @@ int camaroptera_main(void) {
 
 		case 3: 									// == COMPRESS ==
 			
-			P6OUT |= BIT6; 		// Running: Compression
-			P5OUT |= BIT5; 		// Signal start
+			//P6OUT |= BIT6; 		// Running: Compression
+			//P5OUT |= BIT5; 		// Signal start
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
@@ -260,22 +261,22 @@ int camaroptera_main(void) {
 			camaroptera_state = camaroptera_next_task(3);
 			
 #ifndef cont_power
-			camaroptera_wait_for_charge(); 			//Wait to charge up 
+			//camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			P5OUT &= ~BIT5; 		// Signal end 
-			P6OUT &= ~BIT6; 		// Running: Compression
+			//P5OUT &= ~BIT5; 		// Signal end 
+			//P6OUT &= ~BIT6; 		// Running: Compression
 			
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
 			
-			P6OUT |= BIT7; 		// Running: Transmission
+			//P6OUT |= BIT7; 		// Running: Transmission
 #ifdef EXPERIMENT_MODE
 			if(frame_interesting_status) // tp_status
 				P2OUT |= BIT3;
 			//pixels = 1800;
 #endif // EXPERIMENT_MODE			
-			P5OUT |= BIT5; 		// Signal start
+			//P5OUT |= BIT5; 		// Signal start
 			
 
 
@@ -380,7 +381,7 @@ int camaroptera_main(void) {
 				//Wait to charge up
 				charge_rate_sum += camaroptera_wait_for_charge();
 #else
-				__delay_cycles(80000000);
+				//__delay_cycles(80000000);
 #endif
 				P8OUT ^= BIT2;
 				}  // End for i
@@ -397,9 +398,9 @@ int camaroptera_main(void) {
 
 			camaroptera_state = camaroptera_next_task(4);
 			
-			P5OUT &= ~BIT5; 		// Signal end 
-			P2OUT &= ~BIT3; 		// tp_status
-			P6OUT &= ~BIT7; 		// Running: Transmission
+			//P5OUT &= ~BIT5; 		// Signal end 
+			//P2OUT &= ~BIT3; 		// tp_status
+			//P6OUT &= ~BIT7; 		// Running: Transmission
 			
 			P8OUT &= ~BIT3; 
 			break;
@@ -414,7 +415,7 @@ int camaroptera_main(void) {
 
 float camaroptera_wait_for_charge(){
 #ifdef enable_debug
-	PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
+	//PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
 #endif
 	
 #ifdef OLD_PINS
@@ -623,8 +624,8 @@ void camaroptera_wait_for_interrupt(){
 
 void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
 	// Triggered every 75ms
-	P7OUT |= BIT2;
-	P7OUT &= ~BIT2;
+	//P7OUT |= BIT2;
+	//P7OUT &= ~BIT2;
 	
 	TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag
 	charge_timer_count++; 			// Increment total charging time counter
@@ -638,7 +639,6 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
 		adc_reading = ADC12MEM0; 					// Read ADC value
 		ADC12CTL0 &= ~ADC12ENC; 					// Disable ADC
 
-		
 		if(adc_reading >= High_Threshold){ 			// Check if charged
 			TA0CCTL0 &= ~CCIE;
 			TA0CTL &= ~TAIE;	
@@ -648,8 +648,8 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
 	else if(crash_check_flag){
 		// Triggered every 700ms
 		
-		P2OUT |= BIT5;
-		P2OUT &= ~BIT5;
+		//P2OUT |= BIT5;
+		//P2OUT &= ~BIT5;
 		
 		TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag		
 		crash_flag = 1;
