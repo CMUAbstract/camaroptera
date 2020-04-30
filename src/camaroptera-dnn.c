@@ -89,12 +89,20 @@ void init() {
 	P2SEL0 |= BIT0;
 	P2SEL1 |= BIT0;
 	P2DIR |= BIT0;
+	
+	P5DIR &= ~BIT7;
+	P5REN |= BIT7;
+	P5OUT &= ~BIT7;
+	P5IES &= ~BIT7;
+	P5IE |= BIT7;
 	*/
+	
 
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
 	
-	/*
+#ifdef EXPERIMENT_MODE
+	
 	// Set as input
 	P4DIR &= ~BIT0;
 	P7DIR &= ~(BIT4);
@@ -102,14 +110,6 @@ void init() {
 	// Disable Pullup/downs
 	P4REN &= ~BIT0;
 	P7REN &= ~BIT4;
-
-
-	P5DIR &= ~BIT7;
-	P5REN |= BIT7;
-	P5OUT &= ~BIT7;
-	P5IES &= ~BIT7;
-	P5IE |= BIT7;
-	
 
 	P2OUT &= ~BIT3;
 	P2DIR |= BIT3;
@@ -119,10 +119,11 @@ void init() {
 	P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
 	P6DIR |= (BIT4+BIT5+BIT6+BIT7);
 
+#endif
+	
+	/*
 	P2OUT &= ~(BIT5+BIT6);
 	P2DIR |= BIT5 + BIT6;
-	
-
 	P7OUT &= ~(BIT2+BIT7);
 	P7DIR |= (BIT2+BIT7);
 	hm01b0_deinit();
@@ -693,8 +694,11 @@ void task_exit() {
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+
+#ifdef EXPERIMENT_MODE
 	P5OUT &= ~BIT5; 		// Signal end 
 	P6OUT &= ~BIT5; 		// Running: Infer
+#endif
 	TRANSITION_TO(camaroptera_main);
 }
 

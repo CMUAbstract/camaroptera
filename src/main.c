@@ -25,7 +25,7 @@
 
 #include "camaroptera-dnn.h"
 
-#define enable_debug
+//#define enable_debug
 //#define cont_power
 //#define print_diff
 //#define print_image
@@ -148,8 +148,6 @@ int camaroptera_main(void) {
 
 		case 0: 									// == CAPTURE IMAGE ==
 		
-			//P5OUT |= BIT6; 		// Running: capture
-			//P5OUT |= BIT5; 		// Signal start
 
 
 #ifdef enable_debug        	
@@ -161,6 +159,8 @@ int camaroptera_main(void) {
 				pixels = capture();
 
 #ifdef EXPERIMENT_MODE
+			P5OUT |= BIT6; 		// Running: capture
+			P5OUT |= BIT5; 		// Signal start
 			frame_not_empty_status = P4IN & BIT0;
 			frame_interesting_status = P7IN & BIT4;
 #endif
@@ -179,21 +179,24 @@ int camaroptera_main(void) {
 #ifndef cont_power
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			//P5OUT &= ~BIT5; 		// Signal end 
-			//P5OUT &= ~BIT6; 		// Running: capture
+
+#ifdef EXPERIMENT_MODE
+			P5OUT &= ~BIT5; 		// Signal end 
+			P5OUT &= ~BIT6; 		// Running: capture
+#endif
 			
 			break;
 	
 		case 1: 									// == DIFF ==
-			//P6OUT |= BIT4; 		// Running: Diff
-			//P5OUT |= BIT5; 		// Signal start
 				
 #ifdef enable_debug        	
 			PRINTF("STATE 1: Performing Diff.\r\n");
 #endif
 
 #ifdef EXPERIMENT_MODE
-			diff();
+			P6OUT |= BIT4; 		// Running: Diff
+			P5OUT |= BIT5; 		// Signal start
+			diff(); 			// Run diff to simulate workload, but don't use result, diff status read from pins
 			if(frame_not_empty_status){ 	// Denotes an interesting scene
 				PRINTF("===>>Scene is interesting.\r\n");
 				camaroptera_state = camaroptera_next_task(1);
@@ -221,14 +224,18 @@ int camaroptera_main(void) {
 			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
 			
-			//P5OUT &= ~BIT5; 		// Signal end 
-			//P6OUT &= ~BIT4; 		// Running: Diff
+#ifdef EXPERIMENT_MODE
+			P5OUT &= ~BIT5; 		// Signal end 
+			P6OUT &= ~BIT4; 		// Running: Diff
+#endif
 			
 			break;
 
 		case 2: 									// == DNN ==
-			//P6OUT |= BIT5; 		// Running: Infer
-			//P5OUT |= BIT5; 		// Signal start
+#ifdef EXPERIMENT_MODE
+			P6OUT |= BIT5; 		// Running: Infer
+			P5OUT |= BIT5; 		// Signal start
+#endif
 
 #ifdef enable_debug        	
 			PRINTF("STATE 2: Calling DNN.\r\n");
@@ -242,8 +249,10 @@ int camaroptera_main(void) {
 
 		case 3: 									// == COMPRESS ==
 			
-			//P6OUT |= BIT6; 		// Running: Compression
-			//P5OUT |= BIT5; 		// Signal start
+#ifdef EXPERIMENT_MODE
+			P6OUT |= BIT6; 		// Running: Compression
+			P5OUT |= BIT5; 		// Signal start
+#endif
 			
 #ifdef enable_debug        	
 			PRINTF("STATE 3: Calling JPEG Compression.\r\n");
@@ -263,20 +272,23 @@ int camaroptera_main(void) {
 #ifndef cont_power
 			//camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
-			//P5OUT &= ~BIT5; 		// Signal end 
-			//P6OUT &= ~BIT6; 		// Running: Compression
+
+#ifdef EXPERIMENT_MODE
+			P5OUT &= ~BIT5; 		// Signal end 
+			P6OUT &= ~BIT6; 		// Running: Compression
+#endif
 			
 			break;
 			
 		case 4: 									// == SEND BY RADIO==
 			
-			//P6OUT |= BIT7; 		// Running: Transmission
 #ifdef EXPERIMENT_MODE
 			if(frame_interesting_status) // tp_status
 				P2OUT |= BIT3;
 			//pixels = 1800;
+			P6OUT |= BIT7; 		// Running: Transmission
+			P5OUT |= BIT5; 		// Signal start
 #endif // EXPERIMENT_MODE			
-			//P5OUT |= BIT5; 		// Signal start
 			
 
 
@@ -398,9 +410,11 @@ int camaroptera_main(void) {
 
 			camaroptera_state = camaroptera_next_task(4);
 			
-			//P5OUT &= ~BIT5; 		// Signal end 
-			//P2OUT &= ~BIT3; 		// tp_status
-			//P6OUT &= ~BIT7; 		// Running: Transmission
+#ifdef EXPERIMENT_MODE
+			P5OUT &= ~BIT5; 		// Signal end 
+			P2OUT &= ~BIT3; 		// tp_status
+			P6OUT &= ~BIT7; 		// Running: Transmission
+#endif
 			
 			P8OUT &= ~BIT3; 
 			break;
