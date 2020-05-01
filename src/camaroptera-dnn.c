@@ -20,8 +20,9 @@
 #include "headers_30x40/conv2.h"
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
-//#include "event_headers_for_experiments/measure_fraction.h"
-
+#ifdef EXPERIMENT_MODE
+#include "event_headers_for_experiments/measure_fraction.h"
+#endif
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
 extern uint8_t frame_interesting_status;
