@@ -148,6 +148,10 @@ int camaroptera_main(void) {
 
 		case 0: 									// == CAPTURE IMAGE ==
 		
+#ifdef EXPERIMENT_MODE
+			P5OUT |= BIT6; 		// Running: capture
+			P5OUT |= BIT5; 		// Signal start
+#endif
 
 
 #ifdef enable_debug        	
@@ -159,8 +163,6 @@ int camaroptera_main(void) {
 				pixels = capture();
 
 #ifdef EXPERIMENT_MODE
-			P5OUT |= BIT6; 		// Running: capture
-			P5OUT |= BIT5; 		// Signal start
 			frame_not_empty_status = P4IN & BIT0;
 			frame_interesting_status = P7IN & BIT4;
 #endif

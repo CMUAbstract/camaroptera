@@ -1,24 +1,36 @@
 import numpy as np
 import argparse
 import os
-
-# Size of the trial to run
-TRIAL_SIZE = 100
+import matplotlib.pyplot as plt
 
 # Ratio of True Positives:True Negatives where they total to 100%
-TP_RATE = 50
-TN_RATE = 50
+TP_RATE = 20
+TN_RATE = 80
 
 # Rates of False Positves and False Negatives
-FP_RATE = 10
-FN_RATE = 30
+FP_RATE = 30
+FN_RATE = 10
 
 def main(args):
+	
+	trial_size = args.tnum
+	
+	high_times = np.random.normal( loc=3, scale=1, size=trial_size)
+	for i in range(len(high_times)):
+		high_times[i] = abs(high_times[i])
+	print(high_times)
+	
+	count, bins, ignored = plt.hist(high_times)
+	plt.show()
 
+	low_times = np.random.poisson( lam=10, size=trial_size )
+	print(low_times)
+
+	count, bins, ignored = plt.hist(low_times)
+	plt.show()
+	
 	true_positives = np.ones(TP_RATE*TRIAL_SIZE/100).astype(dtype="int")
 	true_negatives = np.zeros(TN_RATE*TRIAL_SIZE/100).astype(dtype="int")
-	input_images = np.append(true_positives, true_negatives)
-	np.random.shuffle(input_images)
 
 	fp_ones = np.ones(FP_RATE*len(true_negatives)/100).astype(dtype="int")
 	fp_zeros = np.zeros( len(true_negatives) - len(fp_ones) ).astype(dtype="int")	
@@ -30,7 +42,6 @@ def main(args):
 	false_negatives = np.append(fn_zeros, fn_ones)
 	np.random.shuffle(false_negatives)
 
-	print(input_images)
 	print(false_positives)
 	print(false_negatives)
 
@@ -38,18 +49,26 @@ def main(args):
 	fp = open(path, 'w')
 
 	file_data = '#include <stdbool.h>\n\n'
-	file_data += '#include "lenet.h"\n\n'
  
-	file_data += '__ro_hifram uint8_t image_sequence[' + str(len(input_images)) + '] = {'
+	file_data += 'float high_times[' + str(len(high_times)) + '] = {'
 
-	for i in range(len(input_images)):
-		file_data += str(input_images[i])
-		if i != len(input_images) - 1:
+	for i in range(len(high_times)):
+		file_data += str(high_times[i])
+		if i != len(high_times) - 1:
+			file_data += ', '
+
+	file_data += '};\n\n'
+	
+	file_data += 'uint8_t low_times[' + str(len(low_times)) + '] = {'
+
+	for i in range(len(low_times)):
+		file_data += str(low_times[i])
+		if i != len(low_times) - 1:
 			file_data += ', '
 
 	file_data += '};\n\n'
 
-	file_data += '__ro_hifram uint8_t false_positives[' + str(len(false_positives)) + '] = {'
+	file_data += 'uint8_t false_positives[' + str(len(false_positives)) + '] = {'
 
 	for i in range(len(false_positives)):
 		file_data += str(false_positives[i])
@@ -58,7 +77,7 @@ def main(args):
 
 	file_data += '};\n\n'
 
-	file_data += '__ro_hifram uint8_t false_negatives[' + str(len(false_negatives)) + '] = {'
+	file_data += 'uint8_t false_negatives[' + str(len(false_negatives)) + '] = {'
 
 	for i in range(len(false_negatives)):
 		file_data += str(false_negatives[i])
@@ -80,6 +99,16 @@ if __name__ == '__main__':
 		type=str,
 		default="experiment_array.h",
 		help='Name of output file')
+	parser.add_argument(
+		'--tnum',
+		type=int,
+		default=10,
+		help='Number of events to generate')
+	parser.add_argument(
+		'--tp',
+		type=int,
+		default=,
+		help='True Positive Rate')
 	args = parser.parse_args()
 	main(args)
 
