@@ -21,7 +21,7 @@
 #include "headers_30x40/fc1.h"
 #include "headers_30x40/fc2.h"
 #ifdef EXPERIMENT_MODE
-#include "event_headers_for_experiments/measure_fraction.h"
+#include "event_headers_for_experiments/experiment_array_1_99_10_10_9.h"
 #endif
 extern uint8_t frame[];
 extern uint8_t camaroptera_state;
@@ -34,7 +34,7 @@ __ro_hifram uint16_t fn_track = 0;
 
 void init();
 //#define PRINT_DEBUG
-#define cont_power
+//#define cont_power
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Alapaca Shim///////////////////////////////////

@@ -287,7 +287,7 @@ int camaroptera_main(void) {
 #ifdef EXPERIMENT_MODE
 			if(frame_interesting_status) // tp_status
 				P2OUT |= BIT3;
-			//pixels = 1800;
+			pixels = 1800;
 			P6OUT |= BIT7; 		// Running: Transmission
 			P5OUT |= BIT5; 		// Signal start
 #endif // EXPERIMENT_MODE			
@@ -556,7 +556,7 @@ void camaroptera_compression(){
 	PRINTF("Starting JPEG compression\n\r");
 #endif
 
-	e = jpec_enc_new2(frame, 160, 120, JQ);
+	e = jpec_enc_new(frame, 160, 120, JQ);
 
 	jpec_enc_run(e, &len);
 
@@ -725,8 +725,8 @@ void __attribute__ ((interrupt(PORT5_VECTOR))) port_5 (void) {
         case P5IV__P5IFG7:  // Vector  16:  P7.7 interrupt flag
 			P5IFG &= ~BIT7; 
 				
-			fp_track = 0;
-			fn_track = 0;
+			//fp_track = 0;
+			//fn_track = 0;
 			PRINTF("==== Reset fp/fn tracks\r\n");
 			break;
         default: break;
