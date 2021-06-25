@@ -120,7 +120,7 @@ __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
 //__ro_hifram int8_t camaroptera_mode_3[5] = {1, 0, 0, 0, 0} ; 		// For testing only capture+diff
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_2;
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
@@ -163,8 +163,10 @@ int camaroptera_main(void) {
 				pixels = capture();
 
 #ifdef EXPERIMENT_MODE
-			frame_not_empty_status = P4IN & BIT0;
-			frame_interesting_status = P7IN & BIT4;
+			//frame_not_empty_status = P4IN & BIT0;
+			//frame_interesting_status = P7IN & BIT4;
+			frame_not_empty_status = 1;
+			frame_interesting_status = 1;
 #endif
 
 

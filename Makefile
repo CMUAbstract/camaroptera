@@ -6,7 +6,7 @@ export DEVICE = msp430fr5994
 EXEC = bird
 
 OBJECTS = main.o camaroptera-dnn.o lenet.o
-#OBJECTS = test.o 
+OBJECTS = loraTest.o 
 
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
 
@@ -67,9 +67,9 @@ export LIBDNN_BACKEND = $(BACKEND)
 export LIBDNN_TILE_SIZE = 128
 export LIBDNN_MAT_BUF_SIZE = $(MAT_BUF_SIZE)
 export LIBDNN_LAYER_BUF_SIZE = $(LAYER_BUF_SIZE)
-#override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY
+override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DLIBJPEG_QF=50
 #override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS
-override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS -DEXPERIMENT_MODE
+#override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS -DEXPERIMENT_MODE -DLIBJPEG_QF=50
 
 export CC_LD_FLAGS
 
