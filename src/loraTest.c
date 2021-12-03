@@ -19,7 +19,7 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
-//#include <libhimax/hm01b0.h>
+#include <libhimax/hm01b0.h>
 //
 //#include <libjpeg/jpec.h> 
 //
@@ -149,7 +149,13 @@ static void init_hw() {
 
 int main(void) {
 	init_hw();
-	camaroptera_send_packet();
+	
+	while(1){
+		P2OUT |= BIT0;
+		camaroptera_send_packet();
+		__delay_cycles(16000000);
+		P2OUT &= ~BIT0;
+		}
 	return 0;
 } // End main()
 
@@ -166,138 +172,42 @@ void camaroptera_send_packet(){
 
 	spi_init();
 
-#ifdef OLD_PINS
-	P4DIR |= BIT7;
-	P4OUT |= BIT7;
-#else
 	P4DIR |= BIT4;
 	P4OUT |= BIT4;
-#endif
 
+	__delay_cycles(1600000);
+	P2DIR |= BIT1;
+	P2OUT |= BIT1;
 	camaroptera_init_lora();
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
 
 	sx1276_send( radio_buffer, PACKET_SIZE );
 	
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
 	__bis_SR_register(LPM4_bits+GIE);
 
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
 	//while(irq_flag != 1);
 
 	sx1276_on_dio0irq();
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
 
 	P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
 	P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
 	P5DIR &= ~(BIT0+ BIT1 + BIT2);
 
-#ifdef OLD_PINS
-	P5OUT &= ~BIT3;
-	P1OUT &= ~BIT4;
-	P4OUT &= ~BIT7;
-#else
 	P4OUT &= ~BIT1;
 	P4OUT &= ~BIT2;
 	P4OUT &= ~BIT4;
-#endif
+	
+	P2OUT &= ~BIT1;
+	P2DIR &= ~BIT1;
 }	
 
-float camaroptera_wait_for_charge(){
-#ifdef enable_debug
-	//PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
-#endif
-	
-#ifdef OLD_PINS
-    P2SEL0 |= BIT4;                                 //P1.0 ADC mode
-    P2SEL1 |= BIT4;                                 //
-#else
-    P1SEL0 |= BIT5;                                 //P1.0 ADC mode
-    P1SEL1 |= BIT5;                                 //
-#endif
-		
-	// ======== Configure ADC ========
-	// Take single sample when timer triggers and compare with threshold
-
-    ADC12CTL0 &= ~ADC12ENC;  				// Disable conversion before configuring
-	ADC12CTL0 |= ADC12SHT0_2 | ADC12ON; 	// Sampling time, S&H=16, ADC12 ON
-    ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0 ;      // Use ADC12SC to trigger and single-channel
-
-#ifdef OLD_PINS
-    ADC12MCTL0 |= ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
-#else
-    ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
-#endif
-	
-	/*
-   	ADC12IER0 |= ADC12IE0;
-	ADC12CTL0 |= (ADC12ENC + ADC12SC);                        // Start sampling/conversion
-	
-	// Do a single conversion before starting
-	__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
-	ADC12CTL0 &= ~ADC12ENC;
-	//PRINTF("Done first adc read\r\n");
-	
-
-	if( adc_reading >= High_Threshold ){ 		// Cap fully charged already
-		
-		ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
-		ADC12IER0 &= ~ADC12IE0;
-		return 0;
-	}
-	else{ 										// Cap not fully charged
-	*/ //PRINTF("Timing charging\r\n");
-	    
-   		uint16_t initial_voltage = adc_reading;
-		uint16_t voltage_temp;	
-
-		ADC12IER0 &= ~ADC12IE0;
-		ADC12HI = High_Threshold;                               // Enable ADC interrupt
-    	ADC12IER2 &= ~ADC12HIIE;                                  // Enable ADC threshold interrupt
-	
-		// ========= Configure Timer =======
-		// Timer = 205 = ~50ms
-		
-		TA0CTL |= TACLR;
-		TA0CCR0 = 307; 
-		TA0CCTL0 |= CCIE;
-		TA0CTL |= TASSEL__ACLK + ID__8 + MC__UP; 	// ACLK = 32768kHz, ID=8 => 1 tick = 244.14us
-
-		charge_timer_count = 0;
-		
-		adc_flag = 1;
-		// Wake from this only on ADC12HIIFG
-		__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
-		
-		//PRINTF("Done charging\r\n");
-
-		uint32_t timer_temp = 0;
-		timer_temp = (charge_timer_count*TA0CCR0) + TA0R;
-		
-		TA0CCTL0 &= ~CCIE;
-		TA0CTL &= ~TAIE;
-		TA0CTL |= TACLR;
-		TA0CTL |= MC__STOP;
-		ADC12CTL0 &= ~(ADC12ON+ADC12ENC);
-		ADC12IER2 &= ~ADC12HIIE;
-		ADC12IER0 &= ~ADC12IE0;
-
-#ifdef print_charging
-		PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
-		PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
-#endif
-		
-		voltage_temp = adc_reading - initial_voltage;
-
-#ifdef print_charging
-		PRINTF("Capacitor Charge Value Changed: %i\r\n", voltage_temp);
-#endif
-	
-		int32_t temp = voltage_temp * 10;
-		timer_temp = timer_temp / 1000;
-		float charge_rate = temp / timer_temp;
-#ifdef print_charging
-		PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
-#endif
-		return charge_rate;
-	// }
-}
 
 void OnTxDone() {
 	tx_packet_index ++;
@@ -305,14 +215,18 @@ void OnTxDone() {
 }
 
 void camaroptera_init_lora() {
-  radio_events.TxDone = OnTxDone;
-  //radio_events.RxDone = OnRxDone;
-  //radio_events.TxTimeout = OnTxTimeout;
-  //radio_events.RxTimeout = OnRxTimeout;
-  //radio_events.RxError = OnRxError;
+	radio_events.TxDone = OnTxDone;
+	//radio_events.RxDone = OnRxDone;
+	//radio_events.TxTimeout = OnTxTimeout;
+	//radio_events.RxTimeout = OnRxTimeout;
+	//radio_events.RxError = OnRxError;
 
-  sx1276_init(radio_events);
-  sx1276_set_channel(RF_FREQUENCY);
+  	sx1276_init(radio_events);
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
+  	sx1276_set_channel(RF_FREQUENCY);
+	P2OUT &= ~BIT1;
+	P2OUT |= BIT1;
 
 	sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
@@ -320,41 +234,3 @@ void camaroptera_init_lora() {
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
 }
 
-// ============= ISR Routines
-
-void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
-	// Triggered every 75ms
-	//P7OUT |= BIT2;
-	//P7OUT &= ~BIT2;
-	
-	TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag
-	charge_timer_count++; 			// Increment total charging time counter
-		
-	// If called from cap charging routine
-	if(adc_flag){
-		ADC12IFGR0 &= ~ADC12IFG0;
-		ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0 ;      // Use ADC12SC to trigger and single-channel
-		ADC12CTL0 |= (ADC12ON + ADC12ENC + ADC12SC); 			// Trigger ADC conversion
-		while(!(ADC12IFGR0 & ADC12IFG0)); 			// Wait till conversion over	
-		adc_reading = ADC12MEM0; 					// Read ADC value
-		ADC12CTL0 &= ~ADC12ENC; 					// Disable ADC
-
-		if(adc_reading >= High_Threshold){ 			// Check if charged
-			TA0CCTL0 &= ~CCIE;
-			TA0CTL &= ~TAIE;	
-			__bic_SR_register_on_exit(LPM3_bits | GIE);
-		}
-	}	
-	else if(crash_check_flag){
-		// Triggered every 700ms
-		
-		//P2OUT |= BIT5;
-		//P2OUT &= ~BIT5;
-		
-		TA0CCTL0 &= ~CCIFG; 			// Clear Interrupt Flag		
-		crash_flag = 1;
-		TA0CCTL0 &= ~CCIE;
-		TA0CTL &= ~TAIE;	
-		__bic_SR_register_on_exit(LPM0_bits | GIE);
-	}	
-}

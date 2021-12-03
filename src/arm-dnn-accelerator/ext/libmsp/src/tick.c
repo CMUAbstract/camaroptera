@@ -1,0 +1,43 @@
+#include <msp430.h>
+#include <libmsp/periph.h>
+
+#include "tick.h"
+
+#define LIBMSP_TICK_TIMER CONCAT(LIBMSP_TICK_TIMER_TYPE, LIBMSP_TICK_TIMER_IDX)
+
+static uint32_t ticks = 0;
+
+void msp_tick_start()
+{
+    TIMER(LIBMSP_TICK_TIMER, CTL) = TIMER_CLK_SOURCE_BITS(LIBMSP_TICK_TIMER_TYPE, LIBMSP_TICK_TIMER_CLK) |
+                              TIMER_DIV_BITS(DIV_LIBMSP_TICK_TIMER) |
+                              TIMER_CLR(LIBMSP_TICK_TIMER_TYPE);
+    TIMER(LIBMSP_TICK_TIMER, EX0) = TIMER_DIVEX_BITS(LIBMSP_TICK_TIMER_TYPE, DIVEX_LIBMSP_TICK_TIMER);
+
+    TIMER(LIBMSP_TICK_TIMER, CTL) &= ~TIMER(LIBMSP_TICK_TIMER_TYPE, IFG);
+    TIMER(LIBMSP_TICK_TIMER, CTL) |= TIMER(LIBMSP_TICK_TIMER_TYPE, IE);
+    TIMER(LIBMSP_TICK_TIMER, CTL) |= MC_2; // start timer in continuous mode
+
+    ticks = 0;
+}
+
+void msp_tick_stop()
+{
+    TIMER(LIBMSP_TICK_TIMER, CTL) &= ~MC_3;
+    TIMER(LIBMSP_TICK_TIMER, CTL) &= ~TIMER(LIBMSP_TICK_TIMER_TYPE, IE);
+    TIMER(LIBMSP_TICK_TIMER, CTL) &= ~TIMER(LIBMSP_TICK_TIMER_TYPE, IFG);
+}
+
+uint32_t msp_ticks()
+{
+    return ticks + TIMER(LIBMSP_TICK_TIMER, R);
+}
+
+ISR(TIMER_1_VECTOR(LIBMSP_TICK_TIMER_TYPE, LIBMSP_TICK_TIMER_IDX)) {
+{
+    switch (TIMER_1_INTVEC(LIBMSP_TICK_TIMER_TYPE, LIBMSP_TICK_TIMER_IDX)) { // reading IV resets int flag
+        case TIMER_1_INTFLAG(LIBMSP_TICK_TIMER_TYPE, LIBMSP_TICK_TIMER_IDX, IFG):
+            ticks += 0x10000;
+            break;
+    }
+}

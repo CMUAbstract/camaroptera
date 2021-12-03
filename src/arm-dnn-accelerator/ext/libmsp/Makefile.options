@@ -1,0 +1,140 @@
+# This makefile applies the options.
+# For list of options and documentation see Makefile.config
+
+include $(MAKER_ROOT)/Makefile.pre
+include $(MAKER_ROOT)/Makefile.msp
+
+ifneq ($(LIBMSP_XT1_FREQ),)
+override CFLAGS += -DCONFIG_XT1_FREQ=$(LIBMSP_XT1_FREQ)
+endif
+
+ifneq ($(LIBMSP_XT1_CAP),)
+override CFLAGS += -DCONFIG_XT1_CAP=$(LIBMSP_XT1_CAP)
+endif
+
+ifneq ($(LIBMSP_XT2_FREQ),)
+override CFLAGS += -DCONFIG_XT2_FREQ=$(LIBMSP_XT2_FREQ)
+endif
+
+ifneq ($(LIBMSP_REFO_FREQ),)
+override CFLAGS += -DCONFIG_REFO_FREQ=$(LIBMSP_REFO_FREQ)
+endif
+
+
+ifeq ($(LIBMSP_CLOCK_SOURCE),DCO)
+override CFLAGS += -DCONFIG_CLOCK_SOURCE_DCO
+
+ifeq ($(LIBMSP_DCO_REF_SOURCE),REFO)
+override CFLAGS += -DCONFIG_DCO_REF_SOURCE_REFO
+else ifeq ($(LIBMSP_DCO_REF_SOURCE),XT1)
+override CFLAGS += -DCONFIG_DCO_REF_SOURCE_XT1
+else ifeq ($(LIBMSP_DCO_REF_SOURCE),XT2)
+override CFLAGS += -DCONFIG_DCO_REF_SOURCE_XT2
+endif # LIBMSP_DCO_REF_SOURCE)
+
+ifneq ($(LIBMSP_DCO_REF_CLOCK_DIV),)
+override CFLAGS += -DCONFIG_DCO_REF_CLOCK_DIV=$(LIBMSP_DCO_REF_CLOCK_DIV)
+endif
+
+# Renamed a little for user-friendliness
+ifneq ($(LIBMSP_DCO_FREQ),)
+override CFLAGS += -DCONFIG_DCOCLKDIV_FREQ=$(LIBMSP_DCO_FREQ)
+else
+$(error DCO clock frequency must be set via LIBMSP_DCO_FREQ)
+endif
+
+ifneq ($(LIBMSP_CORE_VOLTAGE_LEVEL),)
+override CFLAGS += -DCONFIG_CORE_VOLTAGE_LEVEL=$(LIBMSP_CORE_VOLTAGE_LEVEL)
+endif
+
+else ifeq ($(LIBMSP_CLOCK_SOURCE),XT1)
+$(error XT1 clock source not implemented)
+
+else ifeq ($(LIBMSP_CLOCK_SOURCE),XT2)
+override CFLAGS += -DCONFIG_CLOCK_SOURCE_XT2
+endif # LIBMSP_CLOCK_SOURCE
+
+ifneq ($(LIBMSP_MCLK_DIV),)
+override CFLAGS += -DCONFIG_CLK_DIV_MCLK=$(LIBMSP_MCLK_DIV)
+endif
+
+ifneq ($(LIBMSP_SMCLK_DIV),)
+override CFLAGS += -DCONFIG_CLK_DIV_SMCLK=$(LIBMSP_SMCLK_DIV)
+endif
+
+ifneq ($(LIBMSP_ACLK_DIV),)
+override CFLAGS += -DCONFIG_CLK_DIV_ACLK=$(LIBMSP_ACLK_DIV)
+endif
+
+ifneq ($(filter disable-pmm,$(LIBMSP_STARTUP_VOLTAGE_WORKAROUNDS)),)
+override CFLAGS += -DCONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM
+endif
+ifneq ($(filter delay,$(LIBMSP_STARTUP_VOLTAGE_WORKAROUNDS)),)
+override CFLAGS += -DCONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY
+endif
+
+ifneq ($(LIBMSP_SLEEP_TIMER),)
+override CFLAGS := $(CFLAGS) \
+	-DLIBMSP_SLEEP_TIMER_TYPE=$(word 1,$(subst ., ,$(LIBMSP_SLEEP_TIMER))) \
+	-DLIBMSP_SLEEP_TIMER_IDX=$(word 2,$(subst ., ,$(LIBMSP_SLEEP_TIMER))) \
+	-DLIBMSP_SLEEP_TIMER_CC=$(word 3,$(subst ., ,$(LIBMSP_SLEEP_TIMER))) \
+	-DLIBMSP_SLEEP_TIMER_CLK=$(LIBMSP_SLEEP_TIMER_CLK) \
+	$(call msp_timer_div,LIBMSP_SLEEP_TIMER,$(LIBMSP_SLEEP_TIMER_DIV))
+endif # LIBMSP_SLEEP_TIMER
+
+ifneq ($(LIBMSP_SLEEP_TIMER_TICKS),)
+override CFLAGS += -DLIBMSP_SLEEP_TIMER_TICKS
+endif # LIBMSP_SLEEP_TIMER_TICKS
+
+ifneq ($(LIBMSP_TICK_TIMER),)
+override CFLAGS := $(CFLAGS) \
+	-DLIBMSP_TICK_TIMER_TYPE=$(word 1,$(subst ., ,$(LIBMSP_TICK_TIMER))) \
+	-DLIBMSP_TICK_TIMER_IDX=$(word 2,$(subst ., ,$(LIBMSP_TICK_TIMER))) \
+	-DLIBMSP_TICK_TIMER_CLK=$(LIBMSP_TICK_TIMER_CLK) \
+	$(call msp_timer_div,LIBMSP_TICK_TIMER,$(LIBMSP_TICK_TIMER_DIV))
+endif # LIBMSP_TICK_TIMER
+
+ifneq ($(LIBMSP_UART_IDX),)
+override CFLAGS += -DLIBMSP_UART_IDX=$(LIBMSP_UART_IDX)
+
+ifneq ($(words $(LIBMSP_UART_PIN_RX) $(LIBMSP_UART_PIN_TX)),1)
+$(error One of these config variables needs to be defined: LIBMSP_UART_PIN_{RX,TX})
+endif
+
+ifneq ($(LIBMSP_UART_PIN_RX),)
+override CFLAGS += $(call gpio_pin,LIBMSP_UART_PIN_RX)
+endif # LIBMSP_UART_PIN_RX
+
+ifneq ($(LIBMSP_UART_PIN_TX),)
+override CFLAGS += $(call gpio_pin,LIBMSP_UART_PIN_TX)
+endif # LIBMSP_PIN_TX
+
+ifneq ($(LIBMSP_UART_BAUDRATE),)
+override CFLAGS := $(CFLAGS) $(call uart_baudrate,LIBMSP_UART_BAUDRATE,\
+                                    $(LIBMSP_UART_BAUDRATE),$(CLOCK_FREQ_$(LIBMSP_UART_CLOCK)))
+else
+$(error Undefined config variable: LIBMSP_UART_BAUDRATE)
+endif # LIBMSP_UART_BAUDRATE
+
+ifneq ($(LIBMSP_UART_CLOCK),)
+override CFLAGS += -DLIBMSP_UART_CLOCK=$(LIBMSP_UART_CLOCK)
+else
+$(error Undefined confing variable: LIBMSP_UART_CLOCK)
+endif # LIBMSP_UART_CLOCK
+
+ifeq ($(LIBMSP_SLEEP),1)
+override CFLAGS += -DLIBMSP_SLEEP
+endif # LIBMSP_SLEEP
+
+ifneq ($(LIBMSP_REF_SETTLE_TIME),)
+override CFLAGS += $(call interval,LIBMSP_REF_SETTLE_TIME,\
+			$(LIBMSP_REF_SETTLE_TIME),$(call calc_int,$(CLOCK_FREQ_MCLK)),0)
+# Use this one for delaying with msp_sleep in the code
+#override CFLAGS += $(call interval,LIBMSP_REF_SETTLE_TIME,\
+			#$(LIBMSP_REF_SETTLE_TIME),\
+			#$(call calc_int,$(CLOCK_FREQ_$(LIBMSP_SLEEP_TIMER_CLK)) / ($(LIBMSP_SLEEP_TIMER_DIV))),0)
+else
+$(error Undefined config var: LIBMSP_REF_SETTLE_TIME)
+endif
+
+endif # LIBMSP_UART_IDX

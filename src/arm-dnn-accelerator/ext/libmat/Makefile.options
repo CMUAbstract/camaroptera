@@ -1,0 +1,6 @@
+# This makefile applies the options.
+# For list of options and documentation see Makefile.config
+
+ifneq ($(LIBMAT_CONSOLE),)
+override CFLAGS += -DCONFIG_CONSOLE=1
+endif
