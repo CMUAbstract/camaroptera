@@ -157,7 +157,7 @@ int main(void) {
 	__delay_cycles(16000); 	// POR time for the camera = 50us
 		
 	while(1){
-		camaroptera_wait_for_charge();
+		//camaroptera_wait_for_charge();
 		pixels = 0;
 		while(pixels == 0){
 			pixels = capture();

@@ -25,7 +25,7 @@
 
 #include "camaroptera-dnn.h"
 
-//#define enable_debug
+#define enable_debug
 //#define cont_power
 //#define print_diff
 //#define print_image
@@ -70,7 +70,7 @@
 
 
 //Jpeg quality factor
-#define JQ 50
+#define JQ LIBJPEG_QF
 
 // Image differencing parameters
 #define P_THR 40
@@ -119,8 +119,8 @@ __ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
 __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ; 		// SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ; 		// DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ; 			// DIFF + INFER + SEND
-//__ro_hifram int8_t camaroptera_mode_3[5] = {1, 0, 0, 0, 0} ; 		// For testing only capture+diff
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
+//__ro_hifram int8_t camaroptera_mode_3[5] = {2, 0, 0, 0, 0} ; 		// For testing only capture+infer
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_2;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
@@ -139,6 +139,7 @@ void camaroptera_mode_select(float charge_rate);
 uint8_t diff();
 uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
+extern void task_exit();
 
 int camaroptera_main(void) {
 	PRINTF("Entering main: %u\r\n", camaroptera_state);
@@ -163,10 +164,10 @@ int camaroptera_main(void) {
 				pixels = capture();
 
 #ifdef EXPERIMENT_MODE
-			//frame_not_empty_status = P4IN & BIT0;
-			//frame_interesting_status = P7IN & BIT4;
-			frame_not_empty_status = 1;
-			frame_interesting_status = 1;
+			frame_not_empty_status = P4IN & BIT0;
+			frame_interesting_status = P7IN & BIT4;
+			//frame_not_empty_status = 1;
+			//frame_interesting_status = 1;
 #endif
 
 
@@ -246,9 +247,15 @@ int camaroptera_main(void) {
 #endif
 			P8OUT ^= BIT1; 
 
-			
+#ifdef USE_ARM_DNN
+			P4OUT |= BIT4;
+			for(int i = 0; i < 1000; i++)
+				__delay_cycles(3040);
+			P4OUT &= ~BIT4;
+			task_exit();
+#else
 			TRANSITION_TO(task_init);
-      	
+#endif 	
 			break;
 
 		case 3: 									// == COMPRESS ==
@@ -274,7 +281,7 @@ int camaroptera_main(void) {
 			camaroptera_state = camaroptera_next_task(3);
 			
 #ifndef cont_power
-			//camaroptera_wait_for_charge(); 			//Wait to charge up 
+			camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
 
 #ifdef EXPERIMENT_MODE
@@ -294,7 +301,6 @@ int camaroptera_main(void) {
 			P5OUT |= BIT5; 		// Signal start
 #endif // EXPERIMENT_MODE			
 			
-
 
 			charge_rate_sum = 0; 
 #ifdef enable_debug        	
@@ -436,12 +442,18 @@ float camaroptera_wait_for_charge(){
 	//PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
 #endif
 	
+	__delay_cycles(80000);
+
 #ifdef OLD_PINS
     P2SEL0 |= BIT4;                                 //P1.0 ADC mode
     P2SEL1 |= BIT4;                                 //
 #else
-    P1SEL0 |= BIT5;                                 //P1.0 ADC mode
-    P1SEL1 |= BIT5;                                 //
+    //P1SEL0 |= BIT5;                                 //P1.0 ADC mode
+    //P1SEL1 |= BIT5;                                 //
+    P2SEL0 |= BIT3;                                 //P2.3 ADC mode
+    P2SEL1 |= BIT3;                                 //
+	P2DIR |= BIT4;
+	P2OUT |= BIT4;
 #endif
 		
 	// ======== Configure ADC ========
@@ -454,7 +466,8 @@ float camaroptera_wait_for_charge(){
 #ifdef OLD_PINS
     ADC12MCTL0 |= ADC12INCH_7 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
 #else
-    ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A7 ADC input select; Vref+ = AVCC
+    //ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A5 ADC input select; Vref+ = AVCC
+    ADC12MCTL0 |= ADC12INCH_6 | ADC12EOS | ADC12WINC;        // A6 ADC input select; Vref+ = AVCC
 #endif
 	
 	/*
@@ -497,6 +510,9 @@ float camaroptera_wait_for_charge(){
 		// Wake from this only on ADC12HIIFG
 		__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
 		
+#ifndef OLD_PINS
+	P2OUT &= ~BIT4;
+#endif
 		//PRINTF("Done charging\r\n");
 
 		uint32_t timer_temp = 0;
@@ -527,6 +543,7 @@ float camaroptera_wait_for_charge(){
 #ifdef print_charging
 		PRINTF("\r\nCHARGE RATE: %i\r\n", (int)charge_rate);
 #endif
+
 		return charge_rate;
 	// }
 }

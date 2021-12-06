@@ -86,11 +86,11 @@ void init() {
 	PRINTF("Starting up\r\n");
 	PRINTF(".%u.\r\n", curctx->task->idx);
 	
-	/*
+	/*	
+	
 	P2SEL0 |= BIT0;
 	P2SEL1 |= BIT0;
 	P2DIR |= BIT0;
-	
 	P5DIR &= ~BIT7;
 	P5REN |= BIT7;
 	P5OUT &= ~BIT7;
@@ -119,6 +119,10 @@ void init() {
 	P5DIR |= (BIT5+BIT6);
 	P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
 	P6DIR |= (BIT4+BIT5+BIT6+BIT7);
+	
+	// External Peripheral Power EN
+	P4OUT &= ~BIT4;
+	P4DIR |= BIT4;
 
 #endif
 	
@@ -129,6 +133,10 @@ void init() {
 	P7DIR |= (BIT2+BIT7);
 	hm01b0_deinit();
 	*/
+#ifndef cont_power
+	camaroptera_wait_for_charge(); 			//Wait to charge up 
+#endif
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -300,6 +308,12 @@ void task_init() {
 }
 
 void task_compute() {
+
+#ifdef DUMMY_COMPUTE
+	for(int i = 0; i < 1000; i++)
+		__delay_cycles(16000);
+	TRANSITION_TO(task_finish);
+#else
 	uint16_t state = CUR_SCRATCH[0];
 	if(state == 0) {
 #ifdef enable_debug        	
@@ -623,6 +637,7 @@ void task_compute() {
 		conv_dense( w_ptr, b_ptr, b2, b1, 0 );
 		TRANSITION_TO(task_finish);
 	}
+#endif
 }
 
 __fram fixed max = 0;
@@ -656,6 +671,7 @@ void task_finish() {
 void task_exit() {
 
 #ifdef EXPERIMENT_MODE
+	
 	PRINTF("fp_track:%u  | fn_track:%u\r\n", fp_track, fn_track);
 	if (frame_interesting_status){
 		if(false_negatives[fn_track]){
