@@ -19,7 +19,7 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
-#include <libhimax/hm01b0.h>
+//#include <libhimax/hm01b0.h>
 //
 //#include <libjpeg/jpec.h> 
 //
@@ -38,6 +38,7 @@
 #endif
 
 #define __ro_hifram __attribute__((section(".upper.rodata")))
+#define __fram __attribute__((section(".persistent")))
 
 //#define OLD_PINS
 
@@ -92,11 +93,11 @@ __ro_hifram uint8_t pixels = 0;
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint8_t frame_index = 0;
 __ro_hifram uint16_t frame_track = 0;
-__ro_hifram uint8_t camaroptera_state = 0;
+__fram uint8_t camaroptera_state = 0;
 __ro_hifram static radio_events_t radio_events;
 
 __ro_hifram int state = 0;
-__ro_hifram uint8_t predict;
+__fram uint8_t predict;
 __ro_hifram int i, j;
 __ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
 __ro_hifram	uint16_t len = 0;
@@ -127,7 +128,7 @@ __ro_hifram float charge_rate_sum;
 __ro_hifram volatile uint8_t charge_timer_count;
 __ro_hifram volatile uint16_t adc_reading;
 __ro_hifram volatile uint8_t crash_check_flag;
-__ro_hifram volatile uint8_t crash_flag;
+__fram volatile uint8_t crash_flag;
 __ro_hifram uint8_t adc_flag;
 
 void camaroptera_compression();
