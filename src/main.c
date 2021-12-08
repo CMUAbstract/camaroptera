@@ -31,7 +31,7 @@
 //#define print_image
 //#define print_charging
 //#define print_packet
-#define print_jpeg
+//#define print_jpeg
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -69,7 +69,7 @@
 #define BUFFER_SIZE                       256 // Define the payload size here
 
 #define MAC_HDR                           0xDF    
-#define DEV_ID                            0x04
+#define DEV_ID                            0x03
 
 #define PACKET_SIZE                        200
 #define HEADER_SIZE                        5
@@ -127,7 +127,7 @@ __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
 //__ro_hifram int8_t camaroptera_mode_3[5] = {2, 0, 0, 0, 0} ;     // For testing only capture+infer
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_4;
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
