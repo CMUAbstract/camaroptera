@@ -33,7 +33,6 @@
   #include <libio/console.h>
 #endif
 
-
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
 __ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
@@ -73,7 +72,7 @@ __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
 //__ro_hifram int8_t camaroptera_mode_3[5] = {2, 0, 0, 0, 0} ;     // For testing only capture+infer
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_4;
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram float charge_rate_sum;
