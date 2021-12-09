@@ -23,77 +23,24 @@
 
 #include <libjpeg/jpec.h> 
 
-#include "camaroptera-dnn.h"
+#include "cam_lora.h"
+#include "cam_util.h"
+#include "cam_diff.h"
 
-#define enable_debug
-//#define cont_power
-//#define print_diff
-//#define print_image
-//#define print_charging
-//#define print_packet
-#define print_jpeg
+#include "camaroptera-dnn.h"
 
 #ifdef enable_debug
   #include <libio/console.h>
 #endif
 
-#define __ro_hifram __attribute__((section(".upper.rodata")))
-#define __fram __attribute__((section(".persistent")))
-//#define OLD_PINS
-
-#define STATE_CAPTURE 0
-#define STATE_DIFF 1
-#define STATE_INFER 2
-#define STATE_COMPRESS 3
-#define STATE_TRANSMIT 4
-
-#define RF_FREQUENCY   915000000 // Hz
-
-#define FSK_FDEV                          25e3      // Hz
-#define FSK_DATARATE                      50e3      // bps
-#define FSK_BANDWIDTH                     50e3      // Hz
-#define FSK_AFC_BANDWIDTH                 83.333e3  // Hz
-#define FSK_PREAMBLE_LENGTH               5         // Same for Tx and Rx
-#define FSK_FIX_LENGTH_PAYLOAD_ON         false
-
-#define LORA_BANDWIDTH                              2        // [0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved]
-#define LORA_SPREADING_FACTOR                       7        // [SF7..SF12]
-#define LORA_CODINGRATE                             1         // [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8]
-#define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
-#define LORA_SYMBOL_TIMEOUT                         5         // Symbols
-#define LORA_FIX_LENGTH_PAYLOAD_ON                  false
-#define LORA_IQ_INVERSION_ON                        false
-
-#define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER                    17        // dBm
-#define BUFFER_SIZE                       256 // Define the payload size here
-
-#define MAC_HDR                           0xDF    
-#define DEV_ID                            0x04
-
-#define PACKET_SIZE                        200
-#define HEADER_SIZE                        5
-
-
-//Jpeg quality factor
-#define JQ LIBJPEG_QF
-
-// Image differencing parameters
-#define P_THR 40
-#define P_DIFF_THR 400
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
 
 __ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
 
-extern uint8_t frame[];
-extern uint8_t frame_jpeg[];
-extern uint16_t fp_track;
-extern uint16_t fn_track;
-
 __ro_hifram uint8_t old_frame [19200]= {0};
 
-__ro_hifram pixels = 0;
+__ro_hifram size_t pixels = 0;
 
 __ro_hifram uint8_t tx_packet_index = 0;
 __ro_hifram uint8_t frame_index = 0;
@@ -109,7 +56,6 @@ __ro_hifram  uint16_t len = 0;
 __ro_hifram jpec_enc_t *e;
 
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
-extern uint8_t array_for_dummy_dnn[10];
 
 #ifdef EXPERIMENT_MODE
 __ro_hifram uint8_t image_capt_not_sent = 0;
@@ -140,11 +86,8 @@ __ro_hifram uint8_t adc_flag;
 void camaroptera_compression();
 void camaroptera_init_lora();
 void OnTxDone();
-float camaroptera_wait_for_charge();
 void camaroptera_wait_for_interrupt();
 void camaroptera_mode_select(float charge_rate);
-uint8_t diff();
-uint8_t camaroptera_next_task(uint8_t current_task);
 extern void task_init();
 extern void task_exit();
 
@@ -195,48 +138,6 @@ void camaroptera_capture(){
       
 }
 
-void camaroptera_diff(){
-#ifdef enable_debug          
-  PRINTF("STATE 1: Performing Diff.\r\n");
-#endif
-
-#ifdef EXPERIMENT_MODE
-  P6OUT |= BIT4;     // Running: Diff
-  P5OUT |= BIT5;     // Signal start
-  diff(); // Run diff to simulate workload, but don't use result, diff status read from pins
-  if(frame_not_empty_status){   // Denotes an interesting scene
-    PRINTF("===>>Scene is interesting.\r\n");
-    camaroptera_state = camaroptera_next_task(1);
-  }else{
-    PRINTF("===>>Scene is empty.\r\n");
-    camaroptera_state = 0;
-  }
-#else //EXPERIMENT_MODE
-
-  if(diff()){
-#ifdef enable_debug          
-    PRINTF("Frame is different\r\n");
-#endif
-    camaroptera_state = camaroptera_next_task(1);
-  }else{
-#ifdef enable_debug          
-    PRINTF("No change detected\r\n");
-#endif
-    camaroptera_state = 0;
-  }
-#endif //EXPERIMENT_MODE
-
-#ifndef cont_power
-  camaroptera_wait_for_charge();       //Wait to charge up 
-#endif
-      
-#ifdef EXPERIMENT_MODE
-  P5OUT &= ~BIT5;     // Signal end 
-  P6OUT &= ~BIT4;     // Running: Diff
-#endif
-      
-
-}
 
 void camaroptera_infer(){
 #ifdef EXPERIMENT_MODE
@@ -441,7 +342,7 @@ int camaroptera_main(void) {
         break;
   
       case STATE_DIFF: //DIFF
-        camaroptera_diff();
+        camaroptera_diff(frame,old_frame,pixels,P_THR);
         break;
 
       case STATE_INFER: //DNN
@@ -605,7 +506,7 @@ void camaroptera_compression(){
 
   e = jpec_enc_new(frame, 160, 120, JQ);
 
-  jpec_enc_run(e, &len);
+  jpec_enc_run(e, (int*)&len);
 
   pixels = len;
  
@@ -649,26 +550,6 @@ uint8_t camaroptera_next_task( uint8_t current_task ){
     return *(camaroptera_current_mode + current_task);
 }
 
-uint8_t diff(){
-
-  uint16_t i, j = 0;
-  for(i = 0; i < pixels; i++){
-    if ((frame[i] - old_frame[i] >= P_THR) || (old_frame[i] - frame[i] >= P_THR))
-      j++;
-  }
-                              
-  memcpy(old_frame, frame, sizeof(old_frame));
-                                  
-#ifdef print_diff
-  PRINTF("DIFFERENT PIXELS: %u\r\n", j);
-#endif
-
-
-  if (j >= 400)
-    return 1;
-  else
-    return 0;
-}
 
 void camaroptera_wait_for_interrupt(){
   
