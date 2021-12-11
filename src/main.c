@@ -33,34 +33,50 @@
   #include <libio/console.h>
 #endif
 
+/*Radio-related data and a function decl*/
+void OnTxDone();
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
-
-__ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
-
-__ro_hifram uint8_t old_frame [19200]= {0};
-
-__ro_hifram size_t pixels = 0;
-
 __ro_hifram uint8_t tx_packet_index = 0;
+__ro_hifram static radio_events_t radio_events;
+__ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
+
+/*Power-related data*/
+__ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
+__ro_hifram float threshold_1 = 20.0;
+__ro_hifram float threshold_2 = 100.0;
+__ro_hifram float charge_rate_sum;
+__ro_hifram volatile uint8_t charge_timer_count;
+__ro_hifram volatile uint16_t adc_reading;
+__ro_hifram volatile uint8_t crash_check_flag;
+__fram volatile uint8_t crash_flag;
+__ro_hifram uint8_t adc_flag;
+
+/*Capture-related data*/
+#define FRAME_PIXELS 19200
+__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0};
+__ro_hifram size_t pixels = 0;
 __ro_hifram uint8_t frame_index = 0;
 __ro_hifram uint16_t frame_track = 0;
-__fram uint8_t camaroptera_state = 0;
-__ro_hifram static radio_events_t radio_events;
 
-__ro_hifram int state = 0;
+/*Inference-related data*/
+__ro_hifram int state = 0; /*TODO: Better name -- where is this used and why FRAM?*/
 __fram uint8_t predict;
-__ro_hifram int i, j;
-__ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
-__ro_hifram  uint16_t len = 0;
-__ro_hifram jpec_enc_t *e;
-
+__ro_hifram int i, j; /*TODO: Why are loop iterators in FRAM?*/
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
 
+
+/*JPEG Compression-related data*/
+__ro_hifram  uint16_t len = 0;
+__ro_hifram jpec_enc_t *e; /*TODO: do you want the pointer to this NV?  Or the thing?*/
+
+/*Experimental instrumentation*/
 #ifdef EXPERIMENT_MODE
 __ro_hifram uint8_t image_capt_not_sent = 0;
 __ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
 #endif
 
+/*Game-loop data*/
+__fram uint8_t camaroptera_state = 0;
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 // [0] - Capture Image
 // [1] - Diff
@@ -73,20 +89,8 @@ __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INF
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
 //__ro_hifram int8_t camaroptera_mode_3[5] = {2, 0, 0, 0, 0} ;     // For testing only capture+infer
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
-__ro_hifram float threshold_1 = 20.0;
-__ro_hifram float threshold_2 = 100.0;
-__ro_hifram float charge_rate_sum;
-__ro_hifram volatile uint8_t charge_timer_count;
-__ro_hifram volatile uint16_t adc_reading;
-__ro_hifram volatile uint8_t crash_check_flag;
-__fram volatile uint8_t crash_flag;
-__ro_hifram uint8_t adc_flag;
 
-void camaroptera_compression();
-void camaroptera_init_lora();
-void OnTxDone();
-void camaroptera_wait_for_interrupt();
-void camaroptera_mode_select(float charge_rate);
+
 extern void task_init();
 extern void task_exit();
 
@@ -173,7 +177,7 @@ void camaroptera_compress(){
 #endif
 
 
-  camaroptera_compression();
+  uint16_t len = camaroptera_compression();
 
 #ifdef print_jpeg
   PRINTF("Start JPEG frame\r\n");
@@ -497,7 +501,7 @@ void camaroptera_init_lora() {
                                   true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
 }
 
-void camaroptera_compression(){
+uint16_t camaroptera_compression(){
 
 #ifdef print_jpeg  
   PRINTF("Starting JPEG compression\n\r");
@@ -505,6 +509,7 @@ void camaroptera_compression(){
 
   e = jpec_enc_new(frame, 160, 120, JQ);
 
+  int len = 0;
   jpec_enc_run(e, (int*)&len);
 
   pixels = len;
@@ -512,6 +517,7 @@ void camaroptera_compression(){
 #ifdef enable_debug
   PRINTF("Done Compression. New img size: -- %u -- bytes.\r\n", pixels);
 #endif
+  return len;
 
 }
 

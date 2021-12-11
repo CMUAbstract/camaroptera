@@ -33,3 +33,7 @@ extern uint8_t array_for_dummy_dnn[10];
 
 uint8_t camaroptera_next_task(uint8_t current_task);
 float camaroptera_wait_for_charge();
+void camaroptera_init_lora();
+void camaroptera_wait_for_interrupt();
+void camaroptera_mode_select(float charge_rate);
+uint16_t camaroptera_compression();
