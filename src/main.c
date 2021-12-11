@@ -26,6 +26,7 @@
 #include "cam_lora.h"
 #include "cam_util.h"
 #include "cam_diff.h"
+#include "cam_radio.h"
 
 #include "camaroptera-dnn.h"
 
@@ -33,18 +34,11 @@
   #include <libio/console.h>
 #endif
 
-/*Radio-related data and a function decl*/
-void OnTxDone();
-__ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
-__ro_hifram uint8_t tx_packet_index = 0;
-__ro_hifram static radio_events_t radio_events;
-__ro_hifram uint16_t packet_count, sent_history, last_packet_size; 
 
 /*Power-related data*/
 __ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
-__ro_hifram float charge_rate_sum;
 __ro_hifram volatile uint8_t charge_timer_count;
 __ro_hifram volatile uint16_t adc_reading;
 __ro_hifram volatile uint8_t crash_check_flag;
@@ -55,13 +49,10 @@ __ro_hifram uint8_t adc_flag;
 #define FRAME_PIXELS 19200
 __ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0};
 __ro_hifram size_t pixels = 0;
-__ro_hifram uint8_t frame_index = 0;
-__ro_hifram uint16_t frame_track = 0;
 
 /*Inference-related data*/
 __ro_hifram int state = 0; /*TODO: Better name -- where is this used and why FRAM?*/
 __fram uint8_t predict;
-__ro_hifram int i, j; /*TODO: Why are loop iterators in FRAM?*/
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
 
 
@@ -181,7 +172,7 @@ void camaroptera_compress(){
 
 #ifdef print_jpeg
   PRINTF("Start JPEG frame\r\n");
-  for( i = 0 ; i < len ; i++ ){
+  for( int i = 0 ; i < len ; i++ ){
     PRINTF("%u ", frame_jpeg[i]);
   }
   PRINTF("\r\nEnd JPEG frame\r\n");
@@ -199,140 +190,6 @@ void camaroptera_compress(){
 
 }
 
-void camaroptera_transmit(){
-#ifdef EXPERIMENT_MODE
-  if(frame_interesting_status){
-    P2OUT |= BIT3;
-  }
-  pixels = 1800; //TODO: BML: Kill constant
-  P6OUT |= BIT7;     // Running: Transmission
-  P5OUT |= BIT5;     // Signal start
-#endif // EXPERIMENT_MODE      
-
-  charge_rate_sum = 0; 
-#ifdef enable_debug    
-  PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
-#endif
-
-  packet_count = pixels  / (PACKET_SIZE - HEADER_SIZE);
-
-  last_packet_size = pixels - packet_count * (PACKET_SIZE - HEADER_SIZE) + HEADER_SIZE;
-
-  if(pixels % (PACKET_SIZE - HEADER_SIZE) != 0){
-    packet_count ++;
-  }
-
-  sent_history = tx_packet_index;
-
-  for( i = sent_history; i < packet_count; i++ ){
-
-    P8OUT ^= BIT2;
-  
-    radio_buffer[0] = MAC_HDR;
-    radio_buffer[1] = DEV_ID;
-    radio_buffer[2] = frame_index;
-    radio_buffer[3] = packet_count;
-    radio_buffer[4] = tx_packet_index;
-#ifdef print_packet    
-    PRINTF("START PACKET\r\n");
-#endif
-    if( i == packet_count - 1){
-      for( j = HEADER_SIZE; j < last_packet_size; j++ ){
-        radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
-#ifdef print_packet   
-        PRINTF("%u ", radio_buffer[j]);
-#endif 
-       }
-    }else{
-      for( j = HEADER_SIZE; j < PACKET_SIZE; j++ ){
-        radio_buffer[j] = frame_jpeg[frame_track + j - HEADER_SIZE];
-#ifdef print_packet    
-        PRINTF("%u ", radio_buffer[j]);
-#endif 
-      }
-    }
-#ifdef print_packet   
-    PRINTF("\r\nEND PACKET\r\n");
-#endif
-  
-
-#ifdef enable_debug    
-    PRINTF("Cap ready\n\r");
-#endif  
-  
-    spi_init();
-
-#ifdef OLD_PINS
-    P4DIR |= BIT7;
-    P4OUT |= BIT7;
-#else
-    P4DIR |= BIT4;
-    P4OUT |= BIT4;
-#endif
-
-    camaroptera_init_lora();
-
-    if( i == packet_count - 1){
-#ifdef enable_debug    
-      PRINTF("Sending packet\n\r");
-#endif  
-      sx1276_send( radio_buffer,  last_packet_size);
-    }else{
-      sx1276_send( radio_buffer, PACKET_SIZE );
-    }
-  
-    __bis_SR_register(LPM4_bits+GIE);
-
-    sx1276_on_dio0irq();
-
-#ifdef enable_debug
-    PRINTF("Sent packet (ID=%u). Frame at %u. Sent %u till now. %u more to go.\r\n", tx_packet_index, frame_track, tx_packet_index, (packet_count - tx_packet_index));
-#endif
-
-    P5SEL1 &= ~(BIT0+ BIT1 + BIT2);
-    P5SEL0 &= ~(BIT0+ BIT1 + BIT2);
-    P5DIR &= ~(BIT0+ BIT1 + BIT2);
-
-#ifdef OLD_PINS
-    P5OUT &= ~BIT3;
-    P1OUT &= ~BIT4;
-    P4OUT &= ~BIT7;
-#else
-    P4OUT &= ~BIT1;
-    P4OUT &= ~BIT2;
-    P4OUT &= ~BIT4;
-#endif
-
-#ifndef cont_power
-    //Wait to charge up
-    charge_rate_sum += camaroptera_wait_for_charge();
-#else
-    //__delay_cycles(80000000);
-#endif
-    P8OUT ^= BIT2;
-  }  // End for i
-
-#ifdef enable_debug
-  PRINTF("Sent full image\r\n");
-#endif
-  tx_packet_index = 0;
-  frame_track = 0;
-  frame_index++;
-  charge_rate_sum = charge_rate_sum / packet_count;
-      
-  //camaroptera_mode_select( charge_rate_sum );
-
-  camaroptera_state = camaroptera_next_task(4);
-      
-#ifdef EXPERIMENT_MODE
-  P5OUT &= ~BIT5;     // Signal end 
-  P2OUT &= ~BIT3;     // tp_status
-  P6OUT &= ~BIT7;     // Running: Transmission
-#endif
-      
-  P8OUT &= ~BIT3; 
-
-}
 
 int camaroptera_main(void) {
   PRINTF("Entering main: %u\r\n", camaroptera_state);
@@ -478,27 +335,6 @@ float camaroptera_wait_for_charge(){
 
     return charge_rate;
   // }
-}
-
-void OnTxDone() {
-  tx_packet_index ++;
-  frame_track += (PACKET_SIZE - HEADER_SIZE);
-}
-
-void camaroptera_init_lora() {
-  radio_events.TxDone = OnTxDone;
-  //radio_events.RxDone = OnRxDone;
-  //radio_events.TxTimeout = OnTxTimeout;
-  //radio_events.RxTimeout = OnRxTimeout;
-  //radio_events.RxError = OnRxError;
-
-  sx1276_init(radio_events);
-  sx1276_set_channel(RF_FREQUENCY);
-
-  sx1276_set_txconfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
-                                  LORA_SPREADING_FACTOR, LORA_CODINGRATE,
-                                  LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                  true, 0, 0, LORA_IQ_INVERSION_ON, 2000);
 }
 
 uint16_t camaroptera_compression(){
