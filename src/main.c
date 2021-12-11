@@ -36,7 +36,8 @@
 
 
 /*Power-related data*/
-__ro_hifram uint16_t High_Threshold = 0x0FFA;   // ~3.004V
+#define ADC_3_004V 0x0FFA // ~3.004V
+__ro_hifram uint16_t High_Threshold = ADC_3_004V;   
 __ro_hifram float threshold_1 = 20.0;
 __ro_hifram float threshold_2 = 100.0;
 __ro_hifram volatile uint8_t charge_timer_count;
@@ -46,8 +47,9 @@ __fram volatile uint8_t crash_flag;
 __ro_hifram uint8_t adc_flag;
 
 /*Capture-related data*/
-#define FRAME_PIXELS 19200
-__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0};
+#define FRAME_PIXELS 19200 
+__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0}; 
+/*TODO: BML: why old_frame with fixed pixels but frame not?*/
 __ro_hifram size_t pixels = 0;
 
 /*Inference-related data*/
