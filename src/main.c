@@ -214,7 +214,7 @@ int camaroptera_main(void) {
         break;
       
       case STATE_TRANSMIT: //SEND BY RADIO
-        camaroptera_transmit();
+        camaroptera_transmit(pixels);
         break; 
 
       default:

@@ -20,7 +20,6 @@
 #include "cam_lora.h"
 
 extern uint8_t camaroptera_state;
-extern size_t pixels;
 __ro_hifram float charge_rate_sum;
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
@@ -32,12 +31,12 @@ __ro_hifram uint8_t frame_index = 0;
 __ro_hifram uint16_t frame_track = 0;
 __ro_hifram int tx_i, tx_j; /*TODO: Why are loop iterators in FRAM?*/
 
-void camaroptera_transmit(){
+void camaroptera_transmit(size_t num_pixels){
 #ifdef EXPERIMENT_MODE
   if(frame_interesting_status){
     P2OUT |= BIT3;
   }
-  pixels = 1800;     //TODO: BML: Kill constant
+  num_pixels = 1800;     //TODO: BML: Kill constant
   P6OUT |= BIT7;     // Running: Transmission
   P5OUT |= BIT5;     // Signal start
 #endif // EXPERIMENT_MODE      
@@ -47,11 +46,11 @@ void camaroptera_transmit(){
   PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
 #endif
 
-  packet_count = pixels  / (PACKET_SIZE - HEADER_SIZE);
+  packet_count = num_pixels  / (PACKET_SIZE - HEADER_SIZE);
 
-  last_packet_size = pixels - packet_count * (PACKET_SIZE - HEADER_SIZE) + HEADER_SIZE;
+  last_packet_size = num_pixels - packet_count * (PACKET_SIZE - HEADER_SIZE) + HEADER_SIZE;
 
-  if(pixels % (PACKET_SIZE - HEADER_SIZE) != 0){
+  if(num_pixels % (PACKET_SIZE - HEADER_SIZE) != 0){
     packet_count ++;
   }
 
