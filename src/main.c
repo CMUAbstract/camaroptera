@@ -35,9 +35,6 @@
   #include <libio/console.h>
 #endif
 
-/*Power-related data*/
-__ro_hifram float threshold_1 = 20.0;
-__ro_hifram float threshold_2 = 100.0;
 
 /*Capture-related data*/
 #define FRAME_PIXELS 19200 
@@ -45,11 +42,11 @@ __ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0};
 /*TODO: BML: why old_frame with fixed pixels but frame not?*/
 __ro_hifram size_t pixels = 0;
 
+
 /*Inference-related data*/
 __ro_hifram int state = 0; /*TODO: Better name -- where is this used and why FRAM?*/
 __fram uint8_t predict;
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
-
 
 
 /*Experimental instrumentation*/
@@ -60,6 +57,12 @@ __ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
 
 /*Game-loop data*/
 __fram uint8_t camaroptera_state = 0;
+
+/*BML: used to decide when to switch mode state machines*/ 
+__ro_hifram float threshold_1 = 20.0;
+__ro_hifram float threshold_2 = 100.0;
+
+/*TODO: define meaningful constants for these states*/
 // Different Operating modes ==> Next task ID for tasks {0,1,2,3,4}
 // [0] - Capture Image
 // [1] - Diff
@@ -70,7 +73,6 @@ __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;     // SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
-//__ro_hifram int8_t camaroptera_mode_3[5] = {2, 0, 0, 0, 0} ;     // For testing only capture+infer
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 
 
