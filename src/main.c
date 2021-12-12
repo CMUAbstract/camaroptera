@@ -13,23 +13,13 @@
 #include <libmsp/watchdog.h>
 #include <libmsp/gpio.h>
 
-#include <liblora/mcu.h>
-#include <liblora/spi.h>
-#include <liblora/sx1276.h>
-#include <liblora/sx1276regs-fsk.h>
-#include <liblora/sx1276regs-lora.h>
-
-
-#include <libjpeg/jpec.h> 
-
 #include "cam_lora.h"
 #include "cam_util.h"
 #include "cam_diff.h"
 #include "cam_radio.h"
 #include "cam_compress.h"
 #include "cam_capture.h"
-
-#include "camaroptera-dnn.h"
+#include "cam_infer.h"
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -69,35 +59,6 @@ __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
-
-
-extern void task_init();
-extern void task_exit();
-
-void camaroptera_infer(){
-#ifdef EXPERIMENT_MODE
-  P6OUT |= BIT5;     // Running: Infer
-  P5OUT |= BIT5;     // Signal start
-#endif
-
-#ifdef enable_debug          
-  PRINTF("STATE 2: Calling DNN.\r\n");
-#endif
-  P8OUT ^= BIT1; 
-
-#ifdef USE_ARM_DNN
-  P4OUT |= BIT4;
-  for(int i = 0; i < 1000; i++){
-    __delay_cycles(3040);//TODO: BML: Why this constant?
-  }
-  P4OUT &= ~BIT4;
-  task_exit();
-#else
-  TRANSITION_TO(task_init);
-#endif   
-
-}
-
 
 
 int camaroptera_main(void) {
