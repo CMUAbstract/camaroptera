@@ -31,6 +31,9 @@ extern void hm01b0_deinit();
 
 __ro_hifram uint16_t fp_track = 0;
 __ro_hifram uint16_t fn_track = 0;
+__fram uint8_t predict;
+__ro_hifram int state = 0; /*TODO: Better name -- which part of the DNN evaluating*/
+__ro_hifram uint8_t index_for_dummy_dnn = 0;
 
 void init();
 //#define PRINT_DEBUG
@@ -641,7 +644,6 @@ void task_compute() {
 }
 
 __fram fixed max = 0;
-extern uint8_t predict;
 void task_finish() {
 	fixed max = 0;
 	PRINTF("\r\n=====================");

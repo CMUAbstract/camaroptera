@@ -2,16 +2,9 @@
   #define CAMAROPTERA
 #endif
 
-#include <msp430.h>
 #include <stdint.h>
 #include <stdio.h>
-
 #include <libio/console.h>
-
-#include <libmsp/mem.h>
-#include <libmsp/clock.h>
-#include <libmsp/watchdog.h>
-#include <libmsp/gpio.h>
 
 #include "cam_lora.h"
 #include "cam_util.h"
@@ -25,20 +18,11 @@
   #include <libio/console.h>
 #endif
 
+extern uint8_t old_frame[];
 
 /*Capture-related data*/
-#define FRAME_PIXELS 19200 
-__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0}; 
 /*TODO: BML: why old_frame with fixed pixels but frame not?*/
 __ro_hifram size_t pixels = 0;
-
-
-/*Inference-related data*/
-__ro_hifram int state = 0; /*TODO: Better name -- where is this used and why FRAM?*/
-__fram uint8_t predict;
-__ro_hifram uint8_t index_for_dummy_dnn = 0;
-
-
 
 /*Game-loop data*/
 __fram uint8_t camaroptera_state = 0;
@@ -126,10 +110,10 @@ void camaroptera_mode_select( float charge_rate ){
 
 uint8_t camaroptera_next_task( uint8_t current_task ){
   
-  if ( *(camaroptera_current_mode + current_task) == -1 )
+  if ( camaroptera_current_mode[current_task] == -1 )
     return 0;
   else
-    return *(camaroptera_current_mode + current_task);
+    return camaroptera_current_mode[current_task];
 }
 
 

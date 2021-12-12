@@ -25,6 +25,8 @@
 #define P_THR 40
 #define P_DIFF_THR 400
 
+#define FRAME_PIXELS 19200 
+
 extern uint8_t frame[];
 extern uint8_t frame_jpeg[];
 extern uint16_t fp_track;

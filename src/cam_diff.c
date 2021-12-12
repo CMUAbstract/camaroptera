@@ -4,6 +4,8 @@
 #include "cam_util.h"
 #include "cam_diff.h"
 
+__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0}; 
+
 void camaroptera_diff(uint8_t *frame, uint8_t *old_frame,size_t pixels, uint8_t thresh){
 
 #ifdef EXPERIMENT_MODE
