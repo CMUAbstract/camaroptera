@@ -5,7 +5,13 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = main.o cam_diff.o cam_radio.o camaroptera-dnn.o lenet.o
+OBJECTS = main.o \
+	cam_interrupt.o \
+	cam_compress.o \
+	cam_diff.o \
+	cam_radio.o \
+	camaroptera-dnn.o \
+	lenet.o
 #OBJECTS = loraTest.o 
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
