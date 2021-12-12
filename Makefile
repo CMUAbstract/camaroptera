@@ -10,6 +10,7 @@ OBJECTS = main.o \
 	cam_compress.o \
 	cam_diff.o \
 	cam_radio.o \
+	cam_capture.o \
 	camaroptera-dnn.o \
 	lenet.o
 #OBJECTS = loraTest.o 

@@ -19,7 +19,6 @@
 #include <liblora/sx1276regs-fsk.h>
 #include <liblora/sx1276regs-lora.h>
 
-#include <libhimax/hm01b0.h>
 
 #include <libjpeg/jpec.h> 
 
@@ -28,6 +27,7 @@
 #include "cam_diff.h"
 #include "cam_radio.h"
 #include "cam_compress.h"
+#include "cam_capture.h"
 
 #include "camaroptera-dnn.h"
 
@@ -49,11 +49,6 @@ __fram uint8_t predict;
 __ro_hifram uint8_t index_for_dummy_dnn = 0;
 
 
-/*Experimental instrumentation*/
-#ifdef EXPERIMENT_MODE
-__ro_hifram uint8_t image_capt_not_sent = 0;
-__ro_hifram uint8_t frame_not_empty_status, frame_interesting_status;
-#endif
 
 /*Game-loop data*/
 __fram uint8_t camaroptera_state = 0;
@@ -78,54 +73,6 @@ __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 
 extern void task_init();
 extern void task_exit();
-
-void camaroptera_capture(){
-    
-#ifdef EXPERIMENT_MODE
-  P5OUT |= BIT6;     // Running: capture
-  P5OUT |= BIT5;     // Signal start
-#endif
-
-
-#ifdef enable_debug          
-  PRINTF("STATE 0: Capturing a photo.\r\n");
-#endif
-
-  pixels = 0;
-  while(pixels == 0){
-    pixels = capture();
-  }
-
-#ifdef EXPERIMENT_MODE
-  frame_not_empty_status = P4IN & BIT0;
-  frame_interesting_status = P7IN & BIT4;
-  //frame_not_empty_status = 1;
-  //frame_interesting_status = 1;
-#endif
-
-
-#ifdef print_image
-  PRINTF("Captured ---%i--- pixels\r\n", pixels);
-  PRINTF("Start captured frame\r\n");
-  for( i = 0 ; i < pixels ; i++ ){
-    PRINTF("%u ", frame[i]);
-  }
-  PRINTF("\r\nEnd frame\r\n");
-#endif
-  //PRINTF("Done Capturing\r\n");
-  camaroptera_state = camaroptera_next_task(0);
-      
-#ifndef cont_power
-  camaroptera_wait_for_charge();       //Wait to charge up 
-#endif
-
-#ifdef EXPERIMENT_MODE
-  P5OUT &= ~BIT5;     // Signal end 
-  P5OUT &= ~BIT6;     // Running: capture
-#endif
-      
-}
-
 
 void camaroptera_infer(){
 #ifdef EXPERIMENT_MODE
