@@ -10,6 +10,7 @@
 #include <libjpeg/jpec.h> 
 
 #include "cam_util.h"
+#include "cam_framebuffer.h"
 #include "cam_compress.h"
 
 /*JPEG Compression-related data*/
@@ -23,7 +24,7 @@ uint16_t camaroptera_compression(){
 #endif
 
   /*TODO: Does this dynamically allocate memory? If so, do statically?*/
-  e = jpec_enc_new(frame, 160, 120, JQ);
+  e = jpec_enc_new(camaroptera_get_framebuffer(), 160, 120, JQ);
 
   int len = 0;
   jpec_enc_run(e, (int*)&len);

@@ -1,12 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
 #include "cam_util.h"
 #include "cam_diff.h"
+#include "cam_framebuffer.h"
 
-__ro_hifram uint8_t old_frame[FRAME_PIXELS] = {0}; 
-
-void camaroptera_diff(uint8_t *frame, uint8_t *old_frame,size_t pixels, uint8_t thresh){
+void camaroptera_diff(uint8_t thresh){
 
 #ifdef EXPERIMENT_MODE
   P6OUT |= BIT4;     // Running: Diff
@@ -19,7 +19,12 @@ void camaroptera_diff(uint8_t *frame, uint8_t *old_frame,size_t pixels, uint8_t 
   }
 #else //EXPERIMENT_MODE
   /*TODO: make these args and arg to this function and then call from main*/
-  if(cam_diff(frame,old_frame,pixels,thresh)){
+  uint16_t diff_result = 
+    cam_diff(camaroptera_get_framebuffer(),
+             camaroptera_get_framebuffer_dbl_buf(),
+             camaroptera_get_framebuffer_num_pixels(),
+             thresh);
+  if( diff_result ){
     camaroptera_state = camaroptera_next_task(1);
   }else{
     camaroptera_state = 0;
@@ -48,7 +53,8 @@ uint8_t cam_diff(uint8_t *newf, uint8_t *oldf, size_t size, uint8_t thresh){
   }
                             
   /*TODO: zero-copy double buffer*/  
-  memcpy(oldf, newf, sizeof(oldf));
+  //memcpy(oldf, newf, sizeof(oldf));
+  camaroptera_swap_framebuffer_dbl_buf();
 
   if (j >= 400)
     return 1;

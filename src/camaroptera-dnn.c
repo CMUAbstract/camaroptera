@@ -14,6 +14,7 @@
 #include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
+#include "cam_framebuffer.h"
 #include "camaroptera-dnn.h"
 #include "lenet.h"
 #include "headers_30x40/conv1.h"
@@ -23,7 +24,6 @@
 #ifdef EXPERIMENT_MODE
 #include "event_headers_for_experiments/experiment_array_1_99_10_10_9.h"
 #endif
-extern uint8_t frame[];
 extern uint8_t camaroptera_state;
 extern uint8_t frame_interesting_status;
 extern float camaroptera_wait_for_charge(); 
@@ -289,7 +289,7 @@ __ro_fram mat_t mat_input = {
 	.dims = {1, 120, 160},
 	.strides = {19200, 160, 1},
 	.len_dims = 3,
-	.data = frame,
+	.data = NULL,
 };
 
 __fram mat_t buf1 = {.data = inference_buffer[0]};
@@ -306,7 +306,7 @@ void task_init() {
 	PRINTF("\r\n========================");
 	PRINTF("\r\nInit");
 #endif
-
+        mat_input.data = camaroptera_get_framebuffer(); 
 	TRANSITION_TO(task_compute);
 }
 

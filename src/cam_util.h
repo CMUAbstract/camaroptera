@@ -2,6 +2,7 @@
 
 #define __ro_hifram __attribute__((section(".upper.rodata")))
 #define __fram __attribute__((section(".persistent")))
+#define __hifram __attribute__((section(".upper.persistent")))
 
 #define STATE_CAPTURE 0
 #define STATE_DIFF 1
@@ -27,7 +28,7 @@
 
 #define FRAME_PIXELS 19200 
 
-extern uint8_t frame[];
+extern uint8_t *frame;
 extern uint8_t frame_jpeg[];
 extern uint16_t fp_track;
 extern uint16_t fn_track;

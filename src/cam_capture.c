@@ -30,10 +30,11 @@ void camaroptera_capture(){
   PRINTF("STATE 0: Capturing a photo.\r\n");
 #endif
 
-  pixels = 0;
-  while(pixels == 0){
-    pixels = capture();
+  uint16_t captured_pixels = 0;
+  while(captured_pixels == 0){
+    captured_pixels = capture();
   }
+  camaroptera_set_framebuffer_num_pixels(captured_pixels);
 
 #ifdef EXPERIMENT_MODE
   frame_not_empty_status = P4IN & BIT0;
@@ -44,9 +45,9 @@ void camaroptera_capture(){
 
 
 #ifdef print_image
-  PRINTF("Captured ---%i--- pixels\r\n", pixels);
+  PRINTF("Captured ---%i--- pixels\r\n", captured_pixels);
   PRINTF("Start captured frame\r\n");
-  for( i = 0 ; i < pixels ; i++ ){
+  for( i = 0 ; i < captured_pixels ; i++ ){
     PRINTF("%u ", frame[i]);
   }
   PRINTF("\r\nEnd frame\r\n");

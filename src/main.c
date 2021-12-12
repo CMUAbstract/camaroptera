@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <libio/console.h>
+#include <libhimax/hm01b0.h>
 
 #include "cam_lora.h"
 #include "cam_util.h"
@@ -13,16 +14,14 @@
 #include "cam_compress.h"
 #include "cam_capture.h"
 #include "cam_infer.h"
+#include "cam_framebuffer.h"
 
 #ifdef enable_debug
   #include <libio/console.h>
 #endif
 
-extern uint8_t old_frame[];
 
 /*Capture-related data*/
-/*TODO: BML: why old_frame with fixed pixels but frame not?*/
-__ro_hifram size_t pixels = 0;
 
 /*Game-loop data*/
 __fram uint8_t camaroptera_state = 0;
@@ -46,9 +45,14 @@ __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 
 
 int camaroptera_main(void) {
+
+  camaroptera_init_framebuffer();
+  hm01b0_set_framebuffer( camaroptera_get_framebuffer() );
+
   PRINTF("Entering main: %u\r\n", camaroptera_state);
   while(1){
 
+    uint16_t num_pixels = 0;
     switch( camaroptera_state ){
 
       case STATE_CAPTURE: //CAPTURE
@@ -56,7 +60,7 @@ int camaroptera_main(void) {
         break;
   
       case STATE_DIFF: //DIFF
-        camaroptera_diff(frame,old_frame,pixels,P_THR);
+        camaroptera_diff(P_THR);
         break;
 
       case STATE_INFER: //DNN
@@ -64,11 +68,12 @@ int camaroptera_main(void) {
         break;
 
       case STATE_COMPRESS: //COMPRESS
-        pixels = camaroptera_compress(); 
+        num_pixels = camaroptera_compress(); 
+        camaroptera_set_framebuffer_num_pixels(num_pixels);
         break;
       
       case STATE_TRANSMIT: //SEND BY RADIO
-        camaroptera_transmit(pixels);
+        camaroptera_transmit(camaroptera_get_framebuffer_num_pixels());
         break; 
 
       default:
