@@ -30,7 +30,7 @@ uint16_t camaroptera_compression(){
   jpec_enc_run(e, (int*)&len);
  
 #ifdef enable_debug
-  PRINTF("Done Compression. New img size: -- %u -- bytes.\r\n", pixels);
+  PRINTF("Done Compression. New img size: -- %u -- bytes.\r\n", camaroptera_get_framebuffer_num_pixels());
 #endif
   return len;
 
