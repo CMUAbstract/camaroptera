@@ -11,6 +11,7 @@
 
 #include "cam_util.h"
 #include "cam_capture.h"
+#include "cam_framebuffer.h"
 
 /*Experimental instrumentation*/
 #ifdef EXPERIMENT_MODE
