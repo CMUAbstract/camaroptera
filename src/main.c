@@ -44,7 +44,7 @@ __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + J
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
 
 
-int camaroptera_main(void) {
+void camaroptera_main(void) {
 
   camaroptera_init_framebuffer();
   hm01b0_set_framebuffer( camaroptera_get_framebuffer() );

@@ -66,7 +66,9 @@ INIT_FUNC(init)
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifndef CONFIG_CONSOLE
+#ifdef enable_debug        	
 	#pragma message "no console"
+#endif
 	#define printf(fmt, ...) (void)0
 #endif
 
@@ -80,7 +82,9 @@ void init() {
 	init_hw();
 
 #ifdef CONFIG_CONSOLE
+#ifdef enable_debug        	
 	#pragma message "init console"
+#endif
 	INIT_CONSOLE();
 #endif
 
@@ -153,8 +157,8 @@ __ro_fram mat_t mat_conv1_wd = {
 	.sparse = {
 		.dims = {20, 1, 1, 1},
 		.len_dims = 4,
-		.sizes = conv1_wmd_sizes,
-		.offsets = conv1_wmd_offsets
+		.sizes = (uint16_t *) conv1_wmd_sizes,
+		.offsets = (uint16_t *) conv1_wmd_offsets
 	},
 };
 
@@ -166,8 +170,8 @@ __ro_fram mat_t mat_conv1_wv = {
 	.sparse = {
 		.dims = {20, 1, 5, 1},
 		.len_dims = 4,
-		.sizes = conv1_wmv_sizes,
-		.offsets = conv1_wmv_offsets
+		.sizes = (uint16_t *) conv1_wmv_sizes,
+		.offsets = (uint16_t *) conv1_wmv_offsets
 	},
 };
 
@@ -179,8 +183,8 @@ __ro_fram mat_t mat_conv1_wh = {
 	.sparse = {
 		.dims = {20, 1, 1, 5},
 		.len_dims = 4,
-		.sizes = conv1_wmh_sizes,
-		.offsets = conv1_wmh_offsets
+		.sizes = (uint16_t *) conv1_wmh_sizes,
+		.offsets = (uint16_t *) conv1_wmh_offsets
 	},
 };
 
@@ -199,8 +203,8 @@ __ro_fram mat_t mat_conv2_wd = {
 	.sparse = {
 		.dims = {100, 20, 1, 1},
 		.len_dims = 4,
-		.sizes = conv2_wmd_sizes,
-		.offsets = conv2_wmd_offsets
+		.sizes = (uint16_t *) conv2_wmd_sizes,
+		.offsets = (uint16_t *) conv2_wmd_offsets
 	},
 };
 
@@ -212,8 +216,8 @@ __ro_fram mat_t mat_conv2_wv = {
 	.sparse = {
 		.dims = {100, 1, 5, 1},
 		.len_dims = 4,
-		.sizes = conv2_wmv_sizes,
-		.offsets = conv2_wmv_offsets
+		.sizes = (uint16_t *) conv2_wmv_sizes,
+		.offsets = (uint16_t *) conv2_wmv_offsets
 	},
 };
 
@@ -225,8 +229,8 @@ __ro_fram mat_t mat_conv2_wh = {
 	.sparse = {
 		.dims = {100, 1, 1, 5},
 		.len_dims = 4,
-		.sizes = conv2_wmh_sizes,
-		.offsets = conv2_wmh_offsets
+		.sizes = (uint16_t *) conv2_wmh_sizes,
+		.offsets = (uint16_t *) conv2_wmh_offsets
 	},
 };
 
@@ -246,8 +250,8 @@ __ro_fram mat_t mat_fc1_wh = {
 	.sparse = {
 		.dims = {100, 1, 1, 3500},
 		.len_dims = 4,
-		.offsets = fc1_wmh_offsets,
-		.sizes = fc1_wmh_sizes,
+		.offsets = (uint16_t *) fc1_wmh_offsets,
+		.sizes = (uint16_t *) fc1_wmh_sizes,
 	},
 };
 
@@ -259,8 +263,8 @@ __ro_fram mat_t mat_fc1_wv = {
 	.sparse = {
 		.dims = {500, 1, 1, 100},
 		.len_dims = 4,
-		.offsets = fc1_wmv_offsets,
-		.sizes = fc1_wmv_sizes,
+		.offsets = (uint16_t *) fc1_wmv_offsets,
+		.sizes = (uint16_t *) fc1_wmv_sizes,
 	},
 };
 
@@ -275,7 +279,7 @@ __ro_fram mat_t mat_fc2_w = {
 	.dims = {2, 1, 1, 500},
 	.strides = {500, 500 ,500, 1},
 	.len_dims = 4,
-	.data = fc2_w,
+	.data = (fixed *) fc2_w,
 };
 
 __ro_fram mat_t mat_fc2_b = {
@@ -306,7 +310,7 @@ void task_init() {
 	PRINTF("\r\n========================");
 	PRINTF("\r\nInit");
 #endif
-        mat_input.data = camaroptera_get_framebuffer(); 
+        mat_input.data = (fixed *)camaroptera_get_framebuffer(); 
 	TRANSITION_TO(task_compute);
 }
 

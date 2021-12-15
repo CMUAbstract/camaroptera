@@ -51,7 +51,7 @@ void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
   o_height = dest_buffer->dims[1];
   o_width = dest_buffer->dims[2];
   
-  uint16_t depth, height, width, d_idx, h_idx;
+  uint16_t depth, height, width;
 
   fixed temp;
   fixed threshold = F_LIT(256);
@@ -60,9 +60,7 @@ void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
   // PRINTF("IMAGE DIMS: (%i, %i, %i)", o_depth, o_height, o_width);
   
   for( depth = 0; depth < o_depth; depth++ ){
-    d_idx = depth * o_height;
     for( height = 0; height < o_height; height++ ){
-      h_idx = height * o_width;
       for( width = 0; width < o_width; width++ ){
         temp = MAT_GET( input_buffer, depth, height, width );
         temp = F_DIV(temp, threshold);
@@ -111,11 +109,10 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
   //         None
   
   // PRINTF("POOLING LAYER\r\n");
-  uint16_t filter_id, depth, height, width, filter_ht, filter_wd;
+  uint16_t depth, height, width, filter_ht, filter_wd;
 
-  uint16_t i_depth, i_height, i_width, h_idx, w_idx;
+  uint16_t i_height, i_width, h_idx, w_idx;
 
-  i_depth = src_buffer->dims[0];
   i_height = src_buffer->dims[1];
   i_width = src_buffer->dims[2];
 
@@ -127,7 +124,7 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
   
   // PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
 
-  fixed temp, pool_result, avg_denom;
+  fixed temp = 0, pool_result = 0, avg_denom = 0;
 
   avg_denom = kernel_size*kernel_size;
 
@@ -180,11 +177,7 @@ void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buff
 
   uint16_t filter_id, depth, height, width, filter_ht, filter_wd;
 
-  uint16_t i_depth, i_height, i_width, filters, f_depth, f_height, f_width;
-
-  i_depth = src_buffer->dims[0];
-  i_height = src_buffer->dims[1];
-  i_width = src_buffer->dims[2];
+  uint16_t filters, f_depth, f_height, f_width;
 
   filters = weight->dims[0];
   f_depth = weight->dims[1];
@@ -196,7 +189,6 @@ void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buff
   
   // PRINTF("FILTER DIMS:(%i, %i, %i, %i)\r\n", filters, f_depth, f_height, f_width);
 
-  uint16_t o_depth = dest_buffer->dims[0];
   uint16_t o_height = dest_buffer->dims[1];
   uint16_t o_width = dest_buffer->dims[2];
   
@@ -235,20 +227,10 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 
   uint16_t filter_id, height, width, filter_ht, filter_wd, weight_idx;
 
-  uint16_t i_depth, i_height, i_width, o_depth, o_height, o_width, filters, f_depth, f_height, f_width, total_elements, element_id, f_offset;
+  uint16_t o_height, o_width, filters, f_depth, f_height, f_width, total_elements, element_id, f_offset;
 
   fixed weight_temp, sum_temp;
 
-  if( src_buffer->len_dims == 3){
-    i_depth = src_buffer->dims[0];
-    i_height = src_buffer->dims[1];
-    i_width = src_buffer->dims[2];
-  }
-  else{
-    i_depth = 1;
-    i_height = src_buffer->dims[0];
-    i_width = src_buffer->dims[1];
-  }
 
   if( weight->sparse.len_dims == 4){
     filters = weight->sparse.dims[0];
@@ -264,12 +246,10 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
   }
 
   if( dest_buffer->len_dims == 3){
-    o_depth = dest_buffer->dims[0];
     o_height = dest_buffer->dims[1];
     o_width = dest_buffer->dims[2];
   }
   else{
-    o_depth = 1;
     o_height = dest_buffer->dims[0];
     o_width = dest_buffer->dims[1];
   }

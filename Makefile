@@ -19,6 +19,8 @@ OBJECTS = main.o \
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
 
+#Needed to silence spurious error in initializer for 2-d Fixed array
+CFLAGS += -Wno-missing-braces 
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
