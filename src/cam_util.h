@@ -11,7 +11,7 @@
 #define STATE_TRANSMIT 4
 //#define OLD_PINS
 
-#define enable_debug
+//#define enable_debug
 //#define cont_power
 //#define print_diff
 //#define print_image

@@ -37,7 +37,6 @@ __ro_hifram uint8_t index_for_dummy_dnn = 0;
 
 void init();
 //#define PRINT_DEBUG
-//#define cont_power
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Alapaca Shim///////////////////////////////////
@@ -58,7 +57,18 @@ TASK(3, task_compute);
 TASK(4, task_finish);
 TASK(5, task_exit);
 
-ENTRY_TASK(camaroptera_main)
+//ENTRY_TASK(camaroptera_main)
+
+void _entry_task(); 
+TASK(0, _entry_task); 
+void _entry_task() { 
+
+  PRINTF("IN ENTRY TASK\r\n");
+  TRANSITION_TO(camaroptera_main); 
+  PRINTF("SHOULD NOT GET HERE\r\n");
+
+}
+
 INIT_FUNC(init)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,8 +100,10 @@ void init() {
 
 	__enable_interrupt();
 
-	PRINTF("Starting up\r\n");
-	PRINTF(".%u.\r\n", curctx->task->idx);
+	PRINTF("Here I Am Starting Up\r\n");
+	PRINTF("Current Task ID = .%u.\r\n", curctx->task->idx);
+        if(curctx->task->idx == 65535){ PRINTF("INITIALIZING TASK ID\r\n"); curctx->task->idx = 0; }
+	PRINTF("Current Task ID = .%u.\r\n", curctx->task->idx);
 	
 	/*	
 	
@@ -109,6 +121,7 @@ void init() {
 	P8OUT &= ~(BIT1+BIT2+BIT3);
 	P8DIR |= (BIT1+BIT2+BIT3);
 	
+	PRINTF("Done with P8 stuff\r\n");
 #ifdef EXPERIMENT_MODE
 	
 	// Set as input
@@ -141,8 +154,16 @@ void init() {
 	hm01b0_deinit();
 	*/
 #ifndef cont_power
+	PRINTF("WAITING TO CHARGE\r\n");
 	camaroptera_wait_for_charge(); 			//Wait to charge up 
 #endif
+
+#ifdef cont_power
+	PRINTF("NOT WAITING TO CHARGE\r\n");
+#endif
+
+	PRINTF("Done with init!\r\n");
+        camaroptera_main();
 
 }
 
