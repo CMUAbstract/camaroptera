@@ -130,6 +130,10 @@ void __attribute__ ((interrupt(PORT5_VECTOR))) port_5 (void) {
 }
 
 float camaroptera_wait_for_charge(){
+#ifdef cont_power
+return;
+#endif
+
 #ifdef enable_debug
   //PRINTF("Waiting for cap to be charged. Going To Sleep\n\r");
 #endif
