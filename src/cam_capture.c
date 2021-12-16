@@ -44,11 +44,11 @@ void camaroptera_capture(){
   //frame_interesting_status = 1;
 #endif
 
-
 #ifdef print_image
   PRINTF("Captured ---%i--- pixels\r\n", captured_pixels);
   PRINTF("Start captured frame\r\n");
-  for( i = 0 ; i < captured_pixels ; i++ ){
+  uint8_t *frame = camaroptera_get_framebuffer();
+  for( int i = 0 ; i < captured_pixels ; i++ ){
     PRINTF("%u ", frame[i]);
   }
   PRINTF("\r\nEnd frame\r\n");

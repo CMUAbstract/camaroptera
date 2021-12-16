@@ -19,8 +19,10 @@ OBJECTS = main.o \
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
 
+STRIP_LD_FLAG = 
+
 #Needed to silence spurious error in initializer for 2-d Fixed array
-CFLAGS += -Wno-missing-braces 
+CFLAGS += -Wno-missing-braces -g -Dcont_power -Denable_debug -Dprint_image
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
@@ -36,7 +38,7 @@ export LIBFIXED_PRECISE = 1
 export LIBFIXED_BITWIDTH = 16
 export LIBFIXED_FRAC_BITWIDTH = 5
 
-CONSOLE ?=
+CONSOLE ?= 1
 INTERMITTENT ?= 
 BACKEND ?= sonic
 CONT ?= 1
@@ -78,7 +80,7 @@ export LIBDNN_BACKEND = $(BACKEND)
 export LIBDNN_TILE_SIZE = 128
 export LIBDNN_MAT_BUF_SIZE = $(MAT_BUF_SIZE)
 export LIBDNN_LAYER_BUF_SIZE = $(LAYER_BUF_SIZE)
-override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DLIBJPEG_QF=95
+override CC_LD_FLAGS += -mlarge $(STRIP_LD_FLAG) -DCAMAROPTERA -DTRANSMITTER_ONLY -DLIBJPEG_QF=95
 #override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS
 #override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS -DEXPERIMENT_MODE -DLIBJPEG_QF=50 -DDUMMY_COMPUTE
 #override CC_LD_FLAGS += -mlarge -s -DCAMAROPTERA -DTRANSMITTER_ONLY -DOLD_PINS -DEXPERIMENT_MODE -DLIBJPEG_QF=50 -DUSE_ARM_DNN
