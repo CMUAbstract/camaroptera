@@ -1,0 +1,17 @@
+void dnn_init(void*);
+void dnn_L1_pooling();
+void dnn_L2_conv();
+void dnn_L3_conv();
+void dnn_L4_conv();
+void dnn_L5_relu();
+void dnn_L6_pooling();
+void dnn_L7_conv();
+void dnn_L8_conv();
+void dnn_L9_conv();
+void dnn_L10_relu();
+void dnn_L11_pooling();
+void dnn_L12_fc1();
+void dnn_L13_fc2();
+void dnn_L14_relu();
+void dnn_L15_fc3();
+uint8_t dnn_get_class_result();

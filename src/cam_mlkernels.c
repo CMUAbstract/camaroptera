@@ -7,7 +7,7 @@
 #include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
-#include "lenet.h"
+#include "cam_mlkernels.h"
 
 extern uint8_t input[];
 

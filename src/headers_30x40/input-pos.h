@@ -1,6 +1,6 @@
 #ifndef INPUT_H
 #define INPUT_H
-#include "lenet.h"
+#include "cam_mlkernels.h"
 #include <libfixed/fixed.h>
 
 __ro_hifram fixed input[1][120][160] = {F_LIT(67.0),

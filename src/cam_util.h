@@ -16,7 +16,7 @@
 //#define print_diff
 //#define print_image
 //#define print_charging
-//#define print_packet
+#define print_packet
 #define print_jpeg
 
 //Jpeg quality factor

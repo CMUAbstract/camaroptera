@@ -43,7 +43,7 @@ void camaroptera_transmit(size_t num_pixels){
 
   charge_rate_sum = 0; 
 #ifdef enable_debug    
-  PRINTF("STATE 4: Detected person in Image. Calling Radio.\r\n");
+  PRINTF("STATE 4: Camaroptera transmit start.\r\n");
 #endif
 
   packet_count = num_pixels  / (PACKET_SIZE - HEADER_SIZE);
@@ -86,13 +86,17 @@ void camaroptera_transmit(size_t num_pixels){
 #ifdef print_packet   
     PRINTF("\r\nEND PACKET\r\n");
 #endif
-  
+    __delay_cycles(16000000); 
 
 #ifdef enable_debug    
     PRINTF("Cap ready\n\r");
 #endif  
   
     spi_init();
+
+#ifdef enable_debug    
+  PRINTF("done with SPI init.\r\n");
+#endif
 
 #ifdef OLD_PINS
     P4DIR |= BIT7;
@@ -102,19 +106,34 @@ void camaroptera_transmit(size_t num_pixels){
     P4OUT |= BIT4;
 #endif
 
+#ifdef enable_debug    
+  PRINTF("done with SPI init.\r\n");
+#endif
     camaroptera_init_lora();
+#ifdef enable_debug    
+  PRINTF("done with lora init.\r\n");
+#endif
 
     if( tx_i == packet_count - 1){
 #ifdef enable_debug    
-      PRINTF("Sending packet\n\r");
+      PRINTF("Sending last packet\n\r");
 #endif  
       sx1276_send( radio_buffer,  last_packet_size);
     }else{
+#ifdef enable_debug    
+      PRINTF("Sending packet %u \r\n",tx_i);
+#endif  
       sx1276_send( radio_buffer, PACKET_SIZE );
     }
   
-    __bis_SR_register(LPM4_bits+GIE);
+#ifdef enable_debug    
+      PRINTF("LPM4_bits + GIE \r\n");
+#endif  
+    //__bis_SR_register(LPM4_bits+GIE);
 
+#ifdef enable_debug    
+      PRINTF("dio0irq \r\n");
+#endif  
     sx1276_on_dio0irq();
 
 #ifdef enable_debug
@@ -139,7 +158,7 @@ void camaroptera_transmit(size_t num_pixels){
     //Wait to charge up
     charge_rate_sum += camaroptera_wait_for_charge();
 #else
-    //__delay_cycles(80000000);
+    __delay_cycles(80000000);
 #endif
     P8OUT ^= BIT2;
   }  // End for i

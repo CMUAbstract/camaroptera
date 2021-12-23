@@ -1,3 +1,6 @@
+#pragma once
+#include <stdbool.h>
+#include <libmat/mat.h>
 #define BUFFER_NUM 2
 #define BUFFER_SIZE 0x6200
 

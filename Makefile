@@ -14,7 +14,8 @@ OBJECTS = main.o \
 	cam_infer.o \
 	cam_framebuffer.o \
 	camaroptera-dnn.o \
-	lenet.o
+	dnn_layers.o \
+	cam_mlkernels.o
 #OBJECTS = loraTest.o 
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
@@ -22,8 +23,8 @@ OBJECTS = main.o \
 STRIP_LD_FLAG = 
 
 #Needed to silence spurious error in initializer for 2-d Fixed array
-CFLAGS += -Wno-missing-braces -g -Dcont_power -Denable_debug -Dprint_image
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libalpaca libmat libjpeg libmspdriver
+CFLAGS += -Wno-missing-braces -g -Dcont_power -Denable_debug -Dprint_packet
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
 

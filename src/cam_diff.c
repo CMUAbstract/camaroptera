@@ -54,7 +54,7 @@ uint8_t cam_diff(uint8_t *newf, uint8_t *oldf, size_t size, uint8_t thresh){
                             
   /*TODO: zero-copy double buffer*/  
   //memcpy(oldf, newf, sizeof(oldf));
-  camaroptera_swap_framebuffer_dbl_buf();
+  //camaroptera_swap_framebuffer_dbl_buf();
 
   if (j >= 400)
     return 1;

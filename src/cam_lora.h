@@ -19,11 +19,11 @@
 #define LORA_IQ_INVERSION_ON                        false
 
 #define RX_TIMEOUT_VALUE                  3500
-#define TX_OUTPUT_POWER                    17        // dBm
+#define TX_OUTPUT_POWER                    10        // dBm //BML: set from 17 to 10 to run off launchpad power
 #define BUFFER_SIZE                       256 // Define the payload size here
 
 #define MAC_HDR                           0xDF    
 #define DEV_ID                            0x04
 
-#define PACKET_SIZE                        200
+#define PACKET_SIZE                        255
 #define HEADER_SIZE                        5

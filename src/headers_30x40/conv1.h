@@ -1,7 +1,7 @@
 #ifndef CONV1_H
 #define CONV1_H
 #include <libfixed/fixed.h>
-#include "lenet.h"
+#include "cam_mlkernels.h"
 
 #define CONV1_WMH_LEN 68
 

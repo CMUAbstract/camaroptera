@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <libio/console.h>
 #include <libhimax/hm01b0.h>
+#include <libmsp/gpio.h>
+#include <libmsp/mem.h>
+#include <libmsp/periph.h>
+#include <libmsp/clock.h>
+#include <libmsp/watchdog.h>
 
 #include "cam_lora.h"
 #include "cam_util.h"
@@ -15,6 +20,7 @@
 #include "cam_capture.h"
 #include "cam_infer.h"
 #include "cam_framebuffer.h"
+
 
 #ifdef enable_debug
   #include <libio/console.h>
@@ -41,10 +47,71 @@ __ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;     // SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
 __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
+__ro_hifram int8_t camaroptera_mode_5[5] = {2, -1, 3, 4, 0} ;       // DIFF + INFER + SEND
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_3;
+
+#ifndef CONFIG_CONSOLE
+#ifdef enable_debug          
+  #pragma message "no console"
+#endif
+  #define printf(fmt, ...) (void)0
+#endif
+
+static void init_hw() {
+  msp_watchdog_disable();
+  msp_gpio_unlock();
+  msp_clock_setup();
+}
+
+void init() {
+
+  init_hw();
+
+#ifdef CONFIG_CONSOLE
+  INIT_CONSOLE();
+#endif
+
+  __enable_interrupt();
+
+  P8OUT &= ~(BIT1+BIT2+BIT3);
+  P8DIR |= (BIT1+BIT2+BIT3);
+  
+#ifdef EXPERIMENT_MODE
+  
+  // Set as input
+  P4DIR &= ~BIT0;
+  P7DIR &= ~(BIT4);
+
+  // Disable Pullup/downs
+  P4REN &= ~BIT0;
+  P7REN &= ~BIT4;
+
+  P2OUT &= ~BIT3;
+  P2DIR |= BIT3;
+  
+  P5OUT &= ~(BIT5+BIT6);
+  P5DIR |= (BIT5+BIT6);
+  P6OUT &= ~(BIT4+BIT5+BIT6+BIT7);
+  P6DIR |= (BIT4+BIT5+BIT6+BIT7);
+  
+  // External Peripheral Power EN
+  P4OUT &= ~BIT4;
+  P4DIR |= BIT4;
+
+#endif
+  
+#ifndef cont_power
+  camaroptera_wait_for_charge();       //Wait to charge up 
+#endif
+
+}
 
 
-void camaroptera_main(void) {
+int main(void) {
+
+  init();
+
+  PRINTF("HELLO FROM CAMAROPTERA MAIN\r\n");
 
   camaroptera_init_framebuffer();
   hm01b0_set_framebuffer( camaroptera_get_framebuffer() );
@@ -56,6 +123,8 @@ void camaroptera_main(void) {
     switch( camaroptera_state ){
 
       case STATE_CAPTURE: //CAPTURE
+        //TODO: framebuffer double buffering is broken for some reason...
+        //camaroptera_swap_framebuffer_dbl_buf(); 
         camaroptera_capture();
         break;
   
@@ -71,13 +140,13 @@ void camaroptera_main(void) {
         num_pixels = camaroptera_compress(); 
         camaroptera_set_framebuffer_num_pixels(num_pixels);
         break;
-      
+
       case STATE_TRANSMIT: //SEND BY RADIO
         camaroptera_transmit(camaroptera_get_framebuffer_num_pixels());
         break; 
 
       default:
-        camaroptera_state = 0;
+        camaroptera_state = STATE_CAPTURE;
         break;
     } // End switch
 

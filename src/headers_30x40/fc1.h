@@ -1,7 +1,7 @@
 #ifndef FC1_H
 #define FC1_H
 #include <libfixed/fixed.h>
-#include "lenet.h"
+#include "cam_mlkernels.h"
 
 #define FC1_WMH_LEN 1501
 
