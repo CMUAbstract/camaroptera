@@ -3,7 +3,7 @@ import argparse
 from PIL import Image
 import numpy as np
 
-JPEG_QF = 85
+JPEG_QF = 95
 
 WIDTH = 160
 HEIGHT = 120
