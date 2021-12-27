@@ -123,8 +123,10 @@ int main(void) {
     switch( camaroptera_state ){
 
       case STATE_CAPTURE: //CAPTURE
-        //TODO: framebuffer double buffering is broken for some reason...
-        //camaroptera_swap_framebuffer_dbl_buf(); 
+        //TODO: validate that this works on real HW -- swap may break hm01b0 
+        camaroptera_swap_framebuffer_dbl_buf(); 
+        hm01b0_set_framebuffer( camaroptera_get_framebuffer() );
+
         camaroptera_capture();
         break;
   
