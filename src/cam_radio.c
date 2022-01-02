@@ -129,7 +129,7 @@ void camaroptera_transmit(size_t num_pixels){
 #ifdef enable_debug    
       PRINTF("LPM4_bits + GIE \r\n");
 #endif  
-    //__bis_SR_register(LPM4_bits+GIE);
+    __bis_SR_register(LPM4_bits+GIE);
 
 #ifdef enable_debug    
       PRINTF("dio0irq \r\n");
