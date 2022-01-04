@@ -36,34 +36,37 @@ def main(args):
 	load_jpeg_header()
 	
 	# Open Serial Link
-	print(args.input_device)
-	ser = serial.Serial(args.input_device, baudrate=115200)
+	#print(args.input_device)
+	ser = serial.Serial('COM5', baudrate=9600)
 	print(ser.name)			# Verify correct device opened
 	
 	flag = 0
 	
+	datanext = False 
 	# Run forever
 	while True:
-	   
 		if ser.is_open == False:
 			ser.open()
 		
 		# Read one line from serial
 		line = ser.readline()
 		#print(line) 
-		if line == b"Start JPEG frame\r\n":		   # Check if this is a received message
+		if line == b"Received Message:\r\n":		   # Check if this is a received message
+			datanext = True
+		if datanext == True:
 			print("")
 			print(line.decode('utf-8'))
 			data = ser.readline().decode('utf-8')
-			data = data.split(' ')[:-2]
+			data = data.split(' ')[5:-2]
 			data = [ int(x) for x in data ]
 			print('Captured %s bytes' % len(data))
+			print(data)
 		
-			image = JPEG_HEADER + data
-			bt = bytes(image)
-			fp = open(args.op, 'wb')
-			fp.write(bt)
-			fp.close()
+			#image = JPEG_HEADER + data
+			#bt = bytes(image)
+			#fp = open(args.op, 'wb')
+			#fp.write(bt)
+			#fp.close()
 		
 		else:
 			pass

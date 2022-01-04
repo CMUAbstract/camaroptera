@@ -18,8 +18,10 @@
 #include "cam_util.h"
 #include "cam_radio.h"
 #include "cam_lora.h"
+#include "cam_framebuffer.h"
 
 extern uint8_t camaroptera_state;
+extern uint8_t *cam_downsamp_buf;
 __ro_hifram float charge_rate_sum;
 
 __ro_hifram uint8_t radio_buffer[BUFFER_SIZE];
@@ -42,6 +44,15 @@ void camaroptera_transmit(size_t num_pixels){
 #endif // EXPERIMENT_MODE      
 
   charge_rate_sum = 0; 
+
+  uint8_t * frame_data = NULL;
+#ifndef cam_downsamp
+  frame_data = frame_jpeg;
+#else
+  frame_data = cam_downsamp_buf; 
+#endif
+
+
 #ifdef enable_debug    
   PRINTF("STATE 4: Camaroptera transmit start.\r\n");
 #endif
@@ -70,14 +81,14 @@ void camaroptera_transmit(size_t num_pixels){
 #endif
     if( tx_i == packet_count - 1){
       for( tx_j = HEADER_SIZE; tx_j < last_packet_size; tx_j++ ){
-        radio_buffer[tx_j] = frame_jpeg[frame_track + tx_j - HEADER_SIZE];
+        radio_buffer[tx_j] = frame_data[frame_track + tx_j - HEADER_SIZE];
 #ifdef print_packet   
         PRINTF("%u ", radio_buffer[tx_j]);
 #endif 
        }
     }else{
       for( tx_j = HEADER_SIZE; tx_j < PACKET_SIZE; tx_j++ ){
-        radio_buffer[tx_j] = frame_jpeg[frame_track + tx_j - HEADER_SIZE];
+        radio_buffer[tx_j] = frame_data[frame_track + tx_j - HEADER_SIZE];
 #ifdef print_packet    
         PRINTF("%u ", radio_buffer[tx_j]);
 #endif 

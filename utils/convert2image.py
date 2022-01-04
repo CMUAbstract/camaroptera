@@ -2,8 +2,8 @@ import argparse
 from PIL import Image
 import numpy as np
 
-WIDTH = 160
-HEIGHT = 120
+WIDTH = 80
+HEIGHT = 60 
 
 def main(args):
 
@@ -20,7 +20,7 @@ def main(args):
 	
 	output_name = args.raw_file.split('.')[0]
 	
-	img.save(output_name+".jpg")
+	img.save(output_name+".bmp")
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
