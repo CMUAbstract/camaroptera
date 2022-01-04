@@ -61,7 +61,6 @@ uint16_t camaroptera_compression(){
 
   cam_downsample(camaroptera_get_framebuffer()); 
   unsigned int len = CAM_DOWNSAMP_SIZE; 
-  camaroptera_set_framebuffer_num_pixels(len);
 
 #endif
 
