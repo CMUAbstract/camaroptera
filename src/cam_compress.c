@@ -9,7 +9,7 @@
 
 #include <libjpeg/jpec.h> 
 
-#include "lzfx.h"
+// #include "lzfx.h"
 
 #include "cam_util.h"
 #include "cam_framebuffer.h"

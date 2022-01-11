@@ -20,10 +20,10 @@ OBJECTS = main.o \
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
 STRIP_LD_FLAG = 
-DEBUG_CFLAGS = -Dcont_power -Denable_debug
+DEBUG_CFLAGS = -Dcont_power -Denable_debug -Dprint_image
 #-Dprint_packet -Dprint_jpeg -Dprint_image
 #Needed to silence spurious error in initializer for 2-d Fixed array
-CFLAGS += -Wno-missing-braces -g -Dcont_power -Denable_debug -Dprint_jpeg
+CFLAGS += -Wno-missing-braces -g $(DEBUG_CFLAGS)
 DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
@@ -91,4 +91,23 @@ export CC_LD_FLAGS
 export CFLAGS
 export LFLAGS
 include tools/maker/Makefile
+
+
+# Mac specific programming and building routines
+HEX430 = /Users/graham/Desktop/startup/demo/mspcgt/bin/hex430
+BLDDIR = bld/gcc
+MSPFLASHER = /Users/graham/Desktop/startup/demo/mspflasher/MSP430Flasher
+DYLIB = $$DYLD_LIBRARY_PATH:/Users/graham/Desktop/startup/demo/mspflasher/
+
+.PHONY: bld hex prog clean
+
+bld: bld/gcc/all
+
+clean: bld/gcc/clean
+
+hex: bld
+	$(HEX430) --ti_txt -order=LS -o $(BLDDIR)/$(EXEC).txt $(BLDDIR)/$(EXEC).out
+
+prog: hex
+	DYLD_LIBRARY_PATH=$(DYLIB) $(MSPFLASHER) -n MSP430FR5994 -w $(BLDDIR)/$(EXEC).txt -v -z "[VCC=2400]"
 

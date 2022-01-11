@@ -49,7 +49,8 @@ __ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INF
 __ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
 __ro_hifram int8_t camaroptera_mode_5[5] = {2, -1, 3, 4, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_6[5] = {4, -1, -1, -1, 0} ;       // DIFF + INFER + SEND
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_1;
+__ro_hifram int8_t camaroptera_mode_7[5] = {0, -1, -1, -1, -1} ;       // CAPTURE Only
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_7;
 
 #ifndef CONFIG_CONSOLE
 #ifdef enable_debug          
