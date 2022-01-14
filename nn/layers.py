@@ -17,15 +17,15 @@ class QConv2d(nn.Conv2d):
 		weight = self.weight
 		bias = self.bias
 
-		if quantize:
-			weight = self.quantizer(weight)
-			if self.bias is not None:
-				bias = self.quantizer(bias)
-
 		if sparsify:
 			weight = self.sparsifier(weight)
 			if self.bias is not None:
 				bias = self.sparsifier(bias)
+
+		if quantize:
+			weight = self.quantizer(weight)
+			if self.bias is not None:
+				bias = self.quantizer(bias)
 
 		return weight, bias
 
@@ -51,15 +51,15 @@ class QLinear(nn.Linear):
 		weight = self.weight
 		bias = self.bias
 
-		if quantize:
-			weight = self.quantizer(weight)
-			if self.bias is not None:
-				bias = self.quantizer(bias)
-
 		if sparsify:
 			weight = self.sparsifier(weight)
 			if self.bias is not None:
 				bias = self.sparsifier(bias)
+				
+		if quantize:
+			weight = self.quantizer(weight)
+			if self.bias is not None:
+				bias = self.quantizer(bias)
 
 		return weight, bias
 

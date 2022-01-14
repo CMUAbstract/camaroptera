@@ -18,6 +18,7 @@ QUANTIZERS = {
 
 def threshold_sparsifier(threshold):
 	def sparsifier(x):
+		x = x.clone()
 		x[torch.abs(x) < threshold] = 0
 		return x
 	return sparsifier
