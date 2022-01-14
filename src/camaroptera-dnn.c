@@ -21,52 +21,7 @@ extern uint8_t frame_interesting_status;
 extern float camaroptera_wait_for_charge(); 
 extern void hm01b0_deinit();
 
-__ro_hifram uint16_t fp_track = 0;
-__ro_hifram uint16_t fn_track = 0;
-__fram uint8_t predict;
 __ro_hifram int dnn_layer = 0; /*TODO: Better name -- which part of the DNN evaluating*/
-__ro_hifram uint8_t index_for_dummy_dnn = 0;
-
-void init();
-//#define PRINT_DEBUG
-
-////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////Alapaca Shim///////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-#define MEM_SIZE 0x400
-__hifram uint8_t *data_src[MEM_SIZE];
-__hifram uint8_t *data_dest[MEM_SIZE];
-__hifram unsigned int data_size[MEM_SIZE];
-void clear_isDirty() {}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////Tasks///////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-TASK(1, camaroptera_main);
-TASK(2, task_init);
-TASK(3, task_compute);
-TASK(4, task_finish);
-TASK(5, task_exit);
-*/
-//ENTRY_TASK(camaroptera_main)
-
-//void _entry_task(); 
-//TASK(0, _entry_task); 
-//void _entry_task() { 
-
-  //TRANSITION_TO(camaroptera_main); 
-
-//}
-
-//INIT_FUNC(init)
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////Setup///////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-
 
 void task_init() {
 
@@ -105,23 +60,23 @@ TOP:
     UPDATE_STATE(2);
     goto TOP;
   }else if(dnn_layer == 2) {
-    dnn_L3_conv();
+    dnn_L3_relu();
     UPDATE_STATE(3);
     goto TOP;
   } else if(dnn_layer == 3) {
-    dnn_L4_conv();
+    dnn_L4_pooling();
     UPDATE_STATE(4);
     goto TOP;
   } else if(dnn_layer == 4) {
-    dnn_L5_relu();
+    dnn_L5_conv();
     UPDATE_STATE(5);
     goto TOP;
   } else if(dnn_layer == 5) {
-    dnn_L6_pooling();
+    dnn_L6_relu();
     UPDATE_STATE(6);
     goto TOP;
   } else if(dnn_layer == 6) {
-    dnn_L7_conv();
+    dnn_L7_pooling();
     UPDATE_STATE(7);
     goto TOP;
   }else if(dnn_layer == 7) {
@@ -129,32 +84,20 @@ TOP:
     UPDATE_STATE(8);
     goto TOP;
   } else if(dnn_layer == 8) {
-    dnn_L9_conv();
+    dnn_L9_relu();
     UPDATE_STATE(9);
     goto TOP;
   } else if(dnn_layer == 9) {
-    dnn_L10_relu();
+    dnn_L10_fc1();
     UPDATE_STATE(10);
     goto TOP;
   } else if(dnn_layer == 10) {
-    dnn_L11_pooling();
+    dnn_L11_relu();
     UPDATE_STATE(11);
     goto TOP;
   } else if(dnn_layer == 11) {
-    dnn_L12_fc1();
+    dnn_L12_fc2();
     UPDATE_STATE(12);
-    goto TOP;
-  } else if(dnn_layer == 12) {
-    dnn_L13_fc2();
-    UPDATE_STATE(13);
-    goto TOP;
-  } else if(dnn_layer == 13) {
-    dnn_L14_relu();
-    UPDATE_STATE(14);
-    goto TOP;
-  } else if(dnn_layer == 14) {
-    dnn_L15_fc3();
-    UPDATE_STATE(0);
   }
 
 #endif
@@ -168,10 +111,7 @@ void task_finish() {
 
 #ifdef enable_debug          
   PRINTF("\r\n");
-  if(prediction == 0)
-    PRINTF("PREDICTION => %u [No Person in Image]\r\n", prediction);
-  else if(prediction == 1)
-    PRINTF("PREDICTION => %u [Person in Image]\r\n", prediction);
+  PRINTF("PREDICTION => %u \r\n", prediction);
   PRINTF("\r\n=====================");
   PRINTF("\r\n=====================\r\n");
 #endif
@@ -179,38 +119,9 @@ void task_finish() {
 
 void task_exit() {
 
-#ifdef EXPERIMENT_MODE
-  
-  PRINTF("fp_track:%u  | fn_track:%u\r\n", fp_track, fn_track);
-  if (frame_interesting_status){
-    if(false_negatives[fn_track]){
-      prediction = 0;
-      PRINTF("--->>False Negative.\r\n");
-    }
-    else{
-      prediction = 1;
-      PRINTF("--->>True Positive.\r\n");
-    }
-    fn_track ++;
-  }
-  else{
-    if(false_positives[fp_track]){
-      prediction = 1;
-      PRINTF("--->>False Positive.\r\n");
-    }
-    else{
-      prediction = 0;
-      PRINTF("--->>True Negative.\r\n");
-    }
-    fp_track ++;
-  }
-    
-#endif 
-
-
   if ( prediction == 0 ){
 #ifdef enable_debug          
-    PRINTF("STATE 4: No Person in Image. Skipping the rest.\r\n");
+    PRINTF("STATE 4: Nothing detected \r\n");
 #endif
     camaroptera_state = 0;
   } else{

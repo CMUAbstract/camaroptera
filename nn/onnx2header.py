@@ -34,7 +34,7 @@ def is_int_dtype(dtype):
 
 def dump_mat(f, name, w, dtype='int16_t'):
 	dims = len(w.shape)
-	f.write(f'__ro__hifram {dtype} {name}')
+	f.write(f'__ro_hifram {dtype} {name}')
 
 	for d in w.shape:
 		f.write(f'[{d}]')
@@ -56,7 +56,7 @@ def dump_mat(f, name, w, dtype='int16_t'):
 def to_header(f, name, w, sparse=False, dtype='int16_t'):
 	f.write(f'#ifndef {name.upper()}\n')
 	f.write(f'#define {name.upper()}\n')
-	f.write('#include <libdnn/mem.h>\n')
+	f.write('#include "cam_mlkernels.h"\n')
 
 	dims = len(w.shape)
 	if dims == 4 and sparse:
@@ -65,10 +65,12 @@ def to_header(f, name, w, sparse=False, dtype='int16_t'):
 		dump_mat(f, name, w, dtype)
 	elif dims == 2 and sparse: # HERE
 		csr = csr_matrix(w)
-		f.write(f'#define {name.upper()}_SIZE {csr.indptr.size}\n')
+		f.write(f'#define {name.upper()}_SIZE {csr.data.size}\n')
 		dump_mat(f, f'{name}_indptr', csr.indptr, 'uint16_t')
-		dump_mat(f, f'{name}_data', csr.data, dtype)
+		f.write('\n');
 		dump_mat(f, f'{name}_index', csr.indices, 'uint16_t')
+		f.write('\n');
+		dump_mat(f, f'{name}_data', csr.data, dtype)
 	elif dims == 2:
 		dump_mat(f, name, w, dtype)
 	elif dims == 1:

@@ -4,7 +4,6 @@
 
 #include <libio/console.h>
 
-#include <libfixed/fixed.h>
 #include <libmat/mat.h>
 
 #include "cam_mlkernels.h"
@@ -13,7 +12,7 @@ extern uint8_t input[];
 
 //__ro_hifram uint8_t frame[19200];
 
-__ro_hifram fixed inference_buffer[BUFFER_NUM][BUFFER_SIZE];
+__ro_hifram int16_t inference_buffer[BUFFER_NUM][BUFFER_SIZE];
 
 void zero( mat_t *buffer ){
   // -----   INPUTS:
@@ -53,8 +52,9 @@ void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
   
   uint16_t depth, height, width;
 
-  fixed temp;
-  fixed threshold = F_LIT(256);
+  int32_t temp;
+  int32_t threshold = 255;
+  int32_t max = SHRT_MAX;
 
   // PRINTF("NORMALIZING IMAGE\r\n");
   // PRINTF("IMAGE DIMS: (%i, %i, %i)", o_depth, o_height, o_width);
@@ -63,7 +63,7 @@ void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
     for( height = 0; height < o_height; height++ ){
       for( width = 0; width < o_width; width++ ){
         temp = MAT_GET( input_buffer, depth, height, width );
-        temp = F_DIV(temp, threshold);
+        temp = (temp * max) / threshold;
         MAT_SET( dest_buffer, temp, depth, height, width);
       }
     }
@@ -87,7 +87,7 @@ void relu( mat_t *src_buffer, uint16_t threshold ){
   
   uint16_t depth, height, width;
 
-  fixed f_threshold = F_LIT(threshold);
+  int16_t f_threshold = threshold;
   
   // PRINTF("RELU LAYER\r\n");
   // PRINTF("INPUT LAYER DIMS: (%i, %i, %i)", i_depth, i_height, i_width);
@@ -124,7 +124,7 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
   
   // PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
 
-  fixed temp = 0, pool_result = 0, avg_denom = 0;
+  int16_t temp = 0, pool_result = 0, avg_denom = 0;
 
   avg_denom = kernel_size*kernel_size;
 
@@ -133,7 +133,7 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
       for( width = 0; width < o_width; width++ ){
         
         if (type == 0)
-          pool_result = F_MIN;
+          pool_result = SHRT_MIN;
         else if (type == 1)
           pool_result = 0;
         
@@ -144,12 +144,12 @@ void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kerne
             if( (h_idx+filter_ht) < i_height && (w_idx+filter_wd) < i_width )
               temp = MAT_GET(src_buffer, depth, h_idx+filter_ht, w_idx+filter_wd);
             else
-              temp = F_MIN;
+              temp = SHRT_MIN;
             //PRINTF("(%i,%i) %i | ", h_idx+filter_ht, w_idx+filter_wd, temp);
             if( type == 0 && temp > pool_result) // MAXPOOLING
               pool_result = temp;
             else if( type == 1 )                 // AVGPOOLING
-              pool_result = F_ADD( pool_result, temp ); 
+              pool_result = pool_result + temp; 
           }
         }
         //PRINTF("%i | ", pool_result);
@@ -173,7 +173,7 @@ void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buff
   // -----   OUTPUT:
   //         None
 
-  fixed sum_temp = 0;
+  int16_t sum_temp = 0;
 
   uint16_t filter_id, depth, height, width, filter_ht, filter_wd;
 
@@ -202,7 +202,9 @@ void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buff
         for( width = 0; width < o_width; width++ ){
           for( filter_ht = 0; filter_ht < f_height; filter_ht++ ){
             for( filter_wd = 0; filter_wd < f_width; filter_wd++ ){
-                sum_temp += F_MUL( MAT_GET(src_buffer, depth, height+filter_ht, width+filter_wd), MAT_GET(weight, filter_id, depth, filter_ht, filter_wd) );
+                int16_t src_temp = MAT_GET(src_buffer, depth, height+filter_ht, width+filter_wd);
+                int16_t weight_temp = MAT_GET(weight, filter_id, depth, filter_ht, filter_wd); 
+                sum_temp += src_temp * weight_temp;
             }
           }
           if (bias != NULL)
@@ -229,7 +231,7 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
 
   uint16_t o_height, o_width, filters, f_depth, f_height, f_width, total_elements, element_id, f_offset;
 
-  fixed weight_temp, sum_temp;
+  int16_t weight_temp, sum_temp;
 
 
   if( weight->sparse.len_dims == 4){
@@ -292,13 +294,13 @@ void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buf
       for( height = 0; height < o_height; height++ ){
         for( width = 0; width < o_width; width++ ){
             if(depthwise){
-              sum_temp = F_MUL( weight_temp, MAT_GET( src_buffer, depth_id, height+filter_ht, width+filter_wd ) );
+              sum_temp = weight_temp * MAT_GET( src_buffer, depth_id, height+filter_ht, width+filter_wd );
               if(!first)
                 sum_temp += MAT_GET( dest_buffer, depth_id, height, width );
               MAT_SET( dest_buffer, sum_temp, depth_id, height, width );
             }
             else{
-              sum_temp = F_MUL( weight_temp, MAT_GET( src_buffer, f_depth, height+filter_ht, width+filter_wd ) );
+              sum_temp = weight_temp * MAT_GET( src_buffer, f_depth, height+filter_ht, width+filter_wd );
             //  PRINTF("(%i,%i)[%i,%i] |", w, sum_temp, height, width);
               if(!first){
                 sum_temp += MAT_GET( dest_buffer, filter_id, height, width );
