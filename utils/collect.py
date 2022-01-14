@@ -1,3 +1,4 @@
+import os
 import re
 import glob
 import serial
@@ -14,7 +15,7 @@ def main(args):
 	files = list(glob.glob(f'{args.dest}/*'))
 	for file in files:
 		if 'frame' not in file: continue
-		s = re.findall('\d+', file)
+		s = re.findall('\d+', os.path.basename(file))
 		img_count = max(img_count, int(s[0])) + 1
 
 	print(f'[DEBUG] Starting @ {img_count:05d}')

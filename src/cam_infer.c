@@ -10,7 +10,7 @@
 #include <libmsp/watchdog.h>
 #include <libmsp/gpio.h>
 
-#include "camaroptera-dnn.h"
+// #include "camaroptera-dnn.h"
 
 
 void camaroptera_infer(){
@@ -41,10 +41,10 @@ void camaroptera_infer(){
   PRINTF("transitioning to task_init.\r\n");
 #endif
 
-task_init();
-task_compute();
-task_finish();
-task_exit();
+// task_init();
+// task_compute();
+// task_finish();
+// task_exit();
 
 #endif   
 
