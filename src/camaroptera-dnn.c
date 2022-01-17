@@ -2,6 +2,7 @@
 #include <msp430.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <libio/console.h>
 #include <libmspbuiltins/builtins.h>
@@ -52,53 +53,69 @@ TOP:
 #endif
 
   if(dnn_layer == 0) {
-    dnn_L1_pooling();
-    UPDATE_STATE(1);
+    dnn_L0_pool();
+    UPDATE_STATE(0);
     goto TOP;
   } else if(dnn_layer == 1) {
-    dnn_L2_conv();
+    dnn_L1_conv();
+    UPDATE_STATE(1);
+    goto TOP;
+  } else if(dnn_layer == 2) {
+    dnn_L2_relu();
     UPDATE_STATE(2);
     goto TOP;
-  }else if(dnn_layer == 2) {
-    dnn_L3_relu();
+  } else if(dnn_layer == 3) {
+    dnn_L3_pool();
     UPDATE_STATE(3);
     goto TOP;
-  } else if(dnn_layer == 3) {
-    dnn_L4_pooling();
+  } else if(dnn_layer == 4) {
+    dnn_L4_conv();
     UPDATE_STATE(4);
     goto TOP;
-  } else if(dnn_layer == 4) {
+  } else if(dnn_layer == 5) {
     dnn_L5_conv();
     UPDATE_STATE(5);
     goto TOP;
-  } else if(dnn_layer == 5) {
-    dnn_L6_relu();
+  } else if(dnn_layer == 6) {
+    dnn_L6_conv();
     UPDATE_STATE(6);
     goto TOP;
-  } else if(dnn_layer == 6) {
-    dnn_L7_pooling();
+  } else if(dnn_layer == 7) {
+    dnn_L7_relu();
     UPDATE_STATE(7);
     goto TOP;
-  }else if(dnn_layer == 7) {
-    dnn_L8_conv();
+  } else if(dnn_layer == 8) {
+    dnn_L8_pool();
     UPDATE_STATE(8);
     goto TOP;
-  } else if(dnn_layer == 8) {
-    dnn_L9_relu();
+  } else if(dnn_layer == 9) {
+    dnn_L9_conv();
     UPDATE_STATE(9);
     goto TOP;
-  } else if(dnn_layer == 9) {
-    dnn_L10_fc1();
+  } else if(dnn_layer == 10) {
+    dnn_L10_conv();
     UPDATE_STATE(10);
     goto TOP;
-  } else if(dnn_layer == 10) {
-    dnn_L11_relu();
+  } else if(dnn_layer == 11) {
+    dnn_L11_conv();
     UPDATE_STATE(11);
     goto TOP;
-  } else if(dnn_layer == 11) {
-    dnn_L12_fc2();
+  } else if(dnn_layer == 12) {
+    dnn_L12_relu();
     UPDATE_STATE(12);
-  }
+    goto TOP;
+  } else if(dnn_layer == 14) {
+    dnn_L14_fc();
+    UPDATE_STATE(14);
+    goto TOP;
+  } else if(dnn_layer == 15) {
+    dnn_L15_relu();
+    UPDATE_STATE(15);
+    goto TOP;
+  } else if(dnn_layer == 16) {
+    dnn_L16_fc();
+    UPDATE_STATE(0);
+  } 
 
 #endif
 }

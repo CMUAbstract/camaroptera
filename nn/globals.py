@@ -13,6 +13,7 @@ def int_quantizer(bits):
 
 QUANTIZERS = {
 	'int16' : int_quantizer(16),
+	'int16_2' : int_quantizer(15),
 	'int8' : int_quantizer(8)
 }
 
@@ -24,5 +25,5 @@ def threshold_sparsifier(threshold):
 	return sparsifier
 
 SPARSIFIERS = {
-	'threshold': threshold_sparsifier(0.02)
+	'threshold': threshold_sparsifier(0.027)
 }

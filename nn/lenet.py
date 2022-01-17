@@ -15,36 +15,72 @@ class LeNet(nn.Module):
 	def __init__(self, classes, quantizer=None, sparsifier=None):
 		super(LeNet, self).__init__()
 
-		k = 5
+		k = 3
 		downscale = 2
 		width = WIDTH / downscale
 		height = HEIGHT / downscale
 		conv1_out_channels = 8
 		conv2_out_channels = 16
-		conv3_out_channels = 32
+		conv3_out_channels = 16
 		fc1_out_features = 64
 
 		v = k - 1
-		w = int((int((width - v) / 2) - v) / 2) - v
-		h = int((int((height - v) / 2) - v) / 2) - v
+		w = int((int((width) / 2) - v) / 2) - v
+		h = int((int((height) / 2) - v) / 2) - v
 		in_features = int(w * h * conv3_out_channels)
 
 		self.conv = QSequential(
 			nn.MaxPool2d(kernel_size=downscale),         
-			QConv2d(in_channels=1, out_channels=conv1_out_channels, 
-				kernel_size=5, stride=1, padding=0, bias=False, 
+			# QConv2d(in_channels=1, out_channels=conv1_out_channels, 
+			# 	kernel_size=k, stride=1, padding=0, bias=False, 
+			# 	quantizer=quantizer, sparsifier=sparsifier),
+			# QConv2d(in_channels=1,
+			# 	out_channels=1,
+			# 	kernel_size=(k, 1), stride=1, padding=0, bias=False,
+			# 	quantizer=quantizer, sparsifier=sparsifier),
+			# QConv2d(in_channels=1,
+			# 	out_channels=1,
+			# 	kernel_size=(1, k), stride=1, padding=0, bias=False,
+			# 	quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=1,
+				out_channels=conv1_out_channels,
+				kernel_size=(1, 1), stride=1, padding=0, bias=False,
 				quantizer=quantizer, sparsifier=sparsifier),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2),
-			QConv2d(in_channels=conv1_out_channels, 
-				out_channels=conv2_out_channels, 
-				kernel_size=5, stride=1, padding=0, bias=False, 
+			# QConv2d(in_channels=conv1_out_channels, 
+			# 	out_channels=conv2_out_channels, 
+			# 	kernel_size=k, stride=1, padding=0, bias=False, 
+			# 	quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv1_out_channels,
+				out_channels=conv1_out_channels,
+				kernel_size=(k, 1), stride=1, padding=0, bias=False,
+				quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv1_out_channels,
+				out_channels=conv1_out_channels,
+				kernel_size=(1, k), stride=1, padding=0, bias=False,
+				quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv1_out_channels,
+				out_channels=conv2_out_channels,
+				kernel_size=(1, 1), stride=1, padding=0, bias=False,
 				quantizer=quantizer, sparsifier=sparsifier),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2),
-			QConv2d(in_channels=conv2_out_channels, 
-				out_channels=conv3_out_channels, 
-				kernel_size=5, stride=1, padding=0, bias=False,  
+			# QConv2d(in_channels=conv2_out_channels, 
+			# 	out_channels=conv3_out_channels, 
+			# 	kernel_size=k, stride=1, padding=0, bias=False,  
+			# 	quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv2_out_channels,
+				out_channels=conv2_out_channels,
+				kernel_size=(k, 1), stride=1, padding=0, bias=False,
+				quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv2_out_channels,
+				out_channels=conv2_out_channels,
+				kernel_size=(1, k), stride=1, padding=0, bias=False,
+				quantizer=quantizer, sparsifier=sparsifier),
+			QConv2d(in_channels=conv2_out_channels,
+				out_channels=conv3_out_channels,
+				kernel_size=(1, 1), stride=1, padding=0, bias=False,
 				quantizer=quantizer, sparsifier=sparsifier),
 			nn.ReLU()
 		)
