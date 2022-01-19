@@ -9,6 +9,8 @@ from torchvision import transforms
 
 from globals import *
 from lenet import *
+from compress import QUANTIZERS_TORCH as QUANTIZERS
+from compress import SPARSIFIERS_TORCH as SPARSIFIERS
 
 def get_accuracy(model, data_loader, device):
 	correct_pred = 0 

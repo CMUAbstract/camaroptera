@@ -19,7 +19,7 @@ class LeNet(nn.Module):
 		downscale = 2
 		width = WIDTH / downscale
 		height = HEIGHT / downscale
-		conv1_out_channels = 8
+		conv1_out_channels = 4
 		conv2_out_channels = 16
 		conv3_out_channels = 16
 		fc1_out_features = 64

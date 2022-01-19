@@ -8,335 +8,256 @@
 
 #include "cam_mlkernels.h"
 
-extern uint8_t input[];
-
-//__ro_hifram uint8_t frame[19200];
-
 __ro_hifram int16_t inference_buffer[BUFFER_NUM][BUFFER_SIZE];
 
-void zero( mat_t *buffer ){
-  // -----   INPUTS:
-  //          buffer <= buffer to fill with zeros
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
-  uint16_t depth, height, width;
-  uint16_t i,j,k;
-
-  depth = buffer->dims[0];
-  height = buffer->dims[1];
-  width = buffer->dims[2];
-  
-  for( i = 0; i < depth; i++ )
-    for( j = 0; j < height; j++ )
-      for( k = 0; k < width; k++ )
-        MAT_SET( buffer, 0, i, j, k );
-  
-  }
-
-
-
-void normalize( mat_t *input_buffer, mat_t *dest_buffer ){
-  // -----   INPUTS:
-  //          input_buffer <= buffer containing input as a mat_t pointer (depth, height, width)
-  //          dest_buffer <= buffer to store output as a mat_t pointer (depth, height, width)
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
-  
-  uint16_t o_depth, o_height, o_width;
-  
-  o_depth = dest_buffer->dims[0];
-  o_height = dest_buffer->dims[1];
-  o_width = dest_buffer->dims[2];
-  
-  uint16_t depth, height, width;
-
-  int32_t temp;
-  int32_t threshold = 255;
-  int32_t max = SHRT_MAX;
-
-  // PRINTF("NORMALIZING IMAGE\r\n");
-  // PRINTF("IMAGE DIMS: (%i, %i, %i)", o_depth, o_height, o_width);
-  
-  for( depth = 0; depth < o_depth; depth++ ){
-    for( height = 0; height < o_height; height++ ){
-      for( width = 0; width < o_width; width++ ){
-        temp = MAT_GET( input_buffer, depth, height, width );
-        temp = (temp * max) / threshold;
-        MAT_SET( dest_buffer, temp, depth, height, width);
-      }
-    }
-  }
-  
+void zero(mat_t *src) {
+	uint16_t size = MAT_GET_SIZE(src);
+	int16_t *data = src->data;
+	for(uint16_t i = 0; i < size; i++) *data++ = 0;
 }
 
-void relu( mat_t *src_buffer, uint16_t threshold ){
-  // -----   INPUTS:
-  //          src_buffer <= buffer that contains input as a mat_t pointer
-  //          threshold <= all src_buffer elements below "threshold" will be set to zero
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
+void normalize(mat_t *src, mat_t *dest, int32_t max, int32_t threshold) {
+	int32_t temp;
+	uint16_t size = MAT_GET_SIZE(src);	
+	int16_t *src_ptr = src->data;
+	int16_t *dest_ptr = dest->data;
 
-  uint16_t i_depth, i_height, i_width;
-
-  i_depth = src_buffer->dims[0];
-  i_height = src_buffer->dims[1];
-  i_width = src_buffer->dims[2];
-  
-  uint16_t depth, height, width;
-
-  int16_t f_threshold = threshold;
-  
-  // PRINTF("RELU LAYER\r\n");
-  // PRINTF("INPUT LAYER DIMS: (%i, %i, %i)", i_depth, i_height, i_width);
-  for( depth = 0; depth < i_depth; depth++ )
-    for( height = 0; height < i_height; height++ )
-      for( width = 0; width < i_width; width++ )
-        if( MAT_GET(src_buffer, depth, height, width) < f_threshold )
-          MAT_SET(src_buffer, 0, depth, height, width);  
+	for(uint16_t i = 0; i < size; i++) {
+		temp = (*src_ptr++ * max) / threshold;
+		*dest_ptr++ = temp;
+	}
 }
 
-void pooling( mat_t *src_buffer, mat_t *dest_buffer, uint8_t type, uint8_t kernel_size, uint8_t stride  ){
-  // -----   INPUTS:
-  //          src_buffer <= buffer that contains input as a mat_t pointer
-  //          dest_buffer <= buffer to store output as a mat_t pointer
-  //          type <= [0] max-pooling [1] average-pooling
-  //         kernel_size, stride <= shape and stride of pooling mask
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
-  
-  // PRINTF("POOLING LAYER\r\n");
-  uint16_t depth, height, width, filter_ht, filter_wd;
-
-  uint16_t i_height, i_width, h_idx, w_idx;
-
-  i_height = src_buffer->dims[1];
-  i_width = src_buffer->dims[2];
-
-  // PRINTF("\r\nINPUT DIMS:(%i, %i, %i)\r\n", i_depth, i_height, i_width);
-  
-  uint16_t o_depth = dest_buffer->dims[0];
-  uint16_t o_height = dest_buffer->dims[1];
-  uint16_t o_width = dest_buffer->dims[2];
-  
-  // PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
-
-  int16_t temp = 0, pool_result = 0, avg_denom = 0;
-
-  avg_denom = kernel_size*kernel_size;
-
-  for( depth = 0; depth < o_depth; depth++ ){
-    for( height = 0; height < o_height; height++ ){
-      for( width = 0; width < o_width; width++ ){
-        
-        if (type == 0)
-          pool_result = SHRT_MIN;
-        else if (type == 1)
-          pool_result = 0;
-        
-        h_idx = (height) * stride;
-        w_idx = (width) * stride;
-        for( filter_ht = 0; filter_ht < kernel_size; filter_ht++ ){
-          for( filter_wd = 0; filter_wd < kernel_size; filter_wd++ ){
-            if( (h_idx+filter_ht) < i_height && (w_idx+filter_wd) < i_width )
-              temp = MAT_GET(src_buffer, depth, h_idx+filter_ht, w_idx+filter_wd);
-            else
-              temp = SHRT_MIN;
-            //PRINTF("(%i,%i) %i | ", h_idx+filter_ht, w_idx+filter_wd, temp);
-            if( type == 0 && temp > pool_result) // MAXPOOLING
-              pool_result = temp;
-            else if( type == 1 )                 // AVGPOOLING
-              pool_result = pool_result + temp; 
-          }
-        }
-        //PRINTF("%i | ", pool_result);
-        if( type == 1 )                          
-          pool_result = pool_result/avg_denom;
-        MAT_SET(dest_buffer, pool_result, depth, height, width);
-        //PRINTF("\r\n");
-      }
-      //PRINTF("\r\n");
-    }
-  }
+void relu(mat_t *src, int16_t threshold) {
+	uint16_t size = MAT_GET_SIZE(src);
+	int16_t *data = src->data;
+	for(uint16_t i = 0; i < size; i++) {
+		if(*data < threshold) *data = 0;
+		++data;
+	}
 }
 
-void conv_dense( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buffer, uint16_t stride ){
-  // -----   INPUTS:
-  //          weight <= dense weight matrix as a mat_t pointer
-  //          src_buffer <= buffer that contains input as a mat_t pointer
-  //          dest_buffer <= buffer to store output as a mat_t pointer
-  //          stride <= stride for the filters
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
+void pooling(mat_t *src, mat_t *dest, 
+	uint8_t type, uint8_t kernel_size, uint8_t stride) {
+	
+	uint16_t channels = MAT_GET_DIM(src, 0);
+	uint16_t rows = MAT_GET_DIM(dest, 1);
+	uint16_t cols = MAT_GET_DIM(dest, 2);
+	uint16_t stride_rows = stride * MAT_GET_STRIDE(src, 1);
+	uint16_t stride_cols = stride * MAT_GET_STRIDE(src, 2);
+	
+	int16_t denom = 1;
+	if(type) denom = kernel_size * kernel_size;
 
-  int16_t sum_temp = 0;
+	int16_t *src_channel_ptr = src->data;
+	int16_t *dest_channel_ptr = dest->data;
+	for(uint16_t c = 0; c < channels; c++) {
+		int16_t *src_row_ptr = src_channel_ptr;
+		int16_t *dest_row_ptr = dest_channel_ptr;
 
-  uint16_t filter_id, depth, height, width, filter_ht, filter_wd;
+		for(uint16_t i = 0; i < rows; i++) {
+			int16_t *src_col_ptr = src_row_ptr;
+			int16_t *dest_col_ptr = dest_row_ptr;
 
-  uint16_t filters, f_depth, f_height, f_width;
+			for(uint16_t j = 0; j < cols; j++) {
+				int32_t w = 0;
+				if(type) w = SHRT_MIN;
+				
+				int16_t *src_kernel_row_ptr = src_col_ptr;
 
-  filters = weight->dims[0];
-  f_depth = weight->dims[1];
-  f_height = weight->dims[2];
-  f_width = weight->dims[3];
+				for(uint16_t fi = 0; fi < kernel_size; fi++) {
+					int16_t *src_kernel_col_ptr = src_kernel_row_ptr;
 
-  // PRINTF("DENSE CONV\r\n");
-  // PRINTF("\r\nINPUT DIMS:(%i, %i, %i)\r\n", i_depth, i_height, i_width);
-  
-  // PRINTF("FILTER DIMS:(%i, %i, %i, %i)\r\n", filters, f_depth, f_height, f_width);
+					for(uint16_t fj = 0; fj < kernel_size; fj++) {
+						int16_t f = *src_kernel_col_ptr;
+						if(type) {
+							w += f;
+						} else if(f > w) {
+							w = f;
+						}
+						
+						src_kernel_col_ptr += MAT_GET_STRIDE(src, 2);
+					}
 
-  uint16_t o_height = dest_buffer->dims[1];
-  uint16_t o_width = dest_buffer->dims[2];
-  
-  // PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
-  
-  for( filter_id = 0; filter_id < filters; filter_id++ ){
-    
-    //PRINTF("Convolving %i\r\n", filter_id);
-    for( depth = 0; depth < f_depth; depth++ ){
-      for( height = 0; height < o_height; height++ ){
-        for( width = 0; width < o_width; width++ ){
-          for( filter_ht = 0; filter_ht < f_height; filter_ht++ ){
-            for( filter_wd = 0; filter_wd < f_width; filter_wd++ ){
-                int16_t src_temp = MAT_GET(src_buffer, depth, height+filter_ht, width+filter_wd);
-                int16_t weight_temp = MAT_GET(weight, filter_id, depth, filter_ht, filter_wd); 
-                sum_temp += src_temp * weight_temp;
-            }
-          }
-          if (bias != NULL)
-            sum_temp += MAT_GET(bias, filter_id);
-          MAT_SET(dest_buffer, sum_temp, filter_id, height, width);
-          sum_temp = 0;
-        }
-      }
-    }
-  }
+					src_kernel_row_ptr += MAT_GET_STRIDE(src, 1);
+				}
+
+				*dest_col_ptr = w / denom;
+
+				src_col_ptr += stride_cols;
+				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+			}
+
+			src_row_ptr += stride_rows;
+			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+		}
+
+		src_channel_ptr += MAT_GET_STRIDE(src, 0);
+		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
+	}	
 }
 
-void conv_sparse( mat_t *weight, mat_t *bias, mat_t *src_buffer, mat_t *dest_buffer, uint16_t stride, bool depthwise, uint16_t depth_id, bool fc ){
-  // -----   INPUTS:
-  //          weight <= sparse weight matrix as a mat_t pointer
-  //          src_buffer <= buffer that contains input as a mat_t pointer
-  //          dest_buffer <= buffer to store output as a mat_t pointer
-  //          stride <= stride for the filters
-  // NOTE: All inputs need to contain the appropriate dims, this function WILL NOT compute the output dims or check for dims matching, yet.
-  // -----   OUTPUT:
-  //         None
+void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, 
+	uint16_t stride, uint8_t shift) {
 
-  uint16_t filter_id, height, width, filter_ht, filter_wd, weight_idx;
+	uint16_t output_channels = MAT_GET_DIM(weight, 0);
+	uint16_t input_channels = MAT_GET_DIM(weight, 1);
+	uint16_t filter_rows = MAT_GET_DIM(weight, 2);
+	uint16_t filter_cols = MAT_GET_DIM(weight, 3);
+	uint16_t input_rows = MAT_GET_DIM(src, 1);
+	uint16_t input_cols = MAT_GET_DIM(src, 2);
+	uint16_t output_rows = MAT_GET_DIM(dest, 1);
+	uint16_t output_cols = MAT_GET_DIM(dest, 2);
+	uint16_t stride_row = stride * MAT_GET_STRIDE(src, 1);
+	uint16_t stride_col = stride * MAT_GET_STRIDE(src, 2);
 
-  uint16_t o_height, o_width, filters, f_depth, f_height, f_width, total_elements, element_id, f_offset;
+	int16_t *dest_channel_ptr = dest->data;
+	int16_t *filter_output_channel_ptr = weight->data;
+	for(uint16_t oc = 0; oc < output_channels; oc++) {
+		int16_t *src_row_ptr = src->data;
+		int16_t *dest_row_ptr = dest_channel_ptr;
 
-  int16_t weight_temp, sum_temp;
+		for(uint16_t i = 0; i < output_rows; i++) {
+			int16_t *src_col_ptr = src_row_ptr;
+			int16_t *dest_col_ptr = dest_row_ptr;
 
+			for(uint16_t j = 0; j < output_cols; j++) {
+				int16_t *src_channel_ptr = src_col_ptr;
+				int16_t *filter_input_channel_ptr = filter_output_channel_ptr;
+				int32_t w = 0;
 
-  if( weight->sparse.len_dims == 4){
-    filters = weight->sparse.dims[0];
-    f_depth = weight->sparse.dims[1];
-    f_height = weight->sparse.dims[2];
-    f_width = weight->sparse.dims[3];
-  }
-  else{
-    filters = 1;
-    f_depth = weight->sparse.dims[0];
-    f_height = weight->sparse.dims[1];
-    f_width = weight->sparse.dims[2];
-  }
+				for(uint16_t fc = 0; fc < input_channels; fc++) {
+					int16_t *src_filter_row_ptr = src_channel_ptr;
+					int16_t *filter_row_ptr = filter_input_channel_ptr;
 
-  if( dest_buffer->len_dims == 3){
-    o_height = dest_buffer->dims[1];
-    o_width = dest_buffer->dims[2];
-  }
-  else{
-    o_height = dest_buffer->dims[0];
-    o_width = dest_buffer->dims[1];
-  }
+					for(uint16_t fi = 0; fi < filter_rows; fi++) {
+						int16_t *src_filter_col_ptr = src_filter_row_ptr;
+						int16_t *filter_col_ptr = filter_row_ptr;
 
-  // PRINTF("SPARSE CONV\r\n");
-  // PRINTF("\r\nINPUT DIMS:(%i, %i, %i)\r\n", i_depth, i_height, i_width);
-  
-  // PRINTF("FILTER DIMS:(%i, %i, %i, %i)\r\n", filters, f_depth, f_height, f_width);
+						for(uint16_t fj = 0; fj < filter_cols; fj++) {
+							w += *filter_col_ptr * *src_filter_col_ptr;
 
-  // PRINTF("OUTPUT DIMS:(%i, %i, %i)\r\n", o_depth, o_height, o_width);
-  
-  bool first = true;
-  f_offset = 0;
+							src_filter_col_ptr += MAT_GET_STRIDE(src, 2);
+							filter_col_ptr += MAT_GET_STRIDE(weight, 3);
+						}
 
-  for( filter_id = 0; filter_id < filters; filter_id++ ){
-    
-    if(fc)
-      total_elements = weight->sparse.sizes[filter_id+1] - f_offset;
-    else
-      total_elements = weight->sparse.sizes[filter_id];
+						src_filter_row_ptr += MAT_GET_STRIDE(src, 1);
+						filter_row_ptr += MAT_GET_STRIDE(weight, 2);
+					}
 
-    weight_idx = 0;
+					src_channel_ptr += MAT_GET_STRIDE(src, 0);
+					filter_input_channel_ptr += MAT_GET_STRIDE(weight, 1);
+				}
 
-    first = true;
-  
-    // PRINTF("FILTER %i: %i elements", filter_id, total_elements);
+				w >>= shift;
+				if(w < SHRT_MIN) w = SHRT_MIN;
+				if(w > SHRT_MAX) w = SHRT_MAX;
+				*dest_col_ptr = w;
 
-    for( element_id = 0; element_id < total_elements; element_id++ ){
+				src_col_ptr += stride_col;
+				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+			}
 
-      weight_temp = MAT_GET( weight, f_offset+element_id);
-      if(fc)
-        weight_idx = weight->sparse.offsets[f_offset+element_id];  
-      else  
-        weight_idx += weight->sparse.offsets[f_offset+element_id];
-      f_depth = weight_idx / (f_height*f_width);
-      filter_ht = (weight_idx % (f_height*f_width)) / f_width;
-      filter_wd = (weight_idx % (f_height*f_width)) % f_width;
-      //PRINTF("%i(%i,%i,%i) | ", weight_temp, f_depth, filter_ht, filter_wd);
-    
-      for( height = 0; height < o_height; height++ ){
-        for( width = 0; width < o_width; width++ ){
-            if(depthwise){
-              sum_temp = weight_temp * MAT_GET( src_buffer, depth_id, height+filter_ht, width+filter_wd );
-              if(!first)
-                sum_temp += MAT_GET( dest_buffer, depth_id, height, width );
-              MAT_SET( dest_buffer, sum_temp, depth_id, height, width );
-            }
-            else{
-              sum_temp = weight_temp * MAT_GET( src_buffer, f_depth, height+filter_ht, width+filter_wd );
-            //  PRINTF("(%i,%i)[%i,%i] |", w, sum_temp, height, width);
-              if(!first){
-                sum_temp += MAT_GET( dest_buffer, filter_id, height, width );
-              //  PRINTF("%i |", MAT_GET( dest_buffer, filter_id, height, width) );
-              }
-            //  PRINTF("%i |", sum_temp);
-              MAT_SET( dest_buffer, sum_temp, filter_id, height, width );
-            }
-        }
-      }
-      //PRINTF("\r\n\n");
-      first = false;
-    }
+			src_row_ptr += stride_row;
+			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+		}
 
-    
-    if(bias != NULL){
-      //PRINTF("BIASES:\r\n");
-      for( height = 0; height < o_height; height++ ){
-        for( width = 0; width < o_width; width++ ){
-          if(depthwise){
-            sum_temp = MAT_GET( dest_buffer, depth_id, height, width );
-            sum_temp += MAT_GET( bias, depth_id );
-            MAT_SET( dest_buffer, sum_temp, depth_id, height, width );
-          }
-          else{
-            sum_temp = MAT_GET( dest_buffer, filter_id, height, width );
-              //PRINTF("(%i,%i)[%i,%i] |", sum_temp, MAT_GET( bias, filter_id), height, width);
-            sum_temp += MAT_GET( bias, filter_id );
-            MAT_SET( dest_buffer, sum_temp, filter_id, height, width );  
-            }
-          }
-      }
-    }
+		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
+		filter_output_channel_ptr += MAT_GET_STRIDE(weight, 0);
+	}
 
-    f_offset += total_elements;
-    // PRINTF("\r\n");
-  }
+	if(bias == NULL) return;
+
+	int16_t *bias_ptr = bias->data;
+	dest_channel_ptr = dest->data;
+	for(uint16_t oc = 0; oc < output_channels; oc++) {
+		int16_t *dest_row_ptr = dest_channel_ptr;
+
+		for(uint16_t i = 0; i < output_rows; i++) {
+			int16_t *dest_col_ptr = dest_row_ptr;
+
+			for(uint16_t j = 0; j < output_cols; j++) {
+				*dest_col_ptr += *bias_ptr;
+
+				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+			}
+
+			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+		}
+
+		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
+		bias_ptr += MAT_GET_STRIDE(bias, 0);
+	}
 }
 
+void fc_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift) {
+	uint16_t rows = MAT_GET_DIM(dest, 0);
+	uint16_t cols = MAT_GET_DIM(weight, 1);
+
+	int16_t *filter_row_ptr = weight->data;
+	int16_t *dest_ptr = dest->data;
+	for(uint16_t i = 0; i < rows; i++) {
+		int32_t w = 0;
+		int16_t *src_ptr = src->data;
+		int16_t *filter_col_ptr = filter_row_ptr;
+		for(uint16_t j = 0; j < cols; j++) {
+			w += *src_ptr * *filter_col_ptr;
+
+			src_ptr++;
+			filter_col_ptr += MAT_GET_STRIDE(weight, 1);
+		}
+
+		w >>= shift;
+		if(w < SHRT_MIN) w = SHRT_MIN;
+		if(w > SHRT_MAX) w = SHRT_MAX;
+		*dest_ptr++ = w;
+
+		filter_row_ptr += MAT_GET_STRIDE(weight, 0);
+	}
+
+	if(bias == NULL) return;
+
+	int16_t *bias_ptr = bias->data;
+	dest_ptr = dest->data;
+	for(uint16_t i = 0; i < rows; ++i) {
+		*dest_ptr += *bias_ptr;
+
+		dest_ptr += MAT_GET_STRIDE(dest, 0);
+		bias_ptr += MAT_GET_STRIDE(bias, 0);
+	}
+}
+
+void fc_sparse(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift) {
+	uint16_t rows = MAT_GET_DIM(dest, 0);
+
+	int16_t *dest_ptr = dest->data;
+	for(uint16_t i = 0; i < rows; i++) {
+		int32_t w = 0;
+		uint16_t start = weight->sparse.sizes[i];
+		uint16_t end = weight->sparse.sizes[i + 1];
+		uint16_t *offset_ptr = weight->sparse.offsets + start;
+		int16_t *filter_ptr = weight->data + start;
+
+		for(uint16_t j = start; j < end; j++) {
+			w += *(src->data + *offset_ptr) * *filter_ptr;
+			filter_ptr++;
+			offset_ptr++;
+		}
+
+		w >>= shift;
+		if(w < SHRT_MIN) w = SHRT_MIN;
+		if(w > SHRT_MAX) w = SHRT_MAX;
+		*dest_ptr++ = w;
+	}
+
+	if(bias == NULL) return;
+
+	int16_t *bias_ptr = bias->data;
+	dest_ptr = dest->data;
+	for(uint16_t i = 0; i < rows; ++i) {
+		*dest_ptr += *bias_ptr;
+
+		dest_ptr += MAT_GET_STRIDE(dest, 0);
+		bias_ptr += MAT_GET_STRIDE(bias, 0);
+	}
+}

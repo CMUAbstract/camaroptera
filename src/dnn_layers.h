@@ -1,5 +1,9 @@
+#pragma once
+
 void dnn_init(void*);
 uint8_t dnn_get_class_result();
+
+#define CLASSES 2
 
 void dnn_L0_pool();
 void dnn_L1_conv();

@@ -13,29 +13,21 @@ class QConv2d(nn.Conv2d):
 		self.sparsifier = sparsifier if sparsifier else identity
 		self.quantizer = quantizer if quantizer else identity
 
-	def quantize(self, quantize, sparsify):
-		weight = self.weight
-		bias = self.bias
-
-		if sparsify:
-			weight = self.sparsifier(weight)
-			if self.bias is not None:
-				bias = self.sparsifier(bias)
-
-		if quantize:
-			weight = self.quantizer(weight)
-			if self.bias is not None:
-				bias = self.quantizer(bias)
-
-		return weight, bias
-
 	def forward(self, input, quantize=False, sparsify=False):
-		weight, bias = self.quantize(quantize, sparsify)
-		return nn.functional.conv2d(input, weight, bias, 
+		quantizer = self.quantizer if quantize else lambda x : x
+		sparsifier = self.sparsifier if sparsify else lambda x : x
+		
+		weight = quantizer(sparsifier(self.weight))
+		bias = None if self.bias is None else quantizer(sparsifier(self.bias))
+
+		act = nn.functional.conv2d(input, weight, bias, 
 			self.stride, self.padding, self.dilation, self.groups)
+		return quantizer(act)
 
 	def nonzero(self):
-		weight, _ = self.quantize(True, True)
+		quantizer = self.quantizer
+		sparsifier = self.sparsifier
+		weight = quantizer(sparsifier(self.weight))
 		return torch.count_nonzero(weight)
 
 class QLinear(nn.Linear):
@@ -47,28 +39,20 @@ class QLinear(nn.Linear):
 		self.sparsifier = sparsifier if sparsifier else identity
 		self.quantizer = quantizer if quantizer else identity
 
-	def quantize(self, quantize, sparsify):
-		weight = self.weight
-		bias = self.bias
-
-		if sparsify:
-			weight = self.sparsifier(weight)
-			if self.bias is not None:
-				bias = self.sparsifier(bias)
-				
-		if quantize:
-			weight = self.quantizer(weight)
-			if self.bias is not None:
-				bias = self.quantizer(bias)
-
-		return weight, bias
-
 	def forward(self, input, quantize=False, sparsify=False):
-		weight, bias = self.quantize(quantize, sparsify)
-		return nn.functional.linear(input, weight, bias)
+		quantizer = self.quantizer if quantize else lambda x : x
+		sparsifier = self.sparsifier if sparsify else lambda x : x
+		
+		weight = quantizer(sparsifier(self.weight))
+		bias = None if self.bias is None else quantizer(sparsifier(self.bias))
+
+		act = nn.functional.linear(input, weight, bias)
+		return quantizer(act)
 
 	def nonzero(self):
-		weight, _ = self.quantize(True, True)
+		quantizer = self.quantizer
+		sparsifier = self.sparsifier
+		weight = quantizer(sparsifier(self.weight))
 		return torch.count_nonzero(weight)
 
 class QSequential(nn.Sequential):

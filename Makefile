@@ -20,7 +20,7 @@ OBJECTS = main.o \
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
 STRIP_LD_FLAG = 
-DEBUG_CFLAGS = -Dcont_power -Denable_debug -Dprint_image
+DEBUG_CFLAGS = -Dcont_power -Denable_debug # -Dprint_image
 #-Dprint_packet -Dprint_jpeg -Dprint_image
 #Needed to silence spurious error in initializer for 2-d Fixed array
 CFLAGS += -Wno-missing-braces -g $(DEBUG_CFLAGS)

@@ -7,7 +7,11 @@ from scipy.sparse import csr_matrix
 from onnx import numpy_helper
 from onnx import shape_inference
 
-TAB = '  '
+from compress import QUANTIZERS_NP as QUANTIZERS
+from compress import SPARSIFIERS_NP as SPARSIFIERS 
+
+# TAB = '  '
+TAB = '\t'
 SUPPORTED_OPS = {
 	'Conv' : 'conv',
 	'Gemm' : 'fc',
@@ -15,36 +19,21 @@ SUPPORTED_OPS = {
 	'Relu' : 'relu'
 }
 
-def int_quantizer(bits, normalize=True):
-	scale = 2 ** (bits - 1)
-	def quantizer(x):
-		rounded = (scale * x).round()
-		return np.clip(rounded, -scale, scale - 1)
-
-	return quantizer
-
-QUANTIZERS = {
-	'int16' : int_quantizer(16),
-	'int16_2' : int_quantizer(15),
-	'int8' : int_quantizer(8),
+DTYPE_2_SHIFT = {
+	'int16' : 8,
+	'int8' : 4
 }
 
-def threshold_sparsifier(threshold):
-	def sparsifier(x):
-		x[np.abs(x) < threshold] = 0
-		return x
-	return sparsifier
-
-SPARSIFIERS = {
-	'threshold': threshold_sparsifier(0.027)
+DTYPE_2_CTYPE = {
+	'int16' : 'int16_t',
+	'int8' : 'int8_t',
+	'uint16' : 'uint16_t',
+	'uint8' : 'uint8_t',
 }
 
-def is_int_dtype(dtype):
-	return dtype in ['int16_t', 'int8_t', 'short', 'byte', 'uint16_t']
-
-def dump_mat(f, name, w, dtype='int16_t'):
+def dump_mat(f, name, w, dtype='int16'):
 	dims = len(w.shape)
-	f.write(f'__ro_hifram {dtype} {name}')
+	f.write(f'__ro_hifram {DTYPE_2_CTYPE[dtype]} {name}')
 
 	for d in w.shape:
 		f.write(f'[{d}]')
@@ -53,10 +42,7 @@ def dump_mat(f, name, w, dtype='int16_t'):
 
 	for i, v in enumerate(w.flatten()):
 		last = i == w.size - 1 
-		if is_int_dtype(dtype):
-			f.write(f'{int(v)}')
-		else:
-			f.write(f'F_LIT(int(v))')
+		f.write(f'{int(v)}')
 
 		if not last:
 			f.write(', ')
@@ -78,9 +64,9 @@ def to_header(f, name, w, sparse=False, dtype='int16_t'):
 	elif dims == 2 and sparse: # HERE
 		csr = csr_matrix(w)
 		f.write(f'#define {name.upper()}_SIZE {csr.data.size}\n')
-		sz += dump_mat(f, f'{name}_indptr', csr.indptr, 'uint16_t')
+		sz += dump_mat(f, f'{name}_indptr', csr.indptr, 'uint16')
 		f.write('\n');
-		sz += dump_mat(f, f'{name}_index', csr.indices, 'uint16_t')
+		sz += dump_mat(f, f'{name}_index', csr.indices, 'uint16')
 		f.write('\n');
 		sz += dump_mat(f, f'{name}', csr.data, dtype)
 	elif dims == 2:
@@ -110,15 +96,15 @@ def dump_mat_struct(name, w, sparse, dtype='int16_t'):
 		if dims == 4:
 			s += f'{w.shape[0]}, {w.shape[1]}, {w.shape[2]}, {w.shape[3]}'
 		elif dims == 2:
-			s += f'{w.shape[0]}, 1, 1, {w.shape[1]}'
+			s += f'{w.shape[0]}, {w.shape[1]}'
 		else:
 			s += f'{w.shape[0]}, 1'
 
 		s += f'}},\n'
 
 		s += f'{TAB}{TAB}.len_dims = {dims},\n'
-		s += f'{TAB}{TAB}.sizes = {name}_index,\n'
-		s += f'{TAB}{TAB}.offsets = {name}_indptr\n'
+		s += f'{TAB}{TAB}.sizes = {name}_indptr,\n'
+		s += f'{TAB}{TAB}.offsets = {name}_index\n'
 		s += f'{TAB}}}'
 	else:
 		s += f'{TAB}.dims = {{'
@@ -126,7 +112,7 @@ def dump_mat_struct(name, w, sparse, dtype='int16_t'):
 		if dims == 4:
 			s += f'{w.shape[0]}, {w.shape[1]}, {w.shape[2]}, {w.shape[3]}'
 		elif dims == 2:
-			s += f'{w.shape[0]}, 1, 1, {w.shape[1]}'
+			s += f'{w.shape[0]}, {w.shape[1]}'
 		else:
 			s += f'{w.shape[0]}, 1'
 
@@ -137,7 +123,7 @@ def dump_mat_struct(name, w, sparse, dtype='int16_t'):
 			s += f'{w.shape[1] * w.shape[2] * w.shape[3]}, '
 			s += f'{w.shape[2] * w.shape[3]}, {w.shape[3]}, 1'
 		elif dims == 2:
-			s += f'{w.shape[1]}, {w.shape[1]}, {w.shape[1]}, 1'
+			s += f'{w.shape[1]}, 1'
 		else:
 			s += f'1, 1'
 
@@ -148,12 +134,12 @@ def dump_mat_struct(name, w, sparse, dtype='int16_t'):
 	s += f'}};'
 	return s
 
-def dump_task(node, shape, sparse, idx):
-	src = 'b1'
-	dest = 'b2'
-
+def dump_task(node, shape, sparse, idx, src, dest, ttype='int16'):
 	def dump_shape():
 		s = ''
+		if len(shape) == 1:
+			shape.append(1)
+
 		for i, d in enumerate(shape):
 			s += f'{d}'
 			if i < len(shape) - 1:
@@ -172,6 +158,7 @@ def dump_task(node, shape, sparse, idx):
 				return '&mat_' + input.replace('.', '_')
 		return 'NULL'
 
+	shift = DTYPE_2_SHIFT[ttype]
 	s = f'void dnn_L{idx}_'
 
 	unsupported = node.op_type not in SUPPORTED_OPS
@@ -182,16 +169,15 @@ def dump_task(node, shape, sparse, idx):
 
 	if 'MaxPool' in node.op_type:
 		s += f'{TAB}MAT_RESHAPE({dest}, {dump_shape()});\n'
-		s += f'{TAB}zero({dest});\n'
 		kernel_size = get_attr('kernel_shape')[0]
 		stride = get_attr('strides')[0]
-		s += f'{TAB}pooling({src},{dest}, 0, {kernel_size}, {stride});\n'
+		s += f'{TAB}pooling({src}, {dest}, 0, {kernel_size}, {stride});\n'
 	elif 'Relu' in node.op_type:
 		s += f'{TAB}MAT_RESHAPE({dest}, {dump_shape()});\n'
 		s += f'{TAB}relu({dest}, 0);\n'
 	elif 'Gemm' in node.op_type:
+		s += f'{TAB}// MAT_RESHAPE({src}, FILL, 1);\n'
 		s += f'{TAB}MAT_RESHAPE({dest}, {dump_shape()});\n'
-		s += f'{TAB}zero({dest});\n'
 
 		weight = get_ptr_with_sub('weight')
 		bias = get_ptr_with_sub('bias')
@@ -199,12 +185,11 @@ def dump_task(node, shape, sparse, idx):
 		s += f'{TAB}mat_t *b_ptr = {bias};\n'
 
 		if sparse:
-			s += f'{TAB}conv_sparse(w_ptr, b_ptr, {src}, {dest}, 0, false, 0, true);\n'
+			s += f'{TAB}fc_sparse(w_ptr, b_ptr, {src}, {dest}, {shift});\n'
 		else:
-			s += f'{TAB}conv_dense(w_ptr, b_ptr, {src}, {dest}, 0);\n'
+			s += f'{TAB}fc_dense(w_ptr, b_ptr, {src}, {dest}, {shift});\n'
 	elif 'Conv' in node.op_type and not sparse:
 		s += f'{TAB}MAT_RESHAPE({dest}, {dump_shape()});\n'
-		s += f'{TAB}zero({dest});\n'
 		
 		weight = get_ptr_with_sub('weight')
 		bias = get_ptr_with_sub('bias')
@@ -212,7 +197,7 @@ def dump_task(node, shape, sparse, idx):
 		s += f'{TAB}mat_t *b_ptr = {bias};\n'
 
 		stride = get_attr('strides')[0]
-		s += f'{TAB}conv_dense(w_ptr, b_ptr, {src}, {dest}, {stride});\n'
+		s += f'{TAB}conv_dense(w_ptr, b_ptr, {src}, {dest}, {stride}, {shift});\n'
 
 	s += '}\n'
 	s = s if not unsupported else ''
@@ -284,6 +269,8 @@ def main(args):
 
 	print(f'[DEBUG] Wrote {sz / 512}KB')
 
+	src = 'b1'
+	dest = 'b2'
 	for i, node in enumerate(model.graph.node):
 		sparse = False
 		for input in node.input:
@@ -297,11 +284,19 @@ def main(args):
 			print(f'[WARNING] {node.output[0]} not in shapes; not dumping {node.name}')
 			continue
 
-		task = dump_task(node, shapes[node.output[0]], sparse, i)
+		if 'Relu' in node.op_type:
+			src, dest = dest, src
+
+		task = dump_task(node, shapes[node.output[0]], sparse, i, src, dest, args.ttype)
 		if len(task) > 0:
 			defs += dump_def(node, i)
 			tasks += task + '\n'
 			machine[i] = dump_call(node, i)
+
+			if 'Relu' not in node.op_type:
+				src, dest = dest, src
+			else:
+				src, dest = dest, src
 
 	keys = sorted(machine.keys())
 	for i, idx in enumerate(keys):
@@ -309,7 +304,8 @@ def main(args):
 		control += f'(dnn_layer == {idx}) {{\n'
 		control += f'{TAB}{machine[idx]}'
 		if i < len(machine) - 1:
-			control += f'{TAB}UPDATE_STATE({idx});\n'
+			next_idx = keys[i + 1]
+			control += f'{TAB}UPDATE_STATE({next_idx});\n'
 			control += f'{TAB}goto TOP;\n'
 		else:
 			control += f'{TAB}UPDATE_STATE({keys[0]});\n'
@@ -343,8 +339,13 @@ if __name__ == '__main__':
 	parser.add_argument(
 		'--dtype',
 		type=str,
-		default='int16_t',
-		help='Density threshold')
+		default='int16',
+		help='Deployed network datatype')
+	parser.add_argument(
+		'--ttype',
+		type=str,
+		default='int16',
+		help='Trained network datatype')
 	parser.add_argument(
 		'--sparsify',
 		type=str,

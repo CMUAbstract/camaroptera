@@ -1,3 +1,4 @@
+#pragma once
 uint8_t *camaroptera_get_framebuffer();
 uint8_t *camaroptera_get_framebuffer_dbl_buf();
 void camaroptera_swap_framebuffer_dbl_buf();
