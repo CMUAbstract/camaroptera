@@ -51,7 +51,8 @@ __ro_hifram int8_t camaroptera_mode_5[5] = {2, -1, 3, 4, 0} ;       // DIFF + IN
 __ro_hifram int8_t camaroptera_mode_6[5] = {4, -1, -1, -1, 0} ;       // DIFF + INFER + SEND
 __ro_hifram int8_t camaroptera_mode_7[5] = {0, -1, -1, -1, -1} ;       // CAPTURE Only
 __ro_hifram int8_t camaroptera_mode_8[5] = {2, -1, 0, -1, -1} ;       // CAPTURE + INFER
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_8;
+__ro_hifram int8_t camaroptera_mode_9[5] = {2, -1, 3, 4, 0} ;       // CAPTURE + INFER + COMPRESS + SEND
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_9;
 
 #ifndef CONFIG_CONSOLE
 #ifdef enable_debug          
@@ -147,7 +148,7 @@ int main(void) {
         break;
 
       case STATE_TRANSMIT: //SEND BY RADIO
-        camaroptera_transmit(camaroptera_get_framebuffer_num_pixels());
+        camaroptera_transmit(camaroptera_get_framebuffer_num_pixels(), prediction);
         break; 
 
       default:

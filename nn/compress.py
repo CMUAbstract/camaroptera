@@ -60,9 +60,9 @@ QUANTIZERS_NP = {
 }
 
 SPARSIFIERS_TORCH = {
-	'threshold': threshold_sparsifier_torch(0.03)
+	'threshold': threshold_sparsifier_torch(0.031)
 }
 
 SPARSIFIERS_NP = {
-	'threshold': threshold_sparsifier_np(0.03)
+	'threshold': threshold_sparsifier_np(0.031)
 }

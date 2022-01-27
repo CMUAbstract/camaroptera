@@ -30,7 +30,7 @@ void task_init() {
   PRINTF("\r\n========================");
   PRINTF("\r\nInit");
 #endif
-  dnn_init((void *)camaroptera_get_framebuffer());
+  dnn_init(camaroptera_get_framebuffer());
 }
 
 #define UPDATE_STATE(s) dnn_layer=s
@@ -136,14 +136,14 @@ void task_finish() {
 
 void task_exit() {
 
-  if ( prediction == 0 ){
-#ifdef enable_debug          
-    PRINTF("STATE 4: Nothing detected \r\n");
-#endif
-    camaroptera_state = 0;
-  } else{
+//   if ( prediction == 0 ){
+// #ifdef enable_debug          
+//     PRINTF("STATE 4: Nothing detected \r\n");
+// #endif
+//     camaroptera_state = 0;
+//   } else{
     camaroptera_state = camaroptera_next_task(2);
-  }
+// }
 
 #ifndef cont_power
     camaroptera_wait_for_charge();       //Wait to charge up 

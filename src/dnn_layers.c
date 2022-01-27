@@ -8,28 +8,21 @@
 #include "dnn_layers.h"
 #include "cam_mlkernels.h"
 
-__ro_fram mat_t mat_input = {
-	.dims = {1, 120, 160},
-	.strides = {19200, 160, 1},
-	.len_dims = 3,
-	.data = NULL,
-};
-
+__fram uint8_t *input_ptr = NULL;
 __fram mat_t buf1 = {.data = inference_buffer[0]};
 __fram mat_t buf2 = {.data = inference_buffer[1]};
 __fram mat_t *b1 = &buf1;
 __fram mat_t *b2 = &buf2;
 
-void dnn_init(void *data){
-	mat_input.data = (fixed *)data; 
+void dnn_init(uint8_t *data){
+	input_ptr = data; 
 }
 
 uint8_t dnn_get_class_result() {
-	fixed max = 0;
+	fixed max = MAT_GET(b1, 0, 0);;
 	uint8_t predict = 0;
 	for(uint16_t i = 0; i < CLASSES; i++) {
-		fixed v = MAT_GET(b1, i, 0, 0);
-
+		fixed v = MAT_GET(b1, i, 0);
 		if(v > max) {
 			predict = i;
 			max = v;
@@ -134,8 +127,15 @@ __ro_fram mat_t mat_fc_2_bias = {
 
 void dnn_L0_pool() {
 	MAT_RESHAPE(b1, 1, 120, 160);
-	mat_t *mat_input_ptr = &mat_input;
-	normalize(mat_input_ptr, b1, 256, 255);
+
+	uint16_t size = MAT_GET_SIZE(b1);
+	uint8_t *src_ptr = input_ptr;
+	int16_t *dest_ptr = b1->data;
+	for(uint16_t i = 0; i < size; i++) {
+		*dest_ptr++ = *src_ptr++;
+	}	
+
+	normalize(b1, b1, 256, 255);
 
 	MAT_RESHAPE(b2, 1, 60, 80);
 	pooling(b1, b2, 0, 2, 2);
@@ -229,7 +229,6 @@ void dnn_L15_relu() {
 }
 
 void dnn_L16_fc() {
-	// MAT_RESHAPE(b2, FILL, 1);
 	MAT_RESHAPE(b1, 2, 1);
 	mat_t *w_ptr = &mat_fc_2_weight;
 	mat_t *b_ptr = &mat_fc_2_bias;

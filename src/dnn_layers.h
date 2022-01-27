@@ -1,6 +1,6 @@
 #pragma once
 
-void dnn_init(void*);
+void dnn_init(uint8_t *);
 uint8_t dnn_get_class_result();
 
 #define CLASSES 2

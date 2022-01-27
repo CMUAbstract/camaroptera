@@ -33,7 +33,7 @@ __ro_hifram uint8_t frame_index = 0;
 __ro_hifram uint16_t frame_track = 0;
 __ro_hifram int tx_i, tx_j; /*TODO: Why are loop iterators in FRAM?*/
 
-void camaroptera_transmit(size_t num_pixels){
+void camaroptera_transmit(size_t num_pixels, uint8_t prediction){
 #ifdef EXPERIMENT_MODE
   if(frame_interesting_status){
     P2OUT |= BIT3;
@@ -76,6 +76,7 @@ void camaroptera_transmit(size_t num_pixels){
     radio_buffer[2] = frame_index;
     radio_buffer[3] = packet_count;
     radio_buffer[4] = tx_packet_index;
+    radio_buffer[5] = prediction;
 #ifdef print_packet    
     PRINTF("START PACKET\r\n");
 #endif

@@ -135,7 +135,9 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 						int16_t *filter_col_ptr = filter_row_ptr;
 
 						for(uint16_t fj = 0; fj < filter_cols; fj++) {
-							w += *filter_col_ptr * *src_filter_col_ptr;
+							int32_t s = *src_filter_col_ptr;
+							int32_t f = *filter_col_ptr;
+							w += s * f;
 
 							src_filter_col_ptr += MAT_GET_STRIDE(src, 2);
 							filter_col_ptr += MAT_GET_STRIDE(weight, 3);
@@ -201,7 +203,9 @@ void fc_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift
 		int16_t *src_ptr = src->data;
 		int16_t *filter_col_ptr = filter_row_ptr;
 		for(uint16_t j = 0; j < cols; j++) {
-			w += *src_ptr * *filter_col_ptr;
+			int32_t s = *src_ptr;
+			int32_t f = *filter_col_ptr;
+			w += s * f;
 
 			src_ptr++;
 			filter_col_ptr += MAT_GET_STRIDE(weight, 1);
@@ -239,7 +243,9 @@ void fc_sparse(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shif
 		int16_t *filter_ptr = weight->data + start;
 
 		for(uint16_t j = start; j < end; j++) {
-			w += *(src->data + *offset_ptr) * *filter_ptr;
+			int32_t s = *(src->data + *offset_ptr);
+			int32_t f = *filter_ptr;
+			w += s * f;
 			filter_ptr++;
 			offset_ptr++;
 		}
