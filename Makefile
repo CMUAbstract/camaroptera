@@ -21,10 +21,10 @@ OBJECTS = main.o \
 #OBJECTS = chargingTest.o 
 STRIP_LD_FLAG = 
 DEBUG_CFLAGS = -Dcont_power -Denable_debug -Dprint_image
-#-Dprint_packet -Dprint_jpeg -Dprint_image
+#-Dprint_packet -Dprint_jpeg
 #Needed to silence spurious error in initializer for 2-d Fixed array
 CFLAGS += -Wno-missing-braces -g $(DEBUG_CFLAGS)
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver libdsp
 
 export MAIN_CLOCK_FREQ = 16000000
 
@@ -37,7 +37,7 @@ export LIBMSP_DCO_FREQ = $(MAIN_CLOCK_FREQ)
 
 export LIBFIXED_PRECISE = 1
 export LIBFIXED_BITWIDTH = 16
-export LIBFIXED_FRAC_BITWIDTH = 5
+export LIBFIXED_FRAC_BITWIDTH = 4
 
 CONSOLE ?= 1
 INTERMITTENT ?= 
