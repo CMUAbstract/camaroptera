@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import sys
 import glob
 import torch
 import torch.nn as nn
@@ -16,42 +17,21 @@ class LeNet(nn.Module):
 		super(LeNet, self).__init__()
 
 		k = 3
-		downscale = 2
+		downscale = 4
 		width = WIDTH / downscale
 		height = HEIGHT / downscale
-		conv1_out_channels = 4
-		conv2_out_channels = 16
-		conv3_out_channels = 16
+		conv1_out_channels = 1
+		conv2_out_channels = 8
+		conv3_out_channels = 8
 		fc1_out_features = 64
 
 		v = k - 1
-		w = int((int((width) / 2) - v) / 2) - v
-		h = int((int((height) / 2) - v) / 2) - v
+		w = int((int((width - v) / 2) - v) / 2)
+		h = int((int((height - v) / 2) - v) / 2)
 		in_features = int(w * h * conv3_out_channels)
 
 		self.conv = QSequential(
 			nn.MaxPool2d(kernel_size=downscale),         
-			# QConv2d(in_channels=1, out_channels=conv1_out_channels, 
-			# 	kernel_size=k, stride=1, padding=0, bias=False, 
-			# 	quantizer=quantizer, sparsifier=sparsifier),
-			# QConv2d(in_channels=1,
-			# 	out_channels=1,
-			# 	kernel_size=(k, 1), stride=1, padding=0, bias=False,
-			# 	quantizer=quantizer, sparsifier=sparsifier),
-			# QConv2d(in_channels=1,
-			# 	out_channels=1,
-			# 	kernel_size=(1, k), stride=1, padding=0, bias=False,
-			# 	quantizer=quantizer, sparsifier=sparsifier),
-			QConv2d(in_channels=1,
-				out_channels=conv1_out_channels,
-				kernel_size=(1, 1), stride=1, padding=0, bias=False,
-				quantizer=quantizer, sparsifier=sparsifier),
-			nn.ReLU(),
-			nn.MaxPool2d(kernel_size=2),
-			# QConv2d(in_channels=conv1_out_channels, 
-			# 	out_channels=conv2_out_channels, 
-			# 	kernel_size=k, stride=1, padding=0, bias=False, 
-			# 	quantizer=quantizer, sparsifier=sparsifier),
 			QConv2d(in_channels=conv1_out_channels,
 				out_channels=conv1_out_channels,
 				kernel_size=(k, 1), stride=1, padding=0, bias=False,
@@ -66,10 +46,6 @@ class LeNet(nn.Module):
 				quantizer=quantizer, sparsifier=sparsifier),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2),
-			# QConv2d(in_channels=conv2_out_channels, 
-			# 	out_channels=conv3_out_channels, 
-			# 	kernel_size=k, stride=1, padding=0, bias=False,  
-			# 	quantizer=quantizer, sparsifier=sparsifier),
 			QConv2d(in_channels=conv2_out_channels,
 				out_channels=conv2_out_channels,
 				kernel_size=(k, 1), stride=1, padding=0, bias=False,
@@ -82,7 +58,8 @@ class LeNet(nn.Module):
 				out_channels=conv3_out_channels,
 				kernel_size=(1, 1), stride=1, padding=0, bias=False,
 				quantizer=quantizer, sparsifier=sparsifier),
-			nn.ReLU()
+			nn.ReLU(),
+			nn.MaxPool2d(kernel_size=2),
 		)
 
 		self.fc = QSequential(
@@ -92,28 +69,6 @@ class LeNet(nn.Module):
 			QLinear(in_features=64, out_features=classes, 
 				quantizer=quantizer, sparsifier=sparsifier),
 		)
-
-		conv1_params = 1 * conv1_out_channels * 5 * 5
-		conv2_params = conv1_out_channels * conv2_out_channels * 5 * 5
-		conv3_params = conv2_out_channels * conv3_out_channels * 5 * 5
-		fc1_params = in_features * fc1_out_features
-		fc2_params = fc1_out_features * classes
-		params = conv1_params + conv2_params + conv3_params
-		params += fc1_params + fc2_params
-		print('Params:', params, 'footprint:', (params * 2) / 1024, 'KB')
-		
-		conv1_activations = conv1_out_channels * (width - v) * (height - v)
-		conv2_activations = conv2_out_channels * ((width - v) / 2 - v)
-		conv2_activations *= ((height - v) / 2 - v)
-		activations = max(conv1_activations, conv2_activations, in_features)
-		print('Activations:', activations, 
-			'footprint', (activations * 2) / 1024, 'KB', end='')
-		if activations == conv1_activations:
-			print('	=> Conv1')
-		elif activations == conv2_activations:
-			print('	=> Conv2')
-		else:
-			print('	=> Conv3')
 
 	def forward(self, x, quantize=False, sparsify=False):
 		x = self.conv(x, quantize, sparsify)
@@ -143,7 +98,7 @@ class HMB010Dataset(Dataset):
 		path = self.data[idx]
 		file = os.path.basename(path)
 		img = Image.open(path)
-		label = self.labels[file]
+		label = int(self.labels[file] > 0)
 
 		if self.transform is not None:
 			img = self.transform(img)

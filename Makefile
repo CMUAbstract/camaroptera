@@ -20,11 +20,11 @@ OBJECTS = main.o \
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
 STRIP_LD_FLAG = 
-DEBUG_CFLAGS = -Dcont_power -Denable_debug -Dprint_image
-#-Dprint_packet -Dprint_jpeg
+DEBUG_CFLAGS = -Dcont_power -Denable_debug # -Dprint_image # -Dsend_label_only #-Dsend_on_change
+#-Dsmart_discard -Dprint_image -Dsend_label_only -Dprint_packet -Dprint_jpeg
 #Needed to silence spurious error in initializer for 2-d Fixed array
 CFLAGS += -Wno-missing-braces -g $(DEBUG_CFLAGS)
-DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver libdsp
+DEPS += liblora libio libmsp libhimax libfixed libmspmath libmspbuiltins libmat libjpeg libmspdriver
 
 export MAIN_CLOCK_FREQ = 16000000
 

@@ -61,19 +61,19 @@ TOP:
     UPDATE_STATE(2);
     goto TOP;
   } else if(dnn_layer == 2) {
-    dnn_L2_relu();
+    dnn_L2_conv();
     UPDATE_STATE(3);
     goto TOP;
   } else if(dnn_layer == 3) {
-    dnn_L3_pool();
+    dnn_L3_conv();
     UPDATE_STATE(4);
     goto TOP;
   } else if(dnn_layer == 4) {
-    dnn_L4_conv();
+    dnn_L4_relu();
     UPDATE_STATE(5);
     goto TOP;
   } else if(dnn_layer == 5) {
-    dnn_L5_conv();
+    dnn_L5_pool();
     UPDATE_STATE(6);
     goto TOP;
   } else if(dnn_layer == 6) {
@@ -81,39 +81,31 @@ TOP:
     UPDATE_STATE(7);
     goto TOP;
   } else if(dnn_layer == 7) {
-    dnn_L7_relu();
+    dnn_L7_conv();
     UPDATE_STATE(8);
     goto TOP;
   } else if(dnn_layer == 8) {
-    dnn_L8_pool();
+    dnn_L8_conv();
     UPDATE_STATE(9);
     goto TOP;
   } else if(dnn_layer == 9) {
-    dnn_L9_conv();
+    dnn_L9_relu();
     UPDATE_STATE(10);
     goto TOP;
   } else if(dnn_layer == 10) {
-    dnn_L10_conv();
-    UPDATE_STATE(11);
-    goto TOP;
-  } else if(dnn_layer == 11) {
-    dnn_L11_conv();
+    dnn_L10_pool();
     UPDATE_STATE(12);
     goto TOP;
   } else if(dnn_layer == 12) {
-    dnn_L12_relu();
+    dnn_L12_fc();
+    UPDATE_STATE(13);
+    goto TOP;
+  } else if(dnn_layer == 13) {
+    dnn_L13_relu();
     UPDATE_STATE(14);
     goto TOP;
   } else if(dnn_layer == 14) {
     dnn_L14_fc();
-    UPDATE_STATE(15);
-    goto TOP;
-  } else if(dnn_layer == 15) {
-    dnn_L15_relu();
-    UPDATE_STATE(16);
-    goto TOP;
-  } else if(dnn_layer == 16) {
-    dnn_L16_fc();
     UPDATE_STATE(0);
   } 
 
@@ -121,6 +113,7 @@ TOP:
 }
 
 __fram uint8_t prediction = 0;
+__fram uint8_t last_prediction = CLASSES;
 void task_finish() {
 
   PRINTF("\r\n=====================");
@@ -136,14 +129,25 @@ void task_finish() {
 
 void task_exit() {
 
-//   if ( prediction == 0 ){
-// #ifdef enable_debug          
-//     PRINTF("STATE 4: Nothing detected \r\n");
-// #endif
-//     camaroptera_state = 0;
-//   } else{
+#if defined(smart_discard)
+  if ( prediction == 0 ){
+#ifdef enable_debug          
+    PRINTF("STATE 4: Nothing detected \r\n");
+#endif
+    camaroptera_state = 0;
+  } else {
     camaroptera_state = camaroptera_next_task(2);
-// }
+  }
+#elif defined(send_on_change)
+  if(prediction == last_prediction) {
+    camaroptera_state = 0;
+  } else {
+    last_prediction = prediction;
+    camaroptera_state = camaroptera_next_task(2); 
+  }
+#else
+  camaroptera_state = camaroptera_next_task(2); 
+#endif
 
 #ifndef cont_power
     camaroptera_wait_for_charge();       //Wait to charge up 

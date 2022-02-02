@@ -43,15 +43,16 @@ __ro_hifram float threshold_2 = 100.0;
 // [2] - Infer
 // [3] - Compress
 // [4] - Send Packet
-__ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;     // SEND ALL
+__ro_hifram int8_t camaroptera_mode_1[5] = {3, -1, -1, 4, 0} ;    // SEND ALL
 __ro_hifram int8_t camaroptera_mode_2[5] = {1, 3, -1, 4, 0} ;     // DIFF + SEND
-__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;       // DIFF + INFER + SEND
-__ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;       // DIFF + JPEG
-__ro_hifram int8_t camaroptera_mode_5[5] = {2, -1, 3, 4, 0} ;       // DIFF + INFER + SEND
-__ro_hifram int8_t camaroptera_mode_6[5] = {4, -1, -1, -1, 0} ;       // DIFF + INFER + SEND
-__ro_hifram int8_t camaroptera_mode_7[5] = {0, -1, -1, -1, -1} ;       // CAPTURE Only
-__ro_hifram int8_t camaroptera_mode_8[5] = {2, -1, 0, -1, -1} ;       // CAPTURE + INFER
-__ro_hifram int8_t camaroptera_mode_9[5] = {2, -1, 3, 4, 0} ;       // CAPTURE + INFER + COMPRESS + SEND
+__ro_hifram int8_t camaroptera_mode_3[5] = {1, 2, 3, 4, 0} ;      // DIFF + INFER + SEND
+__ro_hifram int8_t camaroptera_mode_4[5] = {3, -1, -1, 0, 0} ;    // DIFF + JPEG
+__ro_hifram int8_t camaroptera_mode_5[5] = {2, -1, 3, 4, 0} ;     // DIFF + INFER + SEND
+__ro_hifram int8_t camaroptera_mode_6[5] = {4, -1, -1, -1, 0} ;   // DIFF + INFER + SEND
+__ro_hifram int8_t camaroptera_mode_7[5] = {0, -1, -1, -1, -1} ;  // CAPTURE Only
+__ro_hifram int8_t camaroptera_mode_8[5] = {2, -1, 0, -1, -1} ;   // CAPTURE + INFER
+__ro_hifram int8_t camaroptera_mode_9[5] = {2, -1, 3, 4, 0} ;     // CAPTURE + INFER + COMPRESS + SEND
+__ro_hifram int8_t camaroptera_mode_10[5] = {2, -1, 4, -1, 0} ;   // CAPTURE + INFER + SEND
 __ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_9;
 
 #ifndef CONFIG_CONSOLE
@@ -143,12 +144,17 @@ int main(void) {
         break;
 
       case STATE_COMPRESS: //COMPRESS
-        num_pixels = camaroptera_compress(); 
+        num_pixels = camaroptera_compress();
         camaroptera_set_framebuffer_num_pixels(num_pixels);
         break;
 
       case STATE_TRANSMIT: //SEND BY RADIO
-        camaroptera_transmit(camaroptera_get_framebuffer_num_pixels(), prediction);
+#ifndef send_label_only
+        num_pixels = camaroptera_get_framebuffer_num_pixels();
+#else
+        num_pixels = 1;
+#endif
+        camaroptera_transmit(num_pixels, prediction);
         break; 
 
       default:

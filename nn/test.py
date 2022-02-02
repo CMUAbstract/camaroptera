@@ -13,6 +13,24 @@ from lenet import *
 from compress import QUANTIZERS_TORCH as QUANTIZERS
 from compress import SPARSIFIERS_TORCH as SPARSIFIERS
 
+def get_accuracy(model, data_loader, device):
+	correct_pred = 0 
+	n = 0
+
+	with torch.no_grad():
+		model.eval()
+		for x, y_true in data_loader:
+			x = x.to(device)
+			y_true = y_true.to(device)
+
+			_, y_prob = model(x)
+			_, predicted_labels = torch.max(y_prob, 1)
+
+			n += y_true.size(0)
+			correct_pred += (predicted_labels == y_true).sum()
+
+	return correct_pred.float() / n
+
 def main(args):
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -20,14 +38,17 @@ def main(args):
 		transforms.Resize((HEIGHT, WIDTH)),
 		transforms.ToTensor()])
 	
+	data, labels = args.test.split(',')
+
+	dataset = HMB010Dataset(data, labels, 
+		CLASSES, transform=transform)
+
+	loader = DataLoader(dataset, 1, shuffle=True)
+
 	quantizer = QUANTIZERS[args.quantize] if args.quantize else None
 	sparsifier = SPARSIFIERS[args.sparsify] if args.sparsify else None
 
 	model = LeNet(CLASSES, quantizer, sparsifier).to(device)
-
-	if args.ckpt is None:
-		print('No checkpoint provided')
-		return
 
 	ckpts = list(glob.glob(f'{args.ckpt}/*'))
 	ckpt = sorted(ckpts)[-1] if len(ckpts) > 0 else None
@@ -39,15 +60,9 @@ def main(args):
 	ckpt = torch.load(ckpt)
 	model.load_state_dict(ckpt['model_state_dict'])
 
-	img = Image.open(args.src)
-	x = transform(img)
-	x = x[None, :]
-	model.eval()
-	x = x.to(device)
-	_, probs = model(x, args.sparsify is not None, args.quantize is not None)
-	probs = torch.argmax(probs, 1)
-	probs = probs.cpu().detach().numpy()
-	print('Label: ', probs[0])
+	with torch.no_grad():
+		acc = get_accuracy(model, loader, device)
+		print(f'Test accuracy: {100 * acc:.2f}')
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -56,9 +71,9 @@ if __name__ == '__main__':
 		type=str,
 		help='Checkpoint')
 	parser.add_argument(
-		'src',
+		'--test',
 		type=str,
-		help='Source image')
+		help='Test data and labels')
 	parser.add_argument(
 		'--sparsify',
 		type=str,

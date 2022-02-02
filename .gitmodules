@@ -40,6 +40,3 @@
 [submodule "ext/libmspdriver"]
 	path = ext/libmspdriver
 	url = git@github.com:CMUAbstract/libmspdriver.git
-[submodule "ext/libdsp"]
-	path = ext/libdsp
-	url = https://github.com/CMUAbstract/libdsp

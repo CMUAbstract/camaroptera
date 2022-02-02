@@ -104,8 +104,6 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 	uint16_t input_channels = MAT_GET_DIM(weight, 1);
 	uint16_t filter_rows = MAT_GET_DIM(weight, 2);
 	uint16_t filter_cols = MAT_GET_DIM(weight, 3);
-	uint16_t input_rows = MAT_GET_DIM(src, 1);
-	uint16_t input_cols = MAT_GET_DIM(src, 2);
 	uint16_t output_rows = MAT_GET_DIM(dest, 1);
 	uint16_t output_cols = MAT_GET_DIM(dest, 2);
 	uint16_t stride_row = stride * MAT_GET_STRIDE(src, 1);

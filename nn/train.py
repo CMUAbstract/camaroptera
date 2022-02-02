@@ -85,7 +85,7 @@ def main(args):
 		CLASSES, transform=transform)
 
 	train_loader = DataLoader(train_dataset, args.batch, shuffle=True)
-	valid_loader = DataLoader(valid_dataset, args.batch, shuffle=False)
+	valid_loader = DataLoader(valid_dataset, args.batch, shuffle=True)
 	
 	quantizer = QUANTIZERS[args.quantize] if args.quantize else None
 	sparsifier = SPARSIFIERS[args.sparsify] if args.sparsify else None
