@@ -39,8 +39,8 @@ uint8_t dnn_get_class_result() {
 #include "headers/conv_8_weight.h"
 #include "headers/fc_0_weight.h"
 #include "headers/fc_0_bias.h"
-#include "headers/fc_2_weight.h"
-#include "headers/fc_2_bias.h"
+#include "headers/fc_3_weight.h"
+#include "headers/fc_3_bias.h"
 
 __ro_fram mat_t mat_conv_1_weight = {
 	.dims = {1, 1, 3, 1},
@@ -98,18 +98,18 @@ __ro_fram mat_t mat_fc_0_bias = {
 	.data = fc_0_bias
 };
 
-__ro_fram mat_t mat_fc_2_weight = {
+__ro_fram mat_t mat_fc_3_weight = {
 	.dims = {2, 64},
 	.strides = {64, 1},
 	.len_dims = 2,
-	.data = fc_2_weight
+	.data = fc_3_weight
 };
 
-__ro_fram mat_t mat_fc_2_bias = {
+__ro_fram mat_t mat_fc_3_bias = {
 	.dims = {2, 1},
 	.strides = {1, 1},
 	.len_dims = 1,
-	.data = fc_2_bias
+	.data = fc_3_bias
 };
 
 void dnn_L0_pool() {
@@ -205,7 +205,7 @@ void dnn_L13_relu() {
 
 void dnn_L14_fc() {
 	MAT_RESHAPE(b2, 2, 1);
-	mat_t *w_ptr = &mat_fc_2_weight;
-	mat_t *b_ptr = &mat_fc_2_bias;
+	mat_t *w_ptr = &mat_fc_3_weight;
+	mat_t *b_ptr = &mat_fc_3_bias;
 	fc_dense(w_ptr, b_ptr, b1, b2, 8);
 }

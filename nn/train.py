@@ -91,7 +91,8 @@ def main(args):
 	sparsifier = SPARSIFIERS[args.sparsify] if args.sparsify else None
 
 	model = LeNet(CLASSES, quantizer, sparsifier).to(device)
-	optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+	optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)#, weight_decay=1e-2)
+	# optimizer = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 	criterion = nn.CrossEntropyLoss()
 
 	start_epoch = 0

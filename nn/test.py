@@ -13,7 +13,7 @@ from lenet import *
 from compress import QUANTIZERS_TORCH as QUANTIZERS
 from compress import SPARSIFIERS_TORCH as SPARSIFIERS
 
-def get_accuracy(model, data_loader, device):
+def get_accuracy(model, data_loader, device, quantize, sparsify):
 	correct_pred = 0 
 	n = 0
 
@@ -23,7 +23,7 @@ def get_accuracy(model, data_loader, device):
 			x = x.to(device)
 			y_true = y_true.to(device)
 
-			_, y_prob = model(x)
+			_, y_prob = model(x, quantize, sparsify)
 			_, predicted_labels = torch.max(y_prob, 1)
 
 			n += y_true.size(0)
@@ -60,8 +60,10 @@ def main(args):
 	ckpt = torch.load(ckpt)
 	model.load_state_dict(ckpt['model_state_dict'])
 
+	model.eval()
 	with torch.no_grad():
-		acc = get_accuracy(model, loader, device)
+		acc = get_accuracy(model, loader, device,
+			args.quantize is not None, args.sparsify is not None)
 		print(f'Test accuracy: {100 * acc:.2f}')
 
 if __name__ == '__main__':

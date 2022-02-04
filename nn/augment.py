@@ -4,6 +4,7 @@ import glob
 import random
 import argparse
 import subprocess
+import numpy as np
 
 from tqdm import tqdm
 from PIL import Image, ImageEnhance, ImageFilter
@@ -50,19 +51,31 @@ def blur(img):
 
 def scale(img):
 	w, h = img.size
-	img = img.resize((w * 2, h * 2))
+	f = (random.random() + 1.0)
+	nw = int(w * f)
+	nh = int(h * f)
+	img = img.resize((nw, nh))
+	arr = np.asarray(img)
+	x = random.randint(0, nw - w)
+	y = random.randint(0, nh - h)
+	img = arr[y:y+h,x:x+w]
+	return Image.fromarray(img)
 
-	width, height = img.size
-	left = round((width - w)/2)
-	top = round((height - h)/2)
-	x_right = round(width - w) - left
-	x_bottom = round(height - h) - top
-	right = width - x_right
-	bottom = height - x_bottom
+def resize(img):
+	w, h = img.size
+	f = (random.random() + 1.0)
+	nw = int(w // f)
+	nh = int(h // f)
+	img = img.resize((nw, nh))
+	arr = np.asarray(img)
+	avg = int(np.average(arr))
+	img = np.full((h, w), avg, dtype=np.uint8)
+	x = random.randint(0, w - nw)
+	y = random.randint(0, h - nh)
+	img[y:y+nh, x:x+nw] = arr
+	return Image.fromarray(img)
 
-	return img.crop((left, top, right, bottom))
-
-transforms = [flipv, fliph, bright, contrast, sharpness, blur, scale]
+transforms = [flipv, fliph, bright, contrast, sharpness, scale]
 
 def main(args):
 	if args.dest_data is None:

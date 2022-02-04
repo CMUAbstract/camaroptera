@@ -44,7 +44,7 @@ def main(args):
 	x = x[None, :]
 	model.eval()
 	x = x.to(device)
-	_, probs = model(x, args.sparsify is not None, args.quantize is not None)
+	_, probs = model(x, args.quantize is not None, args.sparsify is not None)
 	probs = torch.argmax(probs, 1)
 	probs = probs.cpu().detach().numpy()
 	print('Label: ', probs[0])

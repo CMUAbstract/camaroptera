@@ -53,7 +53,8 @@ __ro_hifram int8_t camaroptera_mode_7[5] = {0, -1, -1, -1, -1} ;  // CAPTURE Onl
 __ro_hifram int8_t camaroptera_mode_8[5] = {2, -1, 0, -1, -1} ;   // CAPTURE + INFER
 __ro_hifram int8_t camaroptera_mode_9[5] = {2, -1, 3, 4, 0} ;     // CAPTURE + INFER + COMPRESS + SEND
 __ro_hifram int8_t camaroptera_mode_10[5] = {2, -1, 4, -1, 0} ;   // CAPTURE + INFER + SEND
-__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_9;
+__ro_hifram int8_t camaroptera_mode_11[5] = {3, -1, -1, 4, 0} ;   // CAPTURE + COMPRESS + SEND
+__ro_hifram int8_t *camaroptera_current_mode = camaroptera_mode_8;
 
 #ifndef CONFIG_CONSOLE
 #ifdef enable_debug          

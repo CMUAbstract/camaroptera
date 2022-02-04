@@ -16,6 +16,7 @@ class LeNet(nn.Module):
 	def __init__(self, classes, quantizer=None, sparsifier=None):
 		super(LeNet, self).__init__()
 
+		p = 0.3
 		k = 3
 		downscale = 4
 		width = WIDTH / downscale
@@ -26,12 +27,13 @@ class LeNet(nn.Module):
 		fc1_out_features = 64
 
 		v = k - 1
-		w = int((int((width - v) / 2) - v) / 2)
-		h = int((int((height - v) / 2) - v) / 2)
+		cdim = lambda x: int((x - v) / 2)
+		w = cdim(cdim(width))
+		h = cdim(cdim(height))
 		in_features = int(w * h * conv3_out_channels)
 
 		self.conv = QSequential(
-			nn.MaxPool2d(kernel_size=downscale),         
+			nn.MaxPool2d(kernel_size=downscale),
 			QConv2d(in_channels=conv1_out_channels,
 				out_channels=conv1_out_channels,
 				kernel_size=(k, 1), stride=1, padding=0, bias=False,
@@ -65,8 +67,9 @@ class LeNet(nn.Module):
 		self.fc = QSequential(
 			QLinear(in_features=in_features, out_features=fc1_out_features, 
 				quantizer=quantizer, sparsifier=sparsifier),
+			nn.Dropout(p=p),
 			nn.ReLU(),
-			QLinear(in_features=64, out_features=classes, 
+			QLinear(in_features=fc1_out_features, out_features=classes, 
 				quantizer=quantizer, sparsifier=sparsifier),
 		)
 

@@ -5,6 +5,8 @@ import random
 import argparse
 import subprocess
 
+from tqdm import tqdm
+
 ZSH = '/usr/local/bin/zsh'
 
 def execute(cmd):
@@ -35,7 +37,7 @@ def main(args):
 		print('No destination supplied')
 		return
 
-	files = list(glob.glob(f'{args.data}/*'))
+	files = list(glob.glob(f'{args.data}/*.png'))
 	if args.shuffle:
 		random.shuffle(files)
 
@@ -45,8 +47,7 @@ def main(args):
 		for row in reader:
 			name, lbl = row
 			lbl = int(lbl)
-			if lbl < 0:
-				continue
+			if lbl < 0: continue
 			labels[name] = lbl
 
 	split = args.split.split(',')
@@ -62,11 +63,14 @@ def main(args):
 		dest = f'{args.dest}/{typ}/'
 		mkdir_p(dest)
 		label_path = os.path.join(dest, 'labels.csv')
+		print(f'[DEBUG] Dumping {typ}')
 		with open(label_path, 'w+') as f:
-			for file in sorted(files):
+			for file in tqdm(sorted(files)):
 				name = os.path.basename(file)
 				if name not in labels:
+					tqdm.write(f'[DEBUG] Skipping {name}')
 					continue
+
 				label = labels[name]
 				cp(file, dest)
 				f.write('%s,%s\n' % (name, label))
