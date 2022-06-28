@@ -51,6 +51,13 @@ void pooling(mat_t *src, mat_t *dest,
 
 	int16_t *src_channel_ptr = src->data;
 	int16_t *dest_channel_ptr = dest->data;
+	uint16_t src_channel_stride = MAT_GET_STRIDE(src, 0);
+	uint16_t src_row_stride = MAT_GET_STRIDE(src, 1);
+	uint16_t src_col_stride = MAT_GET_STRIDE(src, 2);
+	uint16_t dest_channel_stride = MAT_GET_STRIDE(dest, 0);
+	uint16_t dest_row_stride = MAT_GET_STRIDE(dest, 1);
+	uint16_t dest_col_stride = MAT_GET_STRIDE(dest, 2);
+
 	for(uint16_t c = 0; c < channels; c++) {
 		int16_t *src_row_ptr = src_channel_ptr;
 		int16_t *dest_row_ptr = dest_channel_ptr;
@@ -76,24 +83,24 @@ void pooling(mat_t *src, mat_t *dest,
 							w = f;
 						}
 						
-						src_kernel_col_ptr += MAT_GET_STRIDE(src, 2);
+						src_kernel_col_ptr += src_col_stride;
 					}
 
-					src_kernel_row_ptr += MAT_GET_STRIDE(src, 1);
+					src_kernel_row_ptr += src_row_stride;
 				}
 
 				*dest_col_ptr = w / denom;
 
 				src_col_ptr += stride_cols;
-				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+				dest_col_ptr += dest_col_stride;
 			}
 
 			src_row_ptr += stride_rows;
-			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+			dest_row_ptr += dest_row_stride;
 		}
 
-		src_channel_ptr += MAT_GET_STRIDE(src, 0);
-		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
+		src_channel_ptr += src_channel_stride;
+		dest_channel_ptr += dest_channel_stride;
 	}	
 }
 
@@ -108,6 +115,17 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 	uint16_t output_cols = MAT_GET_DIM(dest, 2);
 	uint16_t stride_row = stride * MAT_GET_STRIDE(src, 1);
 	uint16_t stride_col = stride * MAT_GET_STRIDE(src, 2);
+
+	uint16_t src_channel_stride = MAT_GET_STRIDE(src, 0);
+	uint16_t src_row_stride = MAT_GET_STRIDE(src, 1);
+	uint16_t src_col_stride = MAT_GET_STRIDE(src, 2);
+	uint16_t weight_ochannel_stride = MAT_GET_STRIDE(weight, 0);
+	uint16_t weight_ichannel_stride = MAT_GET_STRIDE(weight, 1);
+	uint16_t weight_row_stride = MAT_GET_STRIDE(weight, 2);
+	uint16_t weight_col_stride = MAT_GET_STRIDE(weight, 3);
+	uint16_t dest_channel_stride = MAT_GET_STRIDE(dest, 0);
+	uint16_t dest_row_stride = MAT_GET_STRIDE(dest, 1);
+	uint16_t dest_col_stride = MAT_GET_STRIDE(dest, 2);
 
 	int16_t *dest_channel_ptr = dest->data;
 	int16_t *filter_output_channel_ptr = weight->data;
@@ -137,16 +155,16 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 							int32_t f = *filter_col_ptr;
 							w += s * f;
 
-							src_filter_col_ptr += MAT_GET_STRIDE(src, 2);
-							filter_col_ptr += MAT_GET_STRIDE(weight, 3);
+							src_filter_col_ptr += src_col_stride;
+							filter_col_ptr += weight_col_stride;
 						}
 
-						src_filter_row_ptr += MAT_GET_STRIDE(src, 1);
-						filter_row_ptr += MAT_GET_STRIDE(weight, 2);
+						src_filter_row_ptr += src_row_stride;
+						filter_row_ptr += weight_row_stride;
 					}
 
-					src_channel_ptr += MAT_GET_STRIDE(src, 0);
-					filter_input_channel_ptr += MAT_GET_STRIDE(weight, 1);
+					src_channel_ptr += src_channel_stride;
+					filter_input_channel_ptr += weight_ichannel_stride;
 				}
 
 				w >>= shift;
@@ -155,21 +173,22 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 				*dest_col_ptr = w;
 
 				src_col_ptr += stride_col;
-				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+				dest_col_ptr += dest_col_stride;
 			}
 
 			src_row_ptr += stride_row;
-			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+			dest_row_ptr += dest_row_stride;
 		}
 
-		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
-		filter_output_channel_ptr += MAT_GET_STRIDE(weight, 0);
+		dest_channel_ptr += dest_channel_stride;
+		filter_output_channel_ptr += weight_ochannel_stride;
 	}
 
 	if(bias == NULL) return;
 
 	int16_t *bias_ptr = bias->data;
 	dest_channel_ptr = dest->data;
+	uint16_t bias_stride = MAT_GET_STRIDE(bias, 0);
 	for(uint16_t oc = 0; oc < output_channels; oc++) {
 		int16_t *dest_row_ptr = dest_channel_ptr;
 
@@ -179,14 +198,14 @@ void conv_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest,
 			for(uint16_t j = 0; j < output_cols; j++) {
 				*dest_col_ptr += *bias_ptr;
 
-				dest_col_ptr += MAT_GET_STRIDE(dest, 2);
+				dest_col_ptr += dest_col_stride;
 			}
 
-			dest_row_ptr += MAT_GET_STRIDE(dest, 1);
+			dest_row_ptr += dest_row_stride;
 		}
 
-		dest_channel_ptr += MAT_GET_STRIDE(dest, 0);
-		bias_ptr += MAT_GET_STRIDE(bias, 0);
+		dest_channel_ptr += dest_channel_stride;
+		bias_ptr += bias_stride;
 	}
 }
 
@@ -196,6 +215,9 @@ void fc_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift
 
 	int16_t *filter_row_ptr = weight->data;
 	int16_t *dest_ptr = dest->data;
+	uint16_t weight_row_stride = MAT_GET_STRIDE(weight, 0);
+	uint16_t weight_col_stride = MAT_GET_STRIDE(weight, 1);
+
 	for(uint16_t i = 0; i < rows; i++) {
 		int32_t w = 0;
 		int16_t *src_ptr = src->data;
@@ -206,7 +228,7 @@ void fc_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift
 			w += s * f;
 
 			src_ptr++;
-			filter_col_ptr += MAT_GET_STRIDE(weight, 1);
+			filter_col_ptr += weight_col_stride;
 		}
 
 		w >>= shift;
@@ -214,18 +236,20 @@ void fc_dense(mat_t *weight, mat_t *bias, mat_t *src, mat_t *dest, uint8_t shift
 		if(w > SHRT_MAX) w = SHRT_MAX;
 		*dest_ptr++ = w;
 
-		filter_row_ptr += MAT_GET_STRIDE(weight, 0);
+		filter_row_ptr += weight_row_stride;
 	}
 
 	if(bias == NULL) return;
 
 	int16_t *bias_ptr = bias->data;
 	dest_ptr = dest->data;
+	uint16_t dest_stride = MAT_GET_STRIDE(dest, 0);
+	uint16_t bias_stride = MAT_GET_STRIDE(bias, 0);
 	for(uint16_t i = 0; i < rows; ++i) {
 		*dest_ptr += *bias_ptr;
 
-		dest_ptr += MAT_GET_STRIDE(dest, 0);
-		bias_ptr += MAT_GET_STRIDE(bias, 0);
+		dest_ptr += dest_stride;
+		bias_ptr += bias_stride;
 	}
 }
 
