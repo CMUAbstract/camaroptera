@@ -1,3 +1,6 @@
+'''
+This file is for split dataset into training and validating parts
+'''
 import os
 import csv
 import glob

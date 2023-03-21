@@ -1,0 +1,2 @@
+# based on the date of the first git push
+tqdm==4.62.3
