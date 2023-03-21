@@ -70,13 +70,19 @@ def validate(valid_loader, model, criterion, sparsify, quantize, device):
 	return model, epoch_loss
 
 def main(args):
+	''' 
+	Main function, this is the entry point of training
+	''' 
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+	# combine the Resize() action and ToTensor() action togetherer
 	transform = transforms.Compose([
 		transforms.Resize((HEIGHT, WIDTH)),
 		transforms.ToTensor()])
 
+	# the [train] arg should be in the form "<train_data>,<train_labels>"
 	train_data, train_labels = args.train.split(',')
+	# the [val] arg should be in the form "<valid_data>,<valid_labels>"
 	valid_data, valid_labels = args.val.split(',')
 
 	train_dataset = HMB010Dataset(train_data, train_labels, 
@@ -165,6 +171,9 @@ def main(args):
 			input_names=input_names, output_names=output_names)
 
 if __name__ == '__main__':
+	''' 
+	Global entry point
+	''' 
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		'--epochs',

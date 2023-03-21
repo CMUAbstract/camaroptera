@@ -1,3 +1,7 @@
+'''
+This file contains some self-defined quantizers,
+sparcifiers, and some global variabls
+'''
 import torch
 import numpy as np
 
