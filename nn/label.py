@@ -1,3 +1,6 @@
+'''
+The main function of this file
+'''
 import os
 import glob
 import argparse

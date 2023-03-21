@@ -1,3 +1,6 @@
+'''
+This file defins some classes to support the torch model training
+'''
 import torch
 import torch.nn as nn
 

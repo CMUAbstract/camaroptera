@@ -1,3 +1,9 @@
+'''
+This file contains some functions to conduct shell commands in
+python processes
+
+The main function of this file is to convert raw data to destnation
+'''
 import os
 import csv
 import glob
@@ -12,6 +18,15 @@ from PIL import Image, ImageEnhance, ImageFilter
 ZSH = '/usr/local/bin/zsh'
 
 def execute(cmd):
+	'''
+	Call to this function will execute the input cmd using the 
+	installed shell program in defiend ZSH directory, the output
+    from stdout will be returned
+
+	:param cmd: the command to be executed
+	:return out: the stdout for this execution
+	:return err: the stderr for this execution
+	'''
 	global ZSH
 	p = subprocess.Popen(cmd, shell=True, executable=ZSH, 
 		stdout=subprocess.PIPE, stderr=subprocess.PIPE)
