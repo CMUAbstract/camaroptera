@@ -5,17 +5,7 @@ export DEVICE = msp430fr5994
 
 EXEC = bird
 
-OBJECTS = power_analysis.o \
-	cam_interrupt.o \
-	cam_compress.o \
-	cam_diff.o \
-	cam_radio.o \
-	cam_capture.o \
-	cam_process.o \
-	cam_framebuffer.o \
-	camaroptera-dnn.o \
-	dnn_layers.o \
-	cam_mlkernels.o
+OBJECTS = power_analysis.o
 #OBJECTS = audioTest.o 
 #OBJECTS = cameraTest.o 
 #OBJECTS = chargingTest.o 
