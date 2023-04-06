@@ -37,37 +37,11 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
   // Triggered every 75ms
   //P7OUT |= BIT2;
   //P7OUT &= ~BIT2;
+  P2OUT ^= BIT0 | BIT1;
   
   TA0CCTL0 &= ~CCIFG;       // Clear Interrupt Flag
   charge_timer_count++;       // Increment total charging time counter
     
-  // If called from cap charging routine
-  if(adc_flag){
-    ADC12IFGR0 &= ~ADC12IFG0;
-    ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0 ;      // Use ADC12SC to trigger and single-channel
-    ADC12CTL0 |= (ADC12ON + ADC12ENC + ADC12SC);       // Trigger ADC conversion
-    while(!(ADC12IFGR0 & ADC12IFG0));       // Wait till conversion over  
-    adc_reading = ADC12MEM0;           // Read ADC value
-    ADC12CTL0 &= ~ADC12ENC;           // Disable ADC
-
-    if(adc_reading >= High_Threshold){       // Check if charged
-      TA0CCTL0 &= ~CCIE;
-      TA0CTL &= ~TAIE;  
-      __bic_SR_register_on_exit(LPM3_bits | GIE);
-    }
-  }  
-  else if(crash_check_flag){
-    // Triggered every 700ms
-    
-    //P2OUT |= BIT5;
-    //P2OUT &= ~BIT5;
-    
-    TA0CCTL0 &= ~CCIFG;       // Clear Interrupt Flag    
-    crash_flag = 1;
-    TA0CCTL0 &= ~CCIE;
-    TA0CTL &= ~TAIE;  
-    __bic_SR_register_on_exit(LPM0_bits | GIE);
-  }  
 }
 
 
@@ -205,27 +179,12 @@ void init() {
 int main(void) {
 
   init_hw();
-  INIT_CONSOLE();
+  //INIT_CONSOLE();
 
-  P2SEL0 |= BIT3;                                 //P2.3 ADC mode
-  P2SEL1 |= BIT3;                                 //
-  P2DIR |= BIT4;
-  P2OUT |= BIT4;
-
-  ADC12CTL0 &= ~ADC12ENC;          // Disable conversion before configuring
-  ADC12CTL0 |= ADC12SHT0_2 | ADC12ON;   // Sampling time, S&H=16, ADC12 ON
-  ADC12CTL1 |= ADC12SHP | ADC12SHS_0 | ADC12CONSEQ_0;      // Use ADC12SC to trigger and single-channel
-
-    //ADC12MCTL0 |= ADC12INCH_5 | ADC12EOS | ADC12WINC;        // A5 ADC input select; Vref+ = AVCC
-    ADC12MCTL0 |= ADC12INCH_6 | ADC12EOS | ADC12WINC;        // A6 ADC input select; Vref+ = AVCC
-      
-    uint16_t initial_voltage = adc_reading;
-    uint16_t voltage_temp; 
-    uint16_t volt_old; 
-
-    ADC12IER0 &= ~ADC12IE0;
-    ADC12HI = High_Threshold;                               // Enable ADC interrupt
-    ADC12IER2 &= ~ADC12HIIE;                                  // Enable ADC threshold interrupt
+  P2SEL0 &= ~(BIT0 | BIT1);                                 //Select RX/TX
+  P2SEL1 &= ~(BIT0 | BIT1);                                 //
+  P2DIR |= BIT0 | BIT1;
+  
 
   // CONFIGURE SMCLK
 
@@ -237,33 +196,23 @@ int main(void) {
 
 
     // ========= Configure Timer =======
-    // Timer = 1999 = ~1ms (p-p, cal at 996us)
+    // Timer = 1999 = ~1ms (996us last cal)
 
     TA0CTL |= TACLR;
     TA0CCR0 = 1999; 
     TA0CCTL0 |= CCIE;
-    TA0CTL |= TASSEL__SMCLK + ID__1 + MC__UP;   // SMCLK, ID=2 => 1 tick = 2/16MHz
+    TA0CTL |= TASSEL__SMCLK + ID__1 + MC__UP;   // SMCLK, ID=2 => 1 tick = 1/16MHz => .0625us
 
     charge_timer_count = 0;
     
     adc_flag = 1;
-    //__bis_SR_register(LPM3_bits | GIE);                     // Enter LPM3, enable interrupts
+    _enable_interrupts();                     // Enter LPM3, enable interrupts
     
-    _enable_interrupts(); 
+
     uint32_t timer_temp = 0;
     
-
-
-
-
-      
-
-  PRINTF("Power Analysis Starting, timer val: %i\r\n",timer_temp);
-  voltage_temp = adc_reading - initial_voltage;
-  volt_old = voltage_temp;
-  uint32_t count = 0;
-  uint32_t sum = 0;
   while(1){
+    //__delay_cycles(100000);
     // timer_temp = (charge_timer_count*TA0CCR0) + TA0R;
     // PRINTF("timer count: %i\r\n",charge_timer_count);
     // PRINTF("ta_val: %i\r\n",TA0CCR0);
@@ -271,10 +220,7 @@ int main(void) {
     // PRINTF("timer: %i\r\n",timer_temp);
     //__delay_cycles(8000);
 
-    voltage_temp = adc_reading;
-    //sum += adc_reading;
-
-    PRINTF("%i\r\n", adc_reading);
+    
 
 		// PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
 		// PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
@@ -283,11 +229,6 @@ int main(void) {
       
     //   sum = 0;
     // }
-		
-
-
-
-    volt_old = voltage_temp;
 	
 		// int32_t temp = voltage_temp * 10;
 		// timer_temp = timer_temp / 1000;
