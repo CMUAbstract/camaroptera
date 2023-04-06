@@ -7,10 +7,12 @@ import argparse
 import numpy as np
 import math
 
-VCC = 3.3 #3.3 for serial/usb power, 3 o/w
-ADC_BIT_DEPTH = 12 #Using ADC12
+VCC = 3.3 								#3.3 for serial/usb power, 3 o/w
+ADC_BIT_DEPTH = 12 						#Using ADC12
 ADC_RANGE = math.pow(2,ADC_BIT_DEPTH)
-CAL_TIME = 0.996 #Calibrate using bit flip script/saleae (ms)
+CAL_TIME = 0.996 						#Calibrate using bit flip script/saleae (ms)
+
+READ_INTERVAL = 10 						#Interval must be an integer, reading taken every READ_INTERVAL milliseconds
 
 
 def main(args):
@@ -23,11 +25,12 @@ def main(args):
 			data = ser.readline().decode('utf-8').replace("\r\n", "")
 			if data.isdigit():
 				conv_data = (int(data) * VCC)/ADC_RANGE
-				with open(args.file, 'a') as file:
-					writer = csv.writer(file, delimiter = '\t')
+				if(samp_count % READ_INTERVAL == 0):
+					with open(args.file, 'a') as file:
+						writer = csv.writer(file, delimiter = '\t')
      
-					writer.writerow([round(samp_count*CAL_TIME,3), round(conv_data,3)])
-					file.close()
+						writer.writerow([round(samp_count*CAL_TIME,3), round(conv_data,3)])
+						file.close()
 				samp_count += 1
 
 if __name__ == '__main__':
