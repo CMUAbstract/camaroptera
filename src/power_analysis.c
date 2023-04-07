@@ -49,12 +49,6 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
     while(!(ADC12IFGR0 & ADC12IFG0));       // Wait till conversion over  
     adc_reading = ADC12MEM0;           // Read ADC value
     ADC12CTL0 &= ~ADC12ENC;           // Disable ADC
-
-    if(adc_reading >= High_Threshold){       // Check if charged
-      TA0CCTL0 &= ~CCIE;
-      TA0CTL &= ~TAIE;  
-      __bic_SR_register_on_exit(LPM3_bits | GIE);
-    }
   }  
   else if(crash_check_flag){
     // Triggered every 700ms
@@ -68,6 +62,8 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) Timer0_A0_ISR (void){
     TA0CTL &= ~TAIE;  
     __bic_SR_register_on_exit(LPM0_bits | GIE);
   }  
+  P2OUT ^= BIT1;
+  PRINTF("%i\r\n", adc_reading);
 }
 
 
@@ -206,10 +202,11 @@ int main(void) {
 
   init_hw();
   INIT_CONSOLE();
-
+  P2SEL0 &= ~(BIT1);                              
+  P2SEL1 &= ~(BIT1);
   P2SEL0 |= BIT3;                                 //P2.3 ADC mode
   P2SEL1 |= BIT3;                                 //
-  P2DIR |= BIT4;
+  P2DIR |= BIT4 + BIT1;
   P2OUT |= BIT4;
 
   ADC12CTL0 &= ~ADC12ENC;          // Disable conversion before configuring
@@ -240,9 +237,9 @@ int main(void) {
     // Timer = 1999 = ~1ms (p-p, cal at 996us)
 
     TA0CTL |= TACLR;
-    TA0CCR0 = 1999; 
+    TA0CCR0 = 3999; 
     TA0CCTL0 |= CCIE;
-    TA0CTL |= TASSEL__SMCLK + ID__1 + MC__UP;   // SMCLK, ID=2 => 1 tick = 2/16MHz
+    TA0CTL |= TASSEL__SMCLK + ID__1 + MC__UP;   // SMCLK, ID=2 => 1 tick = 1/4MHz
 
     charge_timer_count = 0;
     
@@ -273,8 +270,6 @@ int main(void) {
 
     voltage_temp = adc_reading;
     //sum += adc_reading;
-
-    PRINTF("%i\r\n", adc_reading);
 
 		// PRINTF("Timer Value After: (HI)%u", (timer_temp>>16));
 		// PRINTF("(LO)%u\r\n", (timer_temp & 0xFFFF)) ;
